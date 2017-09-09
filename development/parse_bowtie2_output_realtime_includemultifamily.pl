@@ -49,7 +49,8 @@ my $read_counter = 0;
 my $fastq_file1 = $ARGV[0];
 my $fastq_file2 = $ARGV[1];
 
-my $bowtie_db = $ARGV[2];
+# my $bowtie_db = $ARGV[2];
+my $bowtie_db = '/home/bay001/projects/codebase/repetitive-element-mapping/data/MASTER_filelist.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat';
 #my $bowtie_db = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/filelist_POLIII.combined.Nflank";
 my @bowtie_db_split = split(/\//,$bowtie_db);
 my $bowtie_db_short = $bowtie_db_split[$#bowtie_db_split];
