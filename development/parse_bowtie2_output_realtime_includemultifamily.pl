@@ -368,12 +368,12 @@ sub print_output {
         } else {
             my @all_mult_ensts;
             for my $key (@ensttype_array) {
-            push @all_mult_ensts,join("|",@{$read_hash{$read}{mult_ensts}{$key}});
+                push @all_mult_ensts,join("|",@{$read_hash{$read}{mult_ensts}{$key}});
             }
             my $final_mult_ensts = join("|",@all_mult_ensts);
 
             unless (exists $read_hash{$read}{R1}{$ensttype} && $read_hash{$read}{R1}{$ensttype}) {
-            print "weird error - $read $ensttype readhash doesn't exist ? ".$read_hash{$read}{flags}{$ensttype}."\n";
+                print "weird error - $read $ensttype readhash doesn't exist ? ".$read_hash{$read}{flags}{$ensttype}."\n";
             }
 
             my @r1_split = split(/\t/,$read_hash{$read}{R1}{$ensttype});

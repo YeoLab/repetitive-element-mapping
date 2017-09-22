@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 cwlVersion: v1.0
 
 class: CommandLineTool
@@ -29,7 +27,7 @@ inputs:
     label: "read2 trimmed fastq"
     doc: "read2 trimmed fastq"
 
-  indexDir:
+  indexTar:
     type: File
     inputBinding:
       position: 4

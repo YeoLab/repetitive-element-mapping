@@ -1,0 +1,3 @@
+inputFile:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.rmRep.bam
