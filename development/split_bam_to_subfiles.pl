@@ -10,7 +10,7 @@ my $sam_fi_short = $sam_fi_split[$#sam_fi_split];
 my %filehandles;
 for my $b1 ("A","C","G","T","N") {
     for my $b2 ("A","C","G","T","N") {
-        my $outfi = $sam_fi_short.".".$b1.$b2.".tmp";
+        my $outfi = $b1.$b2.'.'.$sam_fi_short.".tmp";  # change this to order them by AC/AT/AC/etc.
         # my $outfi = $output_dir.$sam_fi_short.".".$b1.$b2.".tmp";
         open(my $fh, '>', $outfi);
         $filehandles{$b1.$b2} = $fh;
