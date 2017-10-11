@@ -1,8 +1,10 @@
+#!/usr/bin/env cwltool
+
 cwlVersion: v1.0
 
 class: CommandLineTool
 
-baseCommand: [perl, /home/bay001/projects/codebase/repetitive-element-mapping/development/duplicate_removal_inline_paired_count_region_other_reads.pl]
+baseCommand: [duplicate_removal_inline_paired_count_region_other_reads.pl]
 
 inputs:
 

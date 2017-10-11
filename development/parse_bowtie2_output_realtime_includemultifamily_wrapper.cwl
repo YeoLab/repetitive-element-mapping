@@ -1,8 +1,10 @@
+#!/usr/bin/env cwltool
+
 cwlVersion: v1.0
 
 class: CommandLineTool
 
-baseCommand: [/home/bay001/projects/codebase/repetitive-element-mapping/development/parse_bowtie2_output_realtime_includemultifamily_wrapper.sh]
+baseCommand: [parse_bowtie2_output_realtime_includemultifamily_wrapper.sh]
 
 inputs:
 

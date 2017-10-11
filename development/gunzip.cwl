@@ -1,4 +1,5 @@
-#!/usr/bin/env cwl-runner
+#!/usr/bin/env cwltool
+
 #
 # Authors: Thomas Yu, Ryan Spangler, Kyle Ellrott
 

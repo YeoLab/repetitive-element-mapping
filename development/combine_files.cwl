@@ -1,3 +1,5 @@
+#!/usr/bin/env cwltool
+
 cwlVersion: v1.0
 
 class: CommandLineTool
@@ -11,7 +13,7 @@ inputs:
     inputBinding:
       position: 1
     label: "input"
-    doc: "input sam file"
+    doc: "input file"
   outputFile:
     type: string
 

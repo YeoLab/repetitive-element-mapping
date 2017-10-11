@@ -1,4 +1,4 @@
-#!/usr/bin/env
+#!/usr/bin/env cwltool
 
 cwlVersion: v1.0
 class: Workflow
@@ -22,6 +22,8 @@ inputs:
     type: string
   barcode1FinalOutputSAMFile:
     type: string
+  barcode1FinalOutputParsedFile:
+    type: string
 
   # input R1.fastq.gz
   barcode2R1FastqGz:
@@ -34,6 +36,8 @@ inputs:
   barcode2OutputSAMFile:
     type: string
   barcode2FinalOutputSAMFile:
+    type: string
+  barcode2FinalOutputParsedFile:
     type: string
 
   bowtieReferenceTar:
@@ -61,6 +65,9 @@ inputs:
   finalOutput:
     type: string
 
+  finalOutputParsed:
+    type: string
+
 outputs:
   barcode1CombinedOutput:
     type: File
@@ -71,6 +78,9 @@ outputs:
   combinedOutput:
     type: File
     outputSource: combine_barcodes/output
+  combinedParsed:
+    type: File
+    outputSource: combine_parsed/output
 
 steps:
   barcode_1:
@@ -88,12 +98,14 @@ steps:
       repMaskBEDFile: repMaskBEDFile
       outputSAMFile: barcode1OutputSAMFile
       finalOutputSAMFile: barcode1FinalOutputSAMFile
+      finalOutputParsedFile: barcode1FinalOutputParsedFile
       prefixes: prefixes
     out:
       - map_repetitive_elements_output
       - rep_split
       - rmDuped_sam
       - finalRmDupRepElementSam
+      - finalParsedFile
 
   barcode_2:
     run: rep_element_pipeline_single_barcode.cwl
@@ -110,18 +122,27 @@ steps:
       repMaskBEDFile: repMaskBEDFile
       outputSAMFile: barcode2OutputSAMFile
       finalOutputSAMFile: barcode2FinalOutputSAMFile
+      finalOutputParsedFile: barcode2FinalOutputParsedFile
       prefixes: prefixes
     out:
       - map_repetitive_elements_output
       - rep_split
       - rmDuped_sam
       - finalRmDupRepElementSam
+      - finalParsedFile
 
   combine_barcodes:
-    run: combine_sam.cwl
+    run: combine_files.cwl
     in:
       inputFiles: [barcode_1/finalRmDupRepElementSam, barcode_2/finalRmDupRepElementSam]
       outputFile: finalOutput
     out:
       - output
 
+  combine_parsed:
+    run: combine_files.cwl
+    in:
+      inputFiles: [barcode_1/finalParsedFile, barcode_2/finalParsedFile]
+      outputFile: finalOutputParsed
+    out:
+      - output

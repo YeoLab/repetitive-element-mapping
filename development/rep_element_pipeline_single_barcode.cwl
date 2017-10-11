@@ -38,30 +38,48 @@ inputs:
     type: string
   finalOutputSAMFile:
     type: string
+  finalOutputParsedFile:
+    type: string
   prefixes: string[]
 
 outputs:
+  ## We don't need these fastqs - they're just unzipped versions
   # r1Fastq:
   #   type: File
   #   outputSource: gunzip_r1FastqGz/output
   # r2Fastq:
   #   type: File
   #   outputSource: gunzip_r2FastqGz/output
+
+  ## first mapped SAM-like file to bowtie2
   map_repetitive_elements_output:
     type: File
     outputSource: map_repetitive_elements/output
+
+  ## first mapped SAM-like file to bowtie2 split into multiple files - don't need
   rep_split:
     type: File[]
     outputSource: split_rep_bam/outputs
+
+  ## 2nd STAR mapped bam file split into multiple files - don't need
   # rmrep_split:
   #   type: File[]
   #   outputSource: split_rmrep_bam/outputs
+
+  ## duplicate removed SAM-like files, one for each barcode
   rmDuped_sam:
     type: File[]
     outputSource: scattered_duplicate_removal_on_pair/combinedRmDupSam
+
+  ## Final remove duplicate SAM-like file
   finalRmDupRepElementSam:
     type: File
     outputSource: combine_sam/output
+
+  finalParsedFile:
+    type: File
+    outputSource: combine_parsed/output
+
 
 steps:
   gunzip_r1_fastq_gz:
@@ -130,19 +148,24 @@ steps:
       - doneFile
 
   combine_sam:
-    run: combine_sam.cwl
+    run: combine_files.cwl
     in:
       inputFiles: scattered_duplicate_removal_on_pair/combinedRmDupSam
       outputFile: finalOutputSAMFile
     out:
       - output
 
-# input rmRep.bam (after second STAR mapping)
-# input gencodeGTF
-# input gencodeTableBrowser
-# input repMaskBedFile
-# input fileList1
-# input fileList2
+  combine_parsed:
+    run: combine_files.cwl
+    in:
+      inputFiles: scattered_duplicate_removal_on_pair/parsedFile
+      outputFile: finalOutputParsedFile
+    out:
+      - output
+
+
+
+## Rough outline of steps involved
 
 # unzip adaptertrim/polyAtrim read1.fastq.gz
 # unzip adaptertrim/polyAtrim read2.fastq.gz
