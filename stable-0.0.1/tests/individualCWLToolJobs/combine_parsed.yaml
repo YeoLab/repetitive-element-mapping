@@ -1,0 +1,14 @@
+#!/usr/bin/env combine_parsed.cwl
+
+inputFiles:
+  - input3:
+    class: File
+    path: /projects/ps-yeolab3/bay001/rep_element_reference/NG.tmp.barcode1.repmapped.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed
+  - input4:
+    class: File
+    path: /projects/ps-yeolab3/bay001/rep_element_reference/NT.tmp.barcode1.repmapped.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed
+  - input1:
+    class: File
+    path: /projects/ps-yeolab3/bay001/rep_element_reference/NN.tmp.barcode1.repmapped.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed
+
+outputFile: combined.parsed.txt

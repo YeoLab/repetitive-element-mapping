@@ -1,0 +1,63 @@
+barcode1R1FastqGz:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+
+barcode1R2FastqGz:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R2_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+
+barcode2R1FastqGz:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2B_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+
+barcode2R2FastqGz:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R2_001.X2B_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+
+barcode1RmRepBAM:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.rmRep.bam
+
+barcode2RmRepBAM:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2B_DDX6_ips_B_IP_DDX6.adapterTrim.round2.rmRep.bam
+
+barcode1OutputSAMFile: barcode1.repmapped.sam
+
+barcode1FinalOutputSAMFile: barcode1.final.sam
+
+barcode2OutputSAMFile: barcode2.repmapped.sam
+
+barcode2FinalOutputSAMFile: barcode2.final.sam
+
+bowtieReferenceTar:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/gzfiles/bowtie_reference.tar
+
+parseBowtie2OutputRealtimeIncludefamilyPerlScript:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/development/parse_bowtie2_output_realtime_includemultifamily.pl
+
+gencodeGTF:
+  class: File
+  path: /projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf
+
+gencodeTableBrowser:
+  class: File
+  path: /projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+
+repMaskBEDFile:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/RepeatMask.bed
+
+fileListFile1:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/bowtie_reference/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat
+
+fileListFile2:
+  class: File
+  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/ALLRepBase_elements.id_table.FULL
+
+prefixes: ["AA","AC","AG","AT","AN","CA","CC","CG","CT","CN","GA","GC","GG","GT","GN","TA","TC","TG","TT","TN","NA","NC","NG","NT","NN"]
+
+finalOutput: repelement.final.sam

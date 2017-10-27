@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+
+read -r -d '' USAGE <<- ENDOFUSAGE
+  usage: wf_ecliprepmapsingle.cwl
+         [-h]
+         --bowtieReferenceTar BOWTIEREFERENCETAR
+         [--concatenated_nameroot CONCATENATED_NAMEROOT]
+         --fileListFile1 FILELISTFILE1
+         --fileListFile2 FILELISTFILE2
+         --gencodeGTF GENCODEGTF
+         --gencodeTableBrowser GENCODETABLEBROWSER
+         --prefixes PREFIXES
+         --r1FastqGz R1FASTQGZ
+         --r2FastqGz R2FASTQGZ
+         --repMaskBEDFile  REPMASKBEDFILE
+         --rmRepBam RMREPBAM
+         [job_order]
+ENDOFUSAGE
+
+
+echo "--------------------------------------------------------------"
+echo "wf_ecliprepmapsingle"
+echo "--------------------"
+echo "${USAGE}"
+echo "---------------------------------------------------------------"

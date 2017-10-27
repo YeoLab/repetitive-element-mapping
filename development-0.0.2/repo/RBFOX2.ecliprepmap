@@ -1,0 +1,75 @@
+#!/usr/bin/env ecliprepmapcwl
+
+
+#barcode1R1FastqGz:
+#  class: File
+#  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+#barcode1R2FastqGz:
+#  class: File
+#  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R2_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+#barcode1RmRepBAM:
+#  class: File
+#  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2A_DDX6_ips_B_IP_DDX6.adapterTrim.round2.rmRep.bam
+
+
+#barcode2R1FastqGz:
+#  class: File
+#  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2B_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+#barcode2R2FastqGz:
+#  class: File
+#  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R2_001.X2B_DDX6_ips_B_IP_DDX6.adapterTrim.round2.fastq.gz
+#barcode2RmRepBAM:
+#  class: File
+#  path: /home/bay001/projects/codebase/repetitive-element-mapping/data/reference_data/DDX6/SA_DX6B_S100_L007_R1_001.X2B_DDX6_ips_B_IP_DDX6.adapterTrim.round2.rmRep.bam
+
+
+barcode1r1FastqGz:
+  class: File
+  path: data/RBFOX2_A01_R1.fastq.gz
+barcode1r2FastqGz:
+  class: File
+  path: data/RBFOX2_A01_R2.fastq.gz
+barcode1rmRepBam:
+  class: File
+  path: data/RBFOX2_A01_rmrep.bam
+
+
+barcode2r1FastqGz:
+  class: File
+  path: data/RBFOX2_B06_R1.fastq.gz
+barcode2r2FastqGz:
+  class: File
+  path: data/RBFOX2_B06_R2.fastq.gz
+barcode2rmRepBam:
+  class: File
+  path: data/RBFOX2_B06_rmrep.bam
+
+
+bowtieReferenceTar:
+  class: File
+  path: reference/bowtie2_repetitive_elements_index.tar
+fileListFile1:
+  class: File
+  path: reference/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat
+fileListFile2:
+  class: File
+  path: reference/ALLRepBase_elements.id_table.FULL
+
+
+gencodeGTF:
+  class: File
+  path: reference/gencode.v19.chr_patch_hapl_scaff.annotation.gtf
+gencodeTableBrowser:
+  class: File
+  path: reference/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+
+
+repMaskBEDFile:
+  class: File
+  path: reference/RepeatMask.bed
+
+
+#prefixes: ["AA","AC","AG","AT","AN","CA","CC","CG","CT","CN","GA","GC","GG","GT","GN","TA","TC","TG","TT","TN","NA","NC","NG","NT","NN"]
+prefixes: ["AC","AG","AT","TT"]
+
+
