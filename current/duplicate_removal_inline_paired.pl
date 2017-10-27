@@ -1,5 +1,3 @@
-#!/usr/bin/env perl
-
 use warnings;
 use strict;
 use POSIX;
@@ -14,41 +12,19 @@ for (my $i=0;$i<@split_scores;$i++) {
     $convert_phred{$split_scores[$i]} = $i;
 }
 
-
 my $hashing_value = 1000;
-my %enst2type;
-my %enst2ensg;
-my %ensg2name;
-my %ensg2type;
-
-# my $gencode_gtf_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf";
-my $gencode_gtf_file = $ARGV[2];
-# my $gencode_tablebrowser_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat";
-my $gencode_tablebrowser_file = $ARGV[3];
-
-my %gencode_features;
-&read_gencode_gtf($gencode_gtf_file);
-&read_gencode($gencode_tablebrowser_file);
-# this flag refers to how to count uniquely genomic mapped reads - 5' end only?
-my $region_5primeend_only_flag = 1;
-
-
-
-
 my %enst2gene;
 my %convert_enst2type;
 my %peaks;
-# my $repmask_bed_fi = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/RepeatMask.bed";
-my $repmask_bed_fi = $ARGV[4];
+my $repmask_bed_fi = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/RepeatMask.bed";
 &read_peakfi($repmask_bed_fi);
-# my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
-
-# my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
-my $filelist_file = $ARGV[5];
+my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
+#my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/filelist_POLIII";
+#my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed";
+my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
 &read_in_filelists($filelist_file);
 
-# my $filelist_file2 = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/ALLRepBase_elements.id_table.FULL";
-my $filelist_file2 = $ARGV[6];
+my $filelist_file2 = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/ALLRepBase_elements.id_table.FULL";
 &read_in_filelists($filelist_file2);
 
 my ($all_count,$duplicate_count,$unique_count,$unique_genomic_count,$unique_repfamily_count) = (0,0,0,0,0);
@@ -57,26 +33,21 @@ my ($all_count,$duplicate_count,$unique_count,$unique_genomic_count,$unique_repf
 my $repfamily_sam = $ARGV[0];
 my $gabe_rmRep_sam = $ARGV[1];
 
+
+
 my %read_hash;
 &read_rep_family($repfamily_sam);
 &read_unique_mapped($gabe_rmRep_sam);
 
-my @repfamily_sam_split = split(/\//,$repfamily_sam);
-my $repfamily_sam_short = $repfamily_sam_split[$#repfamily_sam_split];
-
-my $output_fi = $repfamily_sam_short.".combined_w_uniquemap.rmDup.sam";
+my $output_fi = $repfamily_sam.".combined_w_uniquemap.rmDup.sam";
 open(OUT,">$output_fi");
 
-my $pre_rmdup_fi = $repfamily_sam_short.".combined_w_uniquemap.prermDup.sam";
-open(PREDUP,">$pre_rmdup_fi");
 &run_pcr_duplicate_removal();
 
-close(PREDUP);
-close(OUT);
 my $count_out = $output_fi.".parsed";
 open(COUNT,">$count_out");
 print COUNT "#READINFO\tAll reads:\t$all_count\tPCR duplicates removed:\t$duplicate_count\tUsable Remaining:\t$unique_count\tUsable from genomic mapping:\t$unique_genomic_count\tUsable from family mapping:\t$unique_repfamily_count\n";
-# print COUNT "#READINFO\tAll reads:\t$all_count\nPCR duplicates removed:\t$duplicate_count\nUsable Remainig:\t$unique_count\nUsable from genomic mapping:\t$unique_genomic_count\nUsable from family mapping:\t$unique_repfamily_count\n";
+#print COUNT "#READINFO\tAll reads:\t$all_count\nPCR duplicates removed:\t$duplicate_count\nUsable Remainig:\t$unique_count\nUsable from genomic mapping:\t$unique_genomic_count\nUsable from family mapping:\t$unique_repfamily_count\n";
 
 &count_output();
 close(COUNT);
@@ -161,11 +132,7 @@ sub count_output {
 
 sub run_pcr_duplicate_removal {
     my %fragment_hash;
-
-#changed 20171019 to sort reads to be stable across perl versions
-    my @sorted_reads = sort {$a cmp $b} keys %read_hash;
-    for my $r1name (@sorted_reads) {
-#    for my $r1name (keys %read_hash) {
+    for my $r1name (keys %read_hash) {
 	my $r1 = $read_hash{$r1name}{R1};
 	my $r2 = $read_hash{$r1name}{R2};
 	
@@ -245,8 +212,6 @@ sub run_pcr_duplicate_removal {
 
 	my $debug_flag = 0;
 
-	my $hashing_value_toprint = $r1_chr."|".$frag_strand."::".$hashing_value.":".$randommer;
-	print PREDUP "$r1\t".$hashing_value_toprint."\n$r2\t".$hashing_value_toprint."\n";
 
 	my %full_fragment;
 	$all_count++;
@@ -368,7 +333,6 @@ sub read_unique_mapped {
 	my $r2_chr = $tmp_r2[2];
 	my $r2_start = $tmp_r2[3];
 	
-	
 	my @read_regions = &parse_cigar_string($r2_start,$r2_cigar,$r2_chr,$frag_strand);
 
 	my %tmp_hash;
@@ -454,99 +418,9 @@ sub read_unique_mapped {
 	my $all_ensttypes = join("|",@sorted_convertedtype);
 
 	# now throw out reads that uniquely map but don't overlap a RepBase element - removed for now, can add back in later
-	# clarifying note: what I'm doing here is if it overlaps with >=1 repbase element, it gets counted as THAT; otherwise, it goes through and gets counted as CDS/proxintron/etc
 	unless (scalar(keys %temp_peak_read_counts) >= 1) {
-	    
-	    my $read2_start_position;
-	    if ($frag_strand eq "+") {
-		$read2_start_position = $r2_start;
-	    } elsif ($frag_strand eq "-") {
-		my $last_region = $read_regions[$#read_regions];
-		my ($rchr,$rstr,$rpos) = split(/\:/,$last_region);
-		my ($rstart,$rstop) = split(/\-/,$rpos);
-		$read2_start_position = $rstop - 1;
-	    } else {
-		print STDERR "error $frag_strand\n";
-	    }
-
-	    my $feature_flag = 0;
-	    my %tmp_gencode_hash;
-	    
-            my $rx = int($read2_start_position / $hashing_value);
-	    for my $gencode (@{$gencode_features{$r1_chr}{$frag_strand}{$rx}}) {
-		my ($gencode_enst,$gencode_type,$gencode_region) = split(/\|/,$gencode);
-		my ($gencode_start,$gencode_stop) = split(/\-/,$gencode_region);
-
-		next if ($read2_start_position < $gencode_start);
-		next if ($read2_start_position >= $gencode_stop);
-		my $gencode_ensg = $enst2ensg{$gencode_enst};
-		$tmp_gencode_hash{$gencode_type}{$gencode_ensg}="contained";
-		$feature_flag = 1;
-
-	    }
-
-	    my $final_feature_type = "intergenic";
-
-	    if ($feature_flag == 1) {
-		if (exists $tmp_gencode_hash{"CDS"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"CDS");
-		    $final_feature_type = "CDS";
-
-		} elsif (exists $tmp_gencode_hash{"3utr"} || exists $tmp_gencode_hash{"5utr"}) {
-		    if (exists $tmp_gencode_hash{"3utr"} && exists $tmp_gencode_hash{"5utr"}) {
-			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"3utr");
-			my $feature_type_flag2 = &get_type_flag(\%tmp_gencode_hash,"5utr");
-
-			unless ($feature_type_flag eq "contained" && $feature_type_flag2 eq "contained") {
-			    $feature_type_flag = "partial";
-			}
-
-			$final_feature_type = "5utr_and_3utr";
-		    } elsif (exists $tmp_gencode_hash{"3utr"}) {
-			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"3utr");
-			$final_feature_type = "3utr";
-		    } elsif (exists $tmp_gencode_hash{"5utr"}) {
-			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"5utr");
-			$final_feature_type = "5utr";
-		    } else {
-			print STDERR "weird shouldn't hit this\n";
-		    }
-		} elsif (exists $tmp_gencode_hash{"proxintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"proxintron");
-		    $final_feature_type = "proxintron";
-		} elsif (exists $tmp_gencode_hash{"distintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"distintron");
-		    $final_feature_type = "distintron";
-		} elsif (exists $tmp_gencode_hash{"noncoding_exon"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_exon");
-		    $final_feature_type = "noncoding_exon";
-		} elsif (exists $tmp_gencode_hash{"noncoding_proxintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_proxintron");
-		    $final_feature_type = "noncoding_proxintron";
-		} elsif (exists $tmp_gencode_hash{"noncoding_distintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_distintron");
-		    $final_feature_type = "noncoding_distintron";
-		} elsif (exists $tmp_gencode_hash{"antisense_gencode"}) {		    
-		    $final_feature_type = "antisense_gencode";
-		} else {
-		    print STDERR "weird - shouldn't hit this? elements of tmp_gencode_hash are ".join("|",keys %tmp_gencode_hash)."\n";
-		}
-	    }
-
-#	    $read_counts{$final_feature_type}++;
-
-
-
-	    $all_ensttypes = "unique_".$final_feature_type;
-	    if (exists $tmp_gencode_hash{$final_feature_type}) {
-
-#20171019 - changed this to sort to be consistent across perl versions
-		my @sorted_keys = sort {$a cmp $b} keys %{$tmp_gencode_hash{$final_feature_type}};
-		$all_mapped_ensts = "unique_".join("|",@sorted_keys);
-#		$all_mapped_ensts = "unique_".join("|",keys %{$tmp_gencode_hash{$final_feature_type}});
-	    } else {
-		$all_mapped_ensts = "unique_".$final_feature_type;
-	    }
+	    $all_ensttypes = "unique_genomic";
+	    $all_mapped_ensts = "unique_genomic";
 	}
 #	next unless (scalar(keys %temp_peak_read_counts) >= 1);
 
@@ -687,8 +561,7 @@ sub read_peakfi {
         my $strand = shift(@tmp);
 
         $gene =~ s/\_$//g;
-        $gene = uc($gene);
-
+        
         next if ($chr eq "genoName");
 
         my $x = int($start / $hashing_value);
@@ -726,7 +599,6 @@ sub read_in_filelists {
         unless ($allenst) {
             print STDERR "error missing enst $line $fi\n";
         }
-	$allenst = uc($allenst);
         my @ensts = split(/\|/,$allenst);
         $gid =~ s/\?$//;
         $gid =~ s/\_$//;
@@ -964,234 +836,3 @@ sub parse_cigar_string_foralignmentscore {
     return($mm_penalty,@insertions);
 
 }
-
-
-sub read_gencode {
-    ## eric note: this has been tested for off-by-1 issues with ucsc brower table output! \
-           
-    my $fi = shift;
-#    my $fi = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencodev19_comprehensive";     
-    print STDERR "reading in $fi\n";
-    open(F,$fi);
-    while (<F>) {
-        chomp($_);
-        my @tmp = split(/\t/,$_);
-        my $enst = $tmp[1];
-        next if ($enst eq "name");
-        my $chr = $tmp[2];
-        my $str = $tmp[3];
-        my $txstart = $tmp[4];
-        my $txstop = $tmp[5];
-        my $cdsstart = $tmp[6];
-        my $cdsstop = $tmp[7];
-
-        my @starts = split(/\,/,$tmp[9]);
-        my @stops = split(/\,/,$tmp[10]);
-
-        my @tmp_features;
-
-        my $transcript_type = $enst2type{$enst};
-        unless ($transcript_type) {
-            print STDERR "error transcript_type $transcript_type $enst\n";
-        }
-        if ($transcript_type eq "protein_coding") {
-
-            for (my $i=0;$i<@starts;$i++) {
-                if ($str eq "+") {
-		    if ($stops[$i] < $cdsstart) {
-			# exon is all 5' utr      \
-			
-			push @tmp_features,$enst."|5utr|".($starts[$i])."-".$stops[$i];
-		    } elsif ($starts[$i] > $cdsstop) {
-			#exon is all 3' utr       \
-			
-			push @tmp_features,$enst."|3utr|".($starts[$i])."-".$stops[$i];
-		    } elsif ($starts[$i] > $cdsstart && $stops[$i] < $cdsstop) {
-			#exon is all coding       \
-			
-			push @tmp_features,$enst."|CDS|".($starts[$i])."-".$stops[$i];
-		    } else {
-			my $cdsregion_start = $starts[$i];
-			my $cdsregion_stop = $stops[$i];
-			
-			if ($starts[$i] <= $cdsstart && $cdsstart <= $stops[$i]) {
-			    #cdsstart is in exon  \
-			    
-			    my $five_region = ($starts[$i])."-".$cdsstart;
-			    push @tmp_features,$enst."|5utr|".$five_region;
-			    $cdsregion_start = $cdsstart;
-			}
-			
-			if ($starts[$i] <= $cdsstop && $cdsstop <= $stops[$i]) {
-			    #cdsstop is in exon   \
-			    
-			    my $three_region = ($cdsstop)."-".$stops[$i];
-			    push @tmp_features,$enst."|3utr|".$three_region;
-			    $cdsregion_stop = $cdsstop;
-			}
-			my $cds_region = ($cdsregion_start)."-".$cdsregion_stop;
-			push @tmp_features,$enst."|CDS|".$cds_region;
-		    }
-                } elsif ($str eq "-") {
-		    if ($stops[$i] < $cdsstart) {
-			# exon is all 5' utr      \
-			
-			push @tmp_features,$enst."|3utr|".($starts[$i])."-".$stops[$i];
-		    } elsif ($starts[$i] > $cdsstop) {
-			#exon is all 3' utr       \
-			
-			push @tmp_features,$enst."|5utr|".($starts[$i])."-".$stops[$i];
-		    } elsif ($starts[$i] > $cdsstart &&$stops[$i] < $cdsstop) {
-			#exon is all coding       \
-			
-			push @tmp_features,$enst."|CDS|".($starts[$i])."-".$stops[$i];
-		    } else {
-			my $cdsregion_start = $starts[$i];
-			my $cdsregion_stop = $stops[$i];
-			
-			if ($starts[$i] <= $cdsstart && $cdsstart <= $stops[$i]) {
-			    #cdsstart is in exon  \
-			    
-			    my $three_region = ($starts[$i])."-".$cdsstart;
-			    push @tmp_features,$enst."|3utr|".$three_region;
-			    $cdsregion_start = $cdsstart;
-			}
-			
-			if ($starts[$i] <= $cdsstop && $cdsstop <= $stops[$i]) {
-			    #cdsstop is in exon   \
-			    
-			    my $five_region = ($cdsstop)."-".$stops[$i];
-			    push @tmp_features,$enst."|5utr|".$five_region;
-			    $cdsregion_stop = $cdsstop;
-			}
-			
-			my $cds_region = ($cdsregion_start)."-".$cdsregion_stop;
-			push @tmp_features,$enst."|CDS|".$cds_region;
-		    }
-                }
-            }
-	    for (my $i=0;$i<scalar(@starts)-1;$i++) {
-                # full intron is ($stops[$i]+1)."-".$starts[$i+1]      
-                # prox is 500bp
-		
-                if ($starts[$i+1]-$stops[$i] > 2 * 500) {
-		    push @tmp_features,$enst."|proxintron|".($stops[$i])."-".($stops[$i]+500);
-		    push @tmp_features,$enst."|distintron|".($stops[$i]+500)."-".($starts[$i+1]-500);
-		    push @tmp_features,$enst."|proxintron|".($starts[$i+1]-500)."-".$starts[$i+1];
-                } else {
-		    my $midpoint = int(($starts[$i+1]+$stops[$i])/2);
-		    push @tmp_features,$enst."|proxintron|".($stops[$i])."-".($midpoint);
-		    push @tmp_features,$enst."|proxintron|".($midpoint)."-".$starts[$i+1];
-                }
-##                push @tmp_features,$enst."|intron|".($stops[$i])."-".$starts[$i+1];      
-            }
-        } else {
-	    
-            for (my $i=0;$i<@starts;$i++) {
-                push @tmp_features,$enst."|noncoding_exon|".($starts[$i])."-".$stops[$i];
-            }
-            for (my $i=0;$i<scalar(@starts)-1;$i++) {
-                if ($starts[$i+1]-$stops[$i] > 2 * 500) {
-		    push @tmp_features,$enst."|noncoding_proxintron|".($stops[$i])."-".($stops[$i]+500);
-		    push @tmp_features,$enst."|noncoding_distintron|".($stops[$i]+500)."-".($starts[$i+1]-500);
-		    push @tmp_features,$enst."|noncoding_proxintron|".($starts[$i+1]-500)."-".$starts[$i+1];
-                } else {
-		    my $midpoint = int(($starts[$i+1]+$stops[$i])/2);
-		    push @tmp_features,$enst."|noncoding_proxintron|".($stops[$i])."-".($midpoint);
-		    push @tmp_features,$enst."|noncoding_proxintron|".($midpoint)."-".$starts[$i+1];
-                }
-		
-		
-#               push @tmp_features,$enst."|noncoding_intron|".($stops[$i])."-".$starts[$i+1];                  
-            }
-        }
-
-        for my $feature (@tmp_features) {
-            my ($enst,$type,$region) = split(/\|/,$feature);
-            my ($reg_start,$reg_stop) = split(/\-/,$region);
-            my $x = int($reg_start/$hashing_value);
-            my $y = int($reg_stop /$hashing_value);
-
-            for my $j ($x..$y) {
-                push @{$gencode_features{$chr}{$str}{$j}},$feature;
-                push @{$gencode_features{$chr}{$revstrand{$str}}{$j}},$enst."|antisense_gencode|".$reg_start."-".$reg_stop;
-            }
-        }
-    }
-    close(F);
-
-}
-
-
-
-sub read_gencode_gtf {
-
-    my $file = shift;
-#    my $file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf";                                                                                                                        
-    print STDERR "Reading in $file\n";
-    open(F,$file);
-    for my $line (<F>) {
-        chomp($line);
-        next if ($line =~ /^\#/);
-        my @tmp = split(/\t/,$line);
-
-	my $stuff = $tmp[8];
-        my @stufff = split(/\;/,$stuff);
-        my ($ensg_id,$gene_type,$gene_name,$enst_id,$transcript_type);
-
-        for my $s (@stufff) {
-            $s =~ s/^\s//g;
-            $s =~ s/\s$//g;
-
-            if ($s =~ /gene_id \"(.+?)\"/) {
-                if ($ensg_id) {
-                    print STDERR "two ensg ids? $line\n";
-                }
-                $ensg_id = $1;
-            }
-            if ($s =~ /transcript_id \"(.+?)\"/) {
-                if ($enst_id) {
-                    print STDERR "two enst ids? $line\n";
-                }
-                $enst_id = $1;
-            }
-            if ($s =~ /gene_type \"(.+?)\"/) {
-                if ($gene_type) {
-                    print STDERR "two gene types $line\n";
-                }
-                $gene_type = $1;
-
-            }
-
-            if ($s =~ /transcript_type \"(.+?)\"/) {
-                $transcript_type = $1;
-            }
-            if ($s =~ /gene_name \"(.+?)\"/) {
-                $gene_name = $1;
-            }
-        }
-
-	if (exists $enst2ensg{$enst_id} && $ensg_id ne $enst2ensg{$enst_id}) {
-            print STDERR "error two ensgs for enst $enst_id $ensg_id $enst2ensg{$enst_id}\n";
-        }
-        $enst2ensg{$enst_id} = $ensg_id;
-        $ensg2name{$ensg_id}{$gene_name}=1;
-        $ensg2type{$ensg_id}{$gene_type}=1;
-        $enst2type{$enst_id} = $transcript_type;
-    }
-    close(F);
-}
-
-
-sub get_type_flag {
-    my $ref = shift;
-    my %feature_hash = %$ref;
-    my $feature_type = shift;
-
-    my $feature_type_final = "contained";
-    for my $ensg (keys %{$feature_hash{$feature_type}}) {
-        $feature_type_final = "partial" unless ($feature_hash{$feature_type}{$ensg} eq "contained");
-    }
-    return($feature_type_final);
-}
-

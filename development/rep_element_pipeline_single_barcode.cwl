@@ -80,6 +80,9 @@ outputs:
     type: File
     outputSource: combine_parsed/output
 
+  parsedFiles:
+    type: File[]
+    outputSource: scattered_duplicate_removal_on_pair/parsedFile
 
 steps:
   gunzip_r1_fastq_gz:
@@ -156,7 +159,7 @@ steps:
       - output
 
   combine_parsed:
-    run: combine_files.cwl
+    run: combine_parsed.cwl
     in:
       inputFiles: scattered_duplicate_removal_on_pair/parsedFile
       outputFile: finalOutputParsedFile

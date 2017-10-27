@@ -106,6 +106,7 @@ steps:
       - rmDuped_sam
       - finalRmDupRepElementSam
       - finalParsedFile
+      - parsedFiles
 
   barcode_2:
     run: rep_element_pipeline_single_barcode.cwl
@@ -130,6 +131,7 @@ steps:
       - rmDuped_sam
       - finalRmDupRepElementSam
       - finalParsedFile
+      - parsedFiles
 
   combine_barcodes:
     run: combine_files.cwl
@@ -140,9 +142,12 @@ steps:
       - output
 
   combine_parsed:
-    run: combine_files.cwl
+    run: combine_parsed.cwl
     in:
-      inputFiles: [barcode_1/finalParsedFile, barcode_2/finalParsedFile]
+      inputFiles:
+        source: [barcode_1/parsedFiles, barcode_2/parsedFiles]
+        linkMerge: merge_flattened
       outputFile: finalOutputParsed
+
     out:
       - output

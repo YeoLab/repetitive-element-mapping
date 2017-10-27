@@ -1,5 +1,3 @@
-#!/usr/bin/env perl
-
 use warnings;
 use strict;
 use Fcntl qw(:flock);
@@ -20,18 +18,18 @@ open(FH,">>$failed_jobs_list") or die "this is weird - shouldn't be hit $failed_
 
 my %read_sums;
 for my $file (@files) {
-    # my $donefi = $file.".done";
-    # my $done_seq = `cat $donefi` if (-e $donefi);
-    # chomp($done_seq);
-    # if (-e $donefi) {
-    # 	print "donefi exists $donefi\n";
-    # 	print "doneseq $done_seq X\n";
-    # }
+    my $donefi = $file.".done";
+    my $done_seq = `cat $donefi` if (-e $donefi);
+    chomp($done_seq);
+    if (-e $donefi) {
+#	print "donefi exists $donefi\n";
+#	print "doneseq $done_seq X\n";
+    }
 
-    # unless (-e $donefi && $done_seq eq "jobs done") {
-	# print FH "Failed job $output_fi on $file\n";
-	# exit;
-    # }
+    unless (-e $donefi && $done_seq eq "jobs done") {
+	print FH "Failed job $output_fi on $file\n";
+	exit;
+    }
     &parse_file($file);
 }
 close(FH);

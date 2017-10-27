@@ -4,23 +4,23 @@ cwlVersion: v1.0
 
 class: CommandLineTool
 
-baseCommand: [cat]
+baseCommand: [merge_multiple_parsed_files.pl]
 
 inputs:
 
+  outputFile:
+    type: string
+    inputBinding:
+      position: 1
   inputFiles:
     type: File[]
     inputBinding:
-      position: 1
+      position: 2
     label: "input"
     doc: "input file"
-  outputFile:
-    type: string
 
 outputs:
   output:
     type: File
     outputBinding:
       glob: $(inputs.outputFile)
-
-stdout: $(inputs.outputFile)
