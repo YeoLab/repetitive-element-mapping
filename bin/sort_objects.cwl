@@ -1,1 +1,0 @@
-../development/sort_objects.cwl
