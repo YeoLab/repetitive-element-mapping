@@ -1,5 +1,0 @@
-#!/usr/bin/env split_bam_to_subfiles.cwl
-
-inputFile:
-  class: File
-  path: /projects/ps-yeolab3/bay001/rep_element_reference/RBFOX2-204-CLIP_S1_R1.A01_204_01_RBFOX2.adapterTrim.round2.fastq.mapped_vs_MASTER_filelist.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.sam
