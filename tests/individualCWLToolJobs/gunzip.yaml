@@ -1,5 +1,0 @@
-#!/usr/bin/env gunzip.cwl
-
-input:
-  class: File
-  path: /projects/ps-yeolab3/encode/analysis/encode_master/RBFOX2-204-CLIP_S1_R1.A01_204_01_RBFOX2.adapterTrim.round2.fastq.gz
