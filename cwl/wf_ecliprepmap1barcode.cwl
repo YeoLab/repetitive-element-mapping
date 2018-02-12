@@ -95,6 +95,10 @@ outputs:
     type: File[]
     outputSource: deduplicate/parsedFile
 
+  combinedParsed:
+    type: File
+    outputSource: combine_parsed/output
+
 
 steps:
 
@@ -175,14 +179,6 @@ steps:
       concatenated_nameroot: concatenated_dup_nameroot
     out:
       - concatenatedsam
-       
-#  combine:
-#    run: combine.cwl
-#    in:
-#      file_s: deduplicate/parsedFile
-#      combined_nameroot: combined_nameroot
-#    out:
-#      - combinedsam
 
   combine_parsed:
     run: combine.cwl

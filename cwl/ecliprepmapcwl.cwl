@@ -25,6 +25,13 @@ inputs:
   barcode2rmRepBam:
     type: File
 
+  barcode1Inputr1FastqGz:
+    type: File
+  barcode1Inputr2FastqGz:
+    type: File
+  # BAM file after removing repetitive elements (after 2nd STAR mapping)
+  barcode1InputrmRepBam:
+    type: File
 
 
   bowtieReferenceTar:
@@ -48,12 +55,16 @@ inputs:
   concatenated_barcode1_nameroot:
     type: string
     default: ecliprepmap_barcode1
+
   concatenated_barcode2_nameroot:
     type: string
     default: ecliprepmap_barcode2
-#  concatenated_filename:
-#    type: string
-#    default: ecliprepmap_concatenated.sam
+
+  concatenated_barcode1_input_nameroot:
+    type: string
+    default: ecliprepmap_input_barcode1
+
+
 
   concatenated_barcode1_rmdup_nameroot:
     type: string
@@ -63,6 +74,8 @@ inputs:
     type: string
     default: ecliprepmap_barcode1_dup
 
+
+
   concatenated_barcode2_rmdup_nameroot:
     type: string
     default: ecliprepmap_barcode2_rmdup
@@ -70,7 +83,19 @@ inputs:
   concatenated_barcode2_dup_nameroot:
     type: string
     default: ecliprepmap_barcode2_dup
-  
+
+
+
+  concatenated_barcode1_input_rmdup_nameroot:
+    type: string
+    default: ecliprepmap_input_barcode1_rmdup
+
+  concatenated_barcode1_input_dup_nameroot:
+    type: string
+    default: ecliprepmap_input_barcode1_dup
+
+
+
   combinedParsedFile:
     type: string
     default: combined.parsed
@@ -104,16 +129,14 @@ outputs:
   combinedParsed:
     type: File
     outputSource: combine_parsed/output
+  
+  combinedInputParsed:
+    type: File
+    outputSource: ecliprepmap_barcode1_input/combinedParsed
 
-#  barcode1combinedsam:
-#    type: File
-#    outputSource: ecliprepmap_barcode1/combinedsam
-#  barcode2combinedsam:
-#    type: File
-#    outputSource: ecliprepmap_barcode2/combinedsam
-#  combinedsam:
-#    type: File
-#    outputSource: combine_barcodes/combinedsam
+  combinedsam:
+    type: File
+    outputSource: concatenate_rmdup_barcodes/concatenatedsam
 
 steps:
 
@@ -131,15 +154,12 @@ steps:
       repMaskBEDFile: repMaskBEDFile
       concatenated_rmdup_nameroot: concatenated_barcode1_rmdup_nameroot
       concatenated_dup_nameroot: concatenated_barcode1_dup_nameroot
-#      combined_nameroot: combined_barcode1_nameroot
       prefixes: prefixes
     out:
       - maprep_repsam
-      #- rep_split
       - rmDuped_sam_s
       - concatenatedRmDupSam
       - concatenatedDupSam
-      #- combinedsam
       - parsedFiles
       - combinedParsed
 
@@ -157,18 +177,38 @@ steps:
       repMaskBEDFile: repMaskBEDFile
       concatenated_rmdup_nameroot: concatenated_barcode2_rmdup_nameroot
       concatenated_dup_nameroot: concatenated_barcode2_dup_nameroot
-#      combined_nameroot: combined_barcode2_nameroot
       prefixes: prefixes
     out:
       - maprep_repsam
-      #- rep_split
       - rmDuped_sam_s
       - concatenatedRmDupSam
       - concatenatedDupSam
-      #- combinedsam
       - parsedFiles
       - combinedParsed
 
+  ecliprepmap_barcode1_input:
+    run: wf_ecliprepmap1barcode.cwl
+    in:
+      r1FastqGz: barcode1Inputr1FastqGz
+      r2FastqGz: barcode1Inputr2FastqGz
+      bowtieReferenceTar: bowtieReferenceTar
+      fileListFile1: fileListFile1
+      fileListFile2: fileListFile2
+      rmRepBam: barcode1InputrmRepBam
+      gencodeGTF: gencodeGTF
+      gencodeTableBrowser: gencodeTableBrowser
+      repMaskBEDFile: repMaskBEDFile
+      concatenated_rmdup_nameroot: concatenated_barcode1_input_rmdup_nameroot
+      concatenated_dup_nameroot: concatenated_barcode1_input_dup_nameroot
+      prefixes: prefixes
+    out:
+      - maprep_repsam
+      - rmDuped_sam_s
+      - concatenatedRmDupSam
+      - concatenatedDupSam
+      - parsedFiles
+      - combinedParsed
+      
   concatenate_rmdup_barcodes:
     in:
       sam1: ecliprepmap_barcode1/concatenatedRmDupSam
@@ -230,30 +270,3 @@ steps:
       outputFile: combinedParsedFile
     out: 
       - output
-
-#  combine_barcodes:
-#    in:
-#      sam1: ecliprepmap_barcode1/combinedsam
-#      sam2: ecliprepmap_barcode1/combinedsam
-#    out:
-#      - combinedsam
-#    run:
-#      class: CommandLineTool
-#      baseCommand: [cat]
-#      inputs:
-#        sam1:
-#          type: File
-#          inputBinding:
-#            position: 1
-#        sam2:
-#          type: File
-#          inputBinding:
-#            position: 2
-#      #stdout: $(inputs.sam1.nameroot).final.sam
-#      stdout: ecliprepmap_conmbined.sam
-#      outputs:
-#        combinedsam:
-#          type: File
-#          outputBinding:
-#            glob: ecliprepmap_conmbined.sam
-
