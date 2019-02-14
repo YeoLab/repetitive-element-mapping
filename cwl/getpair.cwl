@@ -6,18 +6,22 @@ class: ExpressionTool
 
 requirements:
   - class: InlineJavascriptRequirement
+  - class: ResourceRequirement
+    coresMin: 1
+    coresMax: 16
+    ramMin: 1000
 
 inputs:
 
   prefix:
     type: string
-
+    doc: 'First two letters of barcode ID (AA, AC, ..., NN)'
   rep_s:
     type: File[]
-
+    doc: 'List of repetitive element-mapped sam-like files, split by prefix'
   rmrep_s:
     type: File[]
-
+    doc: 'List of remove-rep BAM files, split by prefix'
 
 outputs:
 

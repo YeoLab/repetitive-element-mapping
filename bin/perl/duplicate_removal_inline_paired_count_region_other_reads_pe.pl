@@ -437,7 +437,7 @@ sub read_unique_mapped {
 	    }
 	    if ($total_mmscore > $read_hash{$r1name}{rep_score} + 24) {
             
-            # if unique mapping to genome is more than 2 mismatches per read = 2 * 2 * 6 alignment score better than to repeat element, throw out repeat element and use genome mapping
+        # if unique mapping to genome is more than 2 mismatches per read = 2 * 2 * 6 alignment score better than to repeat element, throw out repeat element and use genome mapping
 #		print "deleting $r1name from rep element mapping - $total_mmscore $read_hash{$r1name}{rep_score}\n$r1\n$read_hash{$r1name}{R1}\n----\n";
 		$deleted{$read_hash{$r1name}{ensttype}}++;
 		delete($read_hash{$r1name}) if (exists $read_hash{$r1name});

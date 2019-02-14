@@ -4,7 +4,12 @@ cwlVersion: v1.0
 
 class: CommandLineTool
 
-baseCommand: [duplicate_removal_inline_paired_count_region_other_reads.pl]
+requirements:
+  - class: ResourceRequirement
+    coresMin: 4
+    ramMin: 64000
+
+baseCommand: [duplicate_removal_inline_paired_count_region_other_reads_SE.pl]
 
 inputs:
 
@@ -22,8 +27,6 @@ inputs:
     label: "rmRep.sam alignment file"
     doc: "rmRep sam alignment file"
 
-
-
   gencodeGTF:
     type: File
     inputBinding:
@@ -38,17 +41,12 @@ inputs:
     label: "gencode GTF file in UCSC table browser format"
     doc: "gencode GTF file in UCSC table browser format"
 
-
-
-
   repMaskBedFile:
     type: File
     inputBinding:
       position: 5
     label: "repeatmasker bedfile"
     doc: "bedfile of repeat regions"
-
-
 
   fileList1:
     type: File
@@ -63,34 +61,28 @@ inputs:
     doc: "tsv with 5 fields: name/type/type/type/desc"
 
 
-
 outputs:
 
   deduplicatedRmDupSam:
     type: File
     outputBinding:
-      glob: "$(inputs.repFamilySam.basename)*combined_w_uniquemap.rmDup.sam"
+      glob: "*combined_w_uniquemap.rmDup.sam"
     label: "combined unique mapping + rep element mapping sam"
-
 
   deduplicatedPreRmDupSam:
     type: File
     outputBinding:
-      glob: "$(inputs.repFamilySam.basename)*combined_w_uniquemap.prermDup.sam"
+      glob: "*combined_w_uniquemap.prermDup.sam"
     label: "combined unique mapping + rep element mapping sam before rmdup"
-
 
   parsedFile:
     type: File
     outputBinding:
-      glob: "$(inputs.repFamilySam.basename)*combined_w_uniquemap.rmDup.sam.parsed"
+      glob: "*combined_w_uniquemap.rmDup.sam.parsed"
     label: "combined unique mapping + rep element mapping sam"
-
 
   doneFile:
     type: File
     outputBinding:
-      glob: "$(inputs.repFamilySam.basename)*combined_w_uniquemap.rmDup.sam.parsed.done"
+      glob: "*combined_w_uniquemap.rmDup.sam.parsed.done"
     label: "done file"
-
-

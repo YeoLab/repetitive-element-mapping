@@ -14,15 +14,10 @@ inputs:
     inputBinding: 
       position: 1
 
-  file_s:
+  files:
     type: File[]
     inputBinding:
       position: 2
-
-
-
-
-
 
 outputs:
 

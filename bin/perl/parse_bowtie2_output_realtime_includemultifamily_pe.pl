@@ -27,7 +27,6 @@ $rRNA_extra_hash_rev{"antisense_rRNA_extra"}{"antisense_RNA5-8S"} = 1;
 my $fastq_file1 = $ARGV[0];
 my $fastq_file2 = $ARGV[1];
 my $bowtie_db = $ARGV[2];
-# my $bowtie_db = '/home/bay001/projects/codebase/repetitive-element-mapping/data/bowtie_reference/MASTER_filelist.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat';
 my $output = $ARGV[3];
 my $filelist_file = $ARGV[4];
 
@@ -47,7 +46,7 @@ my $done_file = $output.".done";
 ###########################################################################################################################################################
 
 
-# changed in 0.0.2 paremeter -p 1 instead of -p 3
+# changed in 0.0.2 parameter -p 1 instead of -p 3
 my $pid = open(BOWTIE, "-|", "stdbuf -oL bowtie2 -q --sensitive -a -p 1 --no-mixed --reorder -x $bowtie_db -1 $fastq_file1 -2 $fastq_file2 2> $bowtie_out");
 my %fragment_hash;
 my $duplicate_count=0;
@@ -212,45 +211,45 @@ if ($pid) {
                     print "mapping exists within family before... \n" if ($debug_flag == 1);
                     # first - did it already map to this transcript before?
                     if (exists $read_hash{$r1name}{enst}{$mapped_enst}) {
-                    # is it spliced vs unspliced or tRNA flank vs whole genome? if yes ok
-                    if ($read_hash{$r1name}{enst}{$mapped_enst}."_withgenomeflank" eq $mapped_enst_full || $read_hash{$r1name}{enst}{$mapped_enst}."_spliced" eq $mapped_enst_full) {
-                        #original entry is to shorter transcript - keep that one, skip new one entirely
-                        print "original was to original (non-genome flank version for tRNA or non-spliced for others) - keep old, skip this one\n" if ($debug_flag == 1);
-                    } elsif ($read_hash{$r1name}{enst}{$mapped_enst} eq $mapped_enst_full."_withgenomeflank" || $read_hash{$r1name}{enst}{$mapped_enst} eq $mapped_enst_full."_spliced") {
-                        # original entry is to longer transcript - replace with shorter
-                        $read_hash{$r1name}{R1}{$ensttype} = $r1;
-                        $read_hash{$r1name}{R2}{$ensttype} = $r2;
-                        $read_hash{$r1name}{flags}{$ensttype} = $enstpriority;
+                        # is it spliced vs unspliced or tRNA flank vs whole genome? if yes ok
+                        if ($read_hash{$r1name}{enst}{$mapped_enst}."_withgenomeflank" eq $mapped_enst_full || $read_hash{$r1name}{enst}{$mapped_enst}."_spliced" eq $mapped_enst_full) {
+                            #original entry is to shorter transcript - keep that one, skip new one entirely
+                            print "original was to original (non-genome flank version for tRNA or non-spliced for others) - keep old, skip this one\n" if ($debug_flag == 1);
+                        } elsif ($read_hash{$r1name}{enst}{$mapped_enst} eq $mapped_enst_full."_withgenomeflank" || $read_hash{$r1name}{enst}{$mapped_enst} eq $mapped_enst_full."_spliced") {
+                            # original entry is to longer transcript - replace with shorter
+                            $read_hash{$r1name}{R1}{$ensttype} = $r1;
+                            $read_hash{$r1name}{R2}{$ensttype} = $r2;
+                            $read_hash{$r1name}{flags}{$ensttype} = $enstpriority;
 
-                        unless (exists $read_hash{$r1name}{"mult_ensts"}{$ensttype}) {
-                            print STDERR "error doesn't exist? $r1name $ensttype \n";
-                        }
-                        for (my $i=0;$i<@{$read_hash{$r1name}{"mult_ensts"}{$ensttype}};$i++) {
-                            if ($read_hash{$r1name}{mult_ensts}{$ensttype}[$i] eq $read_hash{$r1name}{enst}{$mapped_enst}) {
-                                $read_hash{$r1name}{mult_ensts}{$ensttype}[$i] = $mapped_enst_full;
+                            unless (exists $read_hash{$r1name}{"mult_ensts"}{$ensttype}) {
+                                print STDERR "error doesn't exist? $r1name $ensttype \n";
                             }
-                        }
-                        $read_hash{$r1name}{enst}{$mapped_enst} = $mapped_enst_full;
-                        $read_hash{$r1name}{master_enst}{$ensttype} = $mapped_enst_full;
-
-                        print "new mapping is the one i want - discard old and keep newer annotation \n" if ($debug_flag == 1);
-                    } else {
-                        # maps to two places in the same transcript - this is probably actually ok for counting purposes, but for now I'm going to flag these as bad
-                        # 7/20/16 - going to comment this out for now - basically just skip the second entry but don't flag as bad
-         			    # $read_hash{$r1name}{flags}{"double_maps"} = 1;
-
-                        print "double maps - $ensttype prev length of mult_ensts array is ".scalar(@{$read_hash{$r1name}{mult_ensts}{$ensttype}})."\n" if ($debug_flag == 1);
-
-                        for (my $i=0;$i<@{$read_hash{$r1name}{"mult_ensts"}{$ensttype}};$i++) {
-                            if ($read_hash{$r1name}{mult_ensts}{$ensttype}[$i] eq $read_hash{$r1name}{enst}{$mapped_enst}) {
-                                $read_hash{$r1name}{mult_ensts}{$ensttype}[$i] = $mapped_enst_full."_DOUBLEMAP";
+                            for (my $i=0;$i<@{$read_hash{$r1name}{"mult_ensts"}{$ensttype}};$i++) {
+                                if ($read_hash{$r1name}{mult_ensts}{$ensttype}[$i] eq $read_hash{$r1name}{enst}{$mapped_enst}) {
+                                    $read_hash{$r1name}{mult_ensts}{$ensttype}[$i] = $mapped_enst_full;
+                                }
                             }
+                            $read_hash{$r1name}{enst}{$mapped_enst} = $mapped_enst_full;
+                            $read_hash{$r1name}{master_enst}{$ensttype} = $mapped_enst_full;
+
+                            print "new mapping is the one i want - discard old and keep newer annotation \n" if ($debug_flag == 1);
+                        } else {
+                            # maps to two places in the same transcript - this is probably actually ok for counting purposes, but for now I'm going to flag these as bad
+                            # 7/20/16 - going to comment this out for now - basically just skip the second entry but don't flag as bad
+                            # $read_hash{$r1name}{flags}{"double_maps"} = 1;
+
+                            print "double maps - $ensttype prev length of mult_ensts array is ".scalar(@{$read_hash{$r1name}{mult_ensts}{$ensttype}})."\n" if ($debug_flag == 1);
+
+                            for (my $i=0;$i<@{$read_hash{$r1name}{"mult_ensts"}{$ensttype}};$i++) {
+                                if ($read_hash{$r1name}{mult_ensts}{$ensttype}[$i] eq $read_hash{$r1name}{enst}{$mapped_enst}) {
+                                    $read_hash{$r1name}{mult_ensts}{$ensttype}[$i] = $mapped_enst_full."_DOUBLEMAP";
+                                }
+                            }
+
+                            $read_hash{$r1name}{master_enst}{$ensttype} = $mapped_enst_full."_DOUBLEMAP";
+
+                            print "double maps - $ensttype length of mult_ensts array is ".scalar(@{$read_hash{$r1name}{mult_ensts}{$ensttype}})."\n" if ($debug_flag == 1);
                         }
-
-                        $read_hash{$r1name}{master_enst}{$ensttype} = $mapped_enst_full."_DOUBLEMAP";
-
-                        print "double maps - $ensttype length of mult_ensts array is ".scalar(@{$read_hash{$r1name}{mult_ensts}{$ensttype}})."\n" if ($debug_flag == 1);
-                    }
 
 
                     } elsif ($enstpriority < $read_hash{$r1name}{flags}{$ensttype}) {

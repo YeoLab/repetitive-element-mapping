@@ -9,21 +9,19 @@ baseCommand: [cat]
 
 inputs:
 
-  file_s:
+  files:
     type: File[]
     inputBinding:
       position: 1
 
-  concatenated_nameroot:
+  concatenated_output:
     type: string
 
-stdout: $(inputs.concatenated_nameroot).concatenated.sam
+stdout: $(inputs.concatenated_output)
 
 outputs:
 
-  concatenatedsam:
+  concatenated:
     type: File
     outputBinding:
-      glob: $(inputs.concatenated_nameroot).concatenated.sam
-
-
+      glob: $(inputs.concatenated_output)
