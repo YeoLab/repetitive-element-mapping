@@ -172,7 +172,7 @@ sub run_pcr_duplicate_removal {
 	my $r1 = $read_hash{$r1name}{R1};
 	
 	my @tmp_r1 = split(/\t/,$r1);
-#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
 	
 	my $r1sam_flag = $tmp_r1[1];
 
@@ -189,14 +189,10 @@ sub run_pcr_duplicate_removal {
 	    print STDERR "R1 strand error $r1sam_flag\n";
 	}
 
-	my @read_name = split(/\_/,$tmp_r1[0]);
-	my $randommer = pop(@read_name);
-	my $r1name = join("_",@read_name);
-
-#        my ($r1name,$randommer) = split(/\_/,$tmp_r1[0]);	
-#	my @read_name = split(/\:/,$tmp_r1[0]);
-#	my $randommer = $read_name[0];
-#	print STDERR "run_pcr_duplicate_removal readname $r1name, randommer $randommer\n";
+	
+    my @read_name = split(/\_/,$tmp_r1[0]);
+    my $randommer = $read_name[2];
+    
 	my $r1_cigar = $tmp_r1[5];
 
       # 165 = R2 unmapped, R1 rev strand -- frag on fwd strand
@@ -287,7 +283,7 @@ sub read_unique_mapped {
 	chomp($r1);
 	
 	my @tmp_r1 = split(/\t/,$r1);
-#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
 	
 	my $r1sam_flag = $tmp_r1[1];
 	next if ($r1sam_flag == 4);
@@ -322,13 +318,7 @@ sub read_unique_mapped {
 	}
 ###
 	my @read_name = split(/\_/,$tmp_r1[0]);
-        my $randommer = pop(@read_name);
-	my $r1name = join("_",@read_name);
-
-#        my ($r1name,$randommer) = split(/\_/,$tmp_r1[0]);
-#	print STDERR "read_unique_mapped readname $r1name, randommer $randommer\n";
-#	my @read_name = split(/\:/,$tmp_r1[0]);
-#	my $randommer = $read_name[0];
+	my $randommer = $read_name[2];
 	
 	my $r1_cigar = $tmp_r1[5];
 	
@@ -541,15 +531,8 @@ sub read_rep_family {
 	}
 	
 	my @tmp_r1 = split(/\t/,$r1);
-#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
-	my @read_name = split(/\_/,$tmp_r1[0]);
-        my $r1bc = pop(@read_name);
-	my $r1name = join("_",@read_name);
-
-#	my ($r1name,$r1bc) = split(/\_/,$tmp_r1[0]);
-#        print STDERR "read_rep_family readname $r1name, randommer $r1bc\n";
-
-
+	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+	
 	my $r1sam_flag = $tmp_r1[1];
 	next if ($r1sam_flag == 4);
 	

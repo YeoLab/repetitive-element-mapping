@@ -72,11 +72,11 @@ open(MULTIMAP,">$multimapping_out");
 my $done_file = $output.".done";
 
 #
-my $command = "stdbuf -oL bowtie2 -q --sensitive -a -p 1 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out";
+my $command = "stdbuf -oL bowtie2 -q --sensitive -a -p 8 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out";
 #my $command = "/projects/ps-yeolab/software/bowtie-1.1.1/./bowtie -q -1 $fastq_file1 -2 $fastq_file2 $bowtie_db -a -v 2 --best --strata -S 2> $bowtie_out";
 print STDERR "command $command\n";
 #my $pid = open(BOWTIE, "-|", "unbuffer /projects/ps-yeolab/software/bowtie-1.1.1/./bowtie -q -1 $fastq_file1 -2 $fastq_file2 $genelistfi  -a -v 2 --best --strata -S 2> $bowtie_out");
-my $pid = open(BOWTIE, "-|", "stdbuf -oL bowtie2 -q --sensitive -a -p 3 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out");
+my $pid = open(BOWTIE, "-|", "stdbuf -oL bowtie2 -q --sensitive -a -p 8 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out");
 #my $pid = open(BOWTIE, "-|", "stdbuf -oL /projects/ps-yeolab/software/bowtie-1.1.1/./bowtie -q -1 $fastq_file1 -2 $fastq_file2 $bowtie_db  -a -v 2 --best --strata -S 2> $bowtie_out");
 #print "PID $pid\n";
 my %fragment_hash;
@@ -98,7 +98,11 @@ if ($pid) {
 
 	my @tmp_r1 = split(/\t/,$r1);
 
-	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+#	my ($r1name,$r1bc) = split(/\_/,$tmp_r1[0]);
+	my @read_name = split(/\_/,$tmp_r1[0]);
+        my $r1bc = pop(@read_name);
+        my $r1name = join("_",@read_name);
 
 #	$all_count++;
 #	if ($all_count % 1000 == 0) {

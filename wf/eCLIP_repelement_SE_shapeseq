@@ -17,10 +17,11 @@ set -o pipefail
 
 
 
+CWLRUNNER=cwltorq # either: cwltool cwltoil or cwltorq
+WORKFLOW=wf_ecliprepmap_se # the prefix of the workflow cwl (without .cwl extension)
 
-# TODO get this from env variable
-PIPELINE=ECLIPREPMAP
-PIPELINEVERSION=0.0.1
+PIPELINE=REPELEMENTMAPPING  # workflow prefix
+PIPELINEVERSION=0.0.4  # workflow version
 
 FULLPATHCOMMAND=$0
 JOB_FILE=$1
@@ -28,17 +29,15 @@ JOB_FILE=$1
 # get the ecliprepmap yaml file name without extension
 JOB_BASENAME=${JOB_FILE##*/}
 JOB_NAME="${JOB_BASENAME%.*}"
-# TODO the same could be achieved with:  JOB_NAME=$(basename "${JOB_FILE}" ".ecliprepmap")
-
-
+# TODO the same could be achieved with:  JOB_NAME=$(basename "${JOB_FILE}" ".rnaseq")
 
 # if no parameter, initialize current directory with template files and show help
 #################
-# FIXME following this usage for ecliprepmapcwl instead of wf_ecliprepmap.cwl does not work
+# FIXME following this usage for * instead of *.cwl does not work
 if [[ -z ${JOB_FILE} ]]; then
-  echo "welcome to ecliprepmap"
-  # ecliprepmapinit
-  wf_ecliprepmap1barcode.cwl.usage
+  echo "welcome to rnaseq (torque version)"
+  #
+  wf_rnaseqse.usage
   exit 0
 fi
 
@@ -46,28 +45,34 @@ fi
 # from now on, parameter was given (jobfile):
 #############################################
 
-
-
 # get the cwlrunner and workflow type
 #####################################
+
+# TODO: harcoded in CWLRUNNER and WORKFLOW vars above
+
 # remove the path at the beginning of full path command
-CWLRUNNER_WORKFLOW=${FULLPATHCOMMAND##*/}
-# if command was 'ecliprepmapcwl' thenwl use the default cwlrunner and the default workflow
-if [  $CWLRUNNER_WORKFLOW = 'ecliprepmapcwl1barcode' ]
-then
-  #echo default cwlrunner and workflow
-  CWLRUNNER=cwltool
-  WORKFLOW=wf_ecliprepmap1barcode
-else
-  # remove cwlto+6 chars from beginning
-  WORKFLOW=${CWLRUNNER_WORKFLOW#cwlto??}         # ?? matches either OL or IL or RQ  # TODO caution: no .cwl extension !
-  # get those cwl+6 chars that were removed above
-  CWLRUNNER=${CWLRUNNER_WORKFLOW%$WORKFLOW}
-  if [ -z $WORKFLOW ]
-  then
-    WORKFLOW=wf_ecliprepmap1barcode
-  fi
-fi
+# CWLRUNNER_WORKFLOW=${FULLPATHCOMMAND##*/}
+# echo "FULL PATH COMMAND"
+# echo $CWLRUNNER_WORKFLOW;
+
+# if command was 'rnaseqse' then will use the default cwlrunner and the default workflow
+# if [  $CWLRUNNER_WORKFLOW = 'rnaseqse' ]
+# then
+#   #echo default cwlrunner and workflow
+#   CWLRUNNER=cwltool
+#   WORKFLOW=wf_rnaseqcore_se
+# else
+#   # remove cwlto+6 chars from beginning
+#   # WORKFLOW=${CWLRUNNER_WORKFLOW#cwlto??}         # ?? matches either OL or IL or RQ  # TODO caution: no .cwl extension !
+#   WORKFLOW=wf_rnaseqcore_se_cwltoil
+#   # get those cwl+6 chars that were removed above
+#   # CWLRUNNER=${CWLRUNNER_WORKFLOW%$WORKFLOW}  # FIXME: don't know what this does
+#   CWLRUNNER=cwltorq  # FIXME: hardcoded for now...
+#   if [ -z $WORKFLOW ]
+#   then
+#     WORKFLOW=wf_rnaseqcore_se_cwltorq
+#   fi
+# fi
 
 
 
@@ -75,9 +80,11 @@ fi
 ########################
 
 # get this script full directory name no matter where it is called from
-#ECLIPREPMAP_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"                 # TODO move this one level up (include final /../)
-#export ECLIPREPMAP_DOCUMENTATION=${ECLIPREPMAP_HOME}/../documentation
-#export ECLIPREPMAP_HOME=${ECLIPREPMAP_HOME}/../init
+WORKFLOW_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../" && pwd )"                 # TODO move this one level up (include final /../)
+
+
+#export ECLIPREPMAP_DOCUMENTATION=${WORKFLOW_HOME}/../documentation
+#export WORKFLOW_HOME=${WORKFLOW_HOME}/../init
 # get the eclipjob.yaml full directory name
 JOB_HOME="$( cd "$( dirname "${BASH_SOURCE[1]}" )" && pwd )"
 
@@ -119,7 +126,8 @@ JOBCOPYFILEPATH="${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_INPUT.yaml"
 cp ${JOB_FILE} ${JOBCOPYFILEPATH}
 chmod -x ${JOBCOPYFILEPATH}
 touch ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_VERSION-${PIPELINEVERSION}
-touch ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_PIPELINE-ecliprepmap
+# TODO: does not do anything
+# touch ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_PIPELINE-rnaseqse
 touch ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_WORKFLOW-${WORKFLOW}
 
 echo
@@ -129,8 +137,11 @@ echo ========================================================================
 echo
 echo "PATH:" $PATH
 echo "which conda:" `which conda`
-echo "which ecliprepmap:" `which ecliprepmapcwl`
-echo
+# echo "which rnaseqse:" `which rnaseqse`
+echo "JOB_HOME:" $JOB_HOME
+echo "OUTDIR:" $OUTDIR
+echo "RESULTSDIR:" $RESULTSDIR
+
 
 # execute
 ##########
@@ -140,15 +151,12 @@ echo EXECUTING CWL JOB
 echo ========================================================================
 echo
 
-
-# ${ECLIPREPMAP_HOME}/repo/cwl/${WORKFLOW}.cwl \
-
 if [ $CWLRUNNER == cwltool ]
 then
   cwltool --debug \
     --outdir ${OUTDIR} \
     --cachedir ${INTERM} \
-    ${ECLIPREPMAP_HOME}/cwl/${WORKFLOW}.cwl \
+    ${WORKFLOW_HOME}/cwl/${WORKFLOW}.cwl \
     ${JOB_FILE} \
     2>${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_LOG.txt | tee ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_OUTPUT.json
 
@@ -158,8 +166,8 @@ elif [ $CWLRUNNER == cwltoil -o $CWLRUNNER == cwltorq ]
 then
   if [ $CWLRUNNER == cwltorq ]; then
     BATCHSYSTEM="torque --disableCaching"
-    export TOIL_TORQUE_ARGS="-q condo"              # home-yeo
-    export TOIL_TORQUE_REQS="walltime=1:00:00"      # walltime=8:00:00
+    export TOIL_TORQUE_ARGS="-q home-yeo"              # home-yeo
+    export TOIL_TORQUE_REQS="walltime=12:00:00"      # walltime=8:00:00
   else
     BATCHSYSTEM="single_machine"
   fi
@@ -184,34 +192,34 @@ then
   # Standard suffixes like K, Ki, M, Mi, G or Gi are supported.
 
 
-#  ${ECLIPREPMAP_HOME}/repo/cwl/${WORKFLOW}.cwl \
+#  ${WORKFLOW_HOME}/repo/cwl/${WORKFLOW}.cwl \
 
   cwltoil ${JOBSTOREEXITSLETSRESTART}  \
     --batchSystem ${BATCHSYSTEM} \
-    --logDebug \
     --stats \
     --writeLogs ${TOILLOGS} \
     --jobStore file:${JOBSTORE} \
     --workDir ${WORKDIR} \
     --outdir ${OUTDIR} \
     --clean never \
-    --cleanWorkDir never \
-    --defaultCores 1.0 --defaultMemory 8.0G  \
-    ${ECLIPREPMAP_HOME}/cwl/${WORKFLOW}.cwl \
+    --cleanWorkDir onSuccess \
+    --logInfo \
+    --clusterStats \
+    --realTimeLogging \
+    --stats \
+    --defaultMemory 64.0G
+    ${WORKFLOW_HOME}/cwl/${WORKFLOW}.cwl \
     ${JOB_FILE} \
     2>${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_LOG.txt | tee ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_OUTPUT.json
-
-    #2>&1 | tee ${JOB_HOME}/${JOB_NAME}/ECLIPREPMAP-JOB-LOG.txt
-    # --defaultDisk 20.0G
 fi
-
+#    --defaultMemory 64.0G \
+#--defaultCores 1.0 \
+#--defaultMemory 8.0G  \
 #--clusterStats \
 #--logDebug \
 #--realTimeLogging \
 #--stats \
-
-#-maxCores=  --maxMemory=8.0Ei --maxDisk 8.0Ei \
-
+#--maxCores=  --maxMemory=8.0Ei --maxDisk 8.0Ei \
 #--maxLogFileSize -1 \
 
 # error when using option --maxLogFileSize -1
@@ -219,14 +227,6 @@ fi
 #File "/projects/ps-yeolab/software/eclipconda/envs/ecliplesspeakstoil/lib/python2.7/site-packages/bd2k/util/humanize.py", line 111, in human2bytes
 #  num = float(num)
 
-#> >(tee ${JOB_HOME}/${JOB_NAME}/status.txt) \
-#2>${JOB_HOME}/${JOB_NAME}/log.txt
-
-# see : http://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
-### STDOUT to STATUSFILE and screen, STDERR to LOGFILE
-#exec > >(tee ${STATUSFILE}) 2>${LOGFILE}
-
-# remove leftover intermediateXXXXXX folders   # TODO only needed if cwltool crashed ?
 ############################################
 #rmdir ${JOB_HOME}/${JOB_NAME}/intermediates??????
 
@@ -241,14 +241,23 @@ echo ========================================================================
 echo UPDATING RESULTS
 echo ========================================================================
 echo
-
+echo tmp output dir: ${OUTDIR}
+echo results dir: ${RESULTSDIR}
 
 mv ${OUTDIR}/* ${RESULTSDIR}/
 
-cd ${JOB_HOME}/${JOB_NAME}
-# TODO adapt ecliprepmapupdate to this pipeline
-# ecliprepmapupdate $CWLRUNNER
+echo "Moving tmp to outdir done."
 
+cd ${JOB_HOME}/${JOB_NAME}
+
+if grep -q "permanentFail" ${PIPELINE}_${JOB_NAME}_LOG.txt
+then
+    echo "Not good (failures found, check log). Keeping intermediates for now." # code if found
+else
+    echo "All good (no failures)! Removing intermediate tmp folder." # code if not found
+    rm -rf ./.tmp/;
+    rm -rf ${RESULTSDIR}/out_tmp* ${RESULTSDIR}/tmp*
+fi
 
 # TODO this now commented out, so to finish inside job folder
 #cd -

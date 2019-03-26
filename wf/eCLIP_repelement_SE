@@ -207,7 +207,7 @@ then
     --clusterStats \
     --realTimeLogging \
     --stats \
-    --defaultMemory 64.0G
+    --defaultMemory 64.0G \
     ${WORKFLOW_HOME}/cwl/${WORKFLOW}.cwl \
     ${JOB_FILE} \
     2>${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_LOG.txt | tee ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_OUTPUT.json

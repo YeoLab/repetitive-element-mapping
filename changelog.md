@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.0.4a] - 2019-03-26
+### Fixed
+- fixed barcode issue in SE pipeline that didn't properly grab inline barcodes
+
 ## [0.0.4] - 2019-02-14
 ### Added
 - Extra workflow steps:
