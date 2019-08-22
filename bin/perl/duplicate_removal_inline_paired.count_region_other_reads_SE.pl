@@ -1,5 +1,3 @@
-#!/usr/bin/env perl
-
 use warnings;
 use strict;
 use POSIX;
@@ -16,10 +14,8 @@ my %enst2ensg;
 my %ensg2name;
 my %ensg2type;
 
-# my $gencode_gtf_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf";
-my $gencode_gtf_file = $ARGV[2];
-# my $gencode_tablebrowser_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat";
-my $gencode_tablebrowser_file = $ARGV[3];
+my $gencode_gtf_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf";
+my $gencode_tablebrowser_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat";
 
 my %gencode_features;
 &read_gencode_gtf($gencode_gtf_file);
@@ -33,18 +29,15 @@ my $region_5primeend_only_flag = 1;
 my %enst2gene;
 my %convert_enst2type;
 my %peaks;
-# my $repmask_bed_fi = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/RepeatMask.bed";
-my $repmask_bed_fi = $ARGV[4];
+my $repmask_bed_fi = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/RepeatMask_hg19.bed";
 &read_peakfi($repmask_bed_fi);
-# my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
+my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
 #my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/filelist_POLIII";
 #my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed";
-# my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
-my $filelist_file = $ARGV[5];
+my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
 &read_in_filelists($filelist_file);
 
-#my $filelist_file2 = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/ALLRepBase_elements.id_table.FULL";
-my $filelist_file2 = $ARGV[6];
+my $filelist_file2 = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/ALLRepBase_elements.id_table.FULL";
 &read_in_filelists($filelist_file2);
 
 my ($all_count,$duplicate_count,$unique_count,$unique_genomic_count,$unique_repfamily_count) = (0,0,0,0,0);
@@ -59,13 +52,10 @@ my %read_hash;
 &read_rep_family($repfamily_sam);
 &read_unique_mapped($gabe_rmRep_sam);
 
-my @repfamily_sam_split = split(/\//,$repfamily_sam);
-my $repfamily_sam_short = $repfamily_sam_split[$#repfamily_sam_split];
-
-my $output_fi = $repfamily_sam_short.".combined_w_uniquemap.rmDup.sam";
+my $output_fi = $repfamily_sam.".combined_w_uniquemap.rmDup.sam";
 open(OUT,">$output_fi");
 
-my $pre_rmdup_fi = $repfamily_sam_short.".combined_w_uniquemap.prermDup.sam";
+my $pre_rmdup_fi = $repfamily_sam.".combined_w_uniquemap.prermDup.sam";
 open(PREDUP,">$pre_rmdup_fi");
 &run_pcr_duplicate_removal();
 

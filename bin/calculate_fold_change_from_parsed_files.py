@@ -39,6 +39,10 @@ def read_parsed(fn):
         ]
     except IndexError: # the re-parsed files don't have this row...
         total_reads = 0
+        df.columns = [
+            'total_or_element', 'element', 'read_num',
+            'clip_rpm', 'annotation', 'gene'
+        ]
         total_df = df[df['total_or_element'] == 'TOTAL'][
             ['element', 'read_num', 'clip_rpm']
         ]

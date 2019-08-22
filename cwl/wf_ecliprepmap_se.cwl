@@ -117,10 +117,10 @@ steps:
     run: wf_ecliprepmap_se_1sample.cwl
     in:
       dataset:
-        source: dataset
+        source: barcode1r1FastqGz
         valueFrom: |
           ${
-            return self + ".barcode1";
+            return self.nameroot + ".barcode1";
           }
       r1FastqGz: barcode1r1FastqGz
       rmRepBam: barcode1rmRepBam
@@ -153,10 +153,10 @@ steps:
     run: wf_ecliprepmap_se_1sample.cwl
     in:
       dataset:
-        source: dataset
+        source: barcode1Inputr1FastqGz
         valueFrom: |
           ${
-            return self + ".input";
+            return self.nameroot + ".input";
           }
       r1FastqGz: barcode1Inputr1FastqGz
       bowtie2_db: bowtie2_db
