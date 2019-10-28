@@ -30,7 +30,7 @@ hash keys in 0.0.2. See NOTES.
     are correctly in your path.
 
 # Example data: 
-- [example data for PE reads (SE coming soon), plus reference data for hg19](https://s3-us-west-1.amazonaws.com/external-collaborator-data/reference-data/eclip_repmap_public_example_data.tar.gz)
+- [example reference data for hg19](https://external-collaborator-data.s3-us-west-1.amazonaws.com/reference-data/repeat-mapping-hg19-refdata.tar.gz)
 # Methods:
 - (map_repetitive_elements_PE.cwl - parse_bowtie2_output_realtime_includemultifamily) Runs bowtie2 using the following commands: ```bowtie2 -q --sensitive -a -p 3 --no-mixed --reorder -x $bowtie_db -1 $fastq_file1 -2 $fastq_file2 2> $bowtie_out```, where:
     - $fastq_file1 is read 1 of a trimmed CLIPSEQ expt
