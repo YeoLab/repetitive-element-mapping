@@ -58,7 +58,6 @@ inputs:
 outputs:
 
 
-
   ### PRE RMDUPED SAM FILE FINAL OUTPUTS ###
 
 
@@ -114,7 +113,7 @@ steps:
 ###########################################################################
 
   step_ecliprepmap_barcode1:
-    run: wf_ecliprepmap_se_1sample.cwl
+    run: wf_ecliprepmap_se_1barcode.cwl
     in:
       dataset:
         source: barcode1r1FastqGz
@@ -144,13 +143,12 @@ steps:
       - output_combined_parsed_file
       - output_combined_reparsed_file
 
-
 ###########################################################################
 # Repeat-map input sample (1 sample)
 ###########################################################################
 
   step_ecliprepmap_input:
-    run: wf_ecliprepmap_se_1sample.cwl
+    run: wf_ecliprepmap_se_1barcode.cwl
     in:
       dataset:
         source: barcode1Inputr1FastqGz
@@ -179,7 +177,6 @@ steps:
       - output_parsed_files
       - output_combined_parsed_file
       - output_combined_reparsed_file
-
 
 ###########################################################################
 # Combine parsed files and calculate fold change/entropy

@@ -4,21 +4,33 @@ use warnings;
 use strict;
 use POSIX;
 
-#20190318 - fixed umitools umi naming change
+# 2019-04-25 - previous version masked Rep elements in genomic mapping; adding masking for snoRNA / snRNA elements at this stage as well
 
 my %revstrand;
 $revstrand{"+"} = "-";
 $revstrand{"-"} = "+";
 
-my $hashing_value = 1000;
+
+my %enst2chrstr;
+my $chrM_genelistfi = $ARGV[7]; # "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/genelists.chrM.wchr.txt";
+open(CHR,$chrM_genelistfi);
+for my $line (<CHR>) {
+    chomp($line);
+    my ($ensg,$genename,$enst,$chr,$str) = split(/\t/,$line);
+    $enst2chrstr{$enst}{chr} = $chr;
+    $enst2chrstr{$enst}{str} = $str;
+}
+close(CHR);
+
+
+
+my $genome_hashing_value = 1000;
 my %enst2type;
 my %enst2ensg;
 my %ensg2name;
 my %ensg2type;
 
-# my $gencode_gtf_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf";
 my $gencode_gtf_file = $ARGV[2];
-# my $gencode_tablebrowser_file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat";
 my $gencode_tablebrowser_file = $ARGV[3];
 
 my %gencode_features;
@@ -33,21 +45,35 @@ my $region_5primeend_only_flag = 1;
 my %enst2gene;
 my %convert_enst2type;
 my %peaks;
-# my $repmask_bed_fi = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/RepeatMask.bed";
 my $repmask_bed_fi = $ARGV[4];
 &read_peakfi($repmask_bed_fi);
-# my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
+
+for my $genelist_type ("SNORA","SNORD","RN7SK","RN7SL","RNU1","RNU105","RNU11","RNU12","RNU2","RNU3","RNU4","RNU4ATAC","RNU5A","RNU5B","RNU5D","RNU5E","RNU5F","RNU6","RNU6ATAC","RNU7","SCARNA","snoU109","snoU13","U8","VTRNA1","VTRNA2","VTRNA3","YRNA") {
+    my $genelist_bed_file = $ARGV[9]."genelists.".$genelist_type.".bed"; # "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/genelists.".$genelist_type.".bed";
+    &read_peakfi($genelist_bed_file);
+    print($genelist_bed_file);
+}
+
+#my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
 #my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/filelist_POLIII";
 #my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed";
-# my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
+#my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
+my %convert_enst2priority;
+
 my $filelist_file = $ARGV[5];
 &read_in_filelists($filelist_file);
 
-#my $filelist_file2 = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/ALLRepBase_elements.id_table.FULL";
 my $filelist_file2 = $ARGV[6];
 &read_in_filelists($filelist_file2);
 
-my ($all_count,$duplicate_count,$unique_count,$unique_genomic_count,$unique_repfamily_count) = (0,0,0,0,0);
+my %mirbase_features;
+my $mirbase_fi = $ARGV[8];
+&read_mirbase($mirbase_fi);
+my %convert_strand = ("+" => "-", "-" => "+");
+
+
+my $unique_count = 0;
+my ($all_count,$duplicate_count,$unique_count_old,$unique_genomic_count,$unique_repfamily_count) = (0,0,0,0,0);
 
 # takes in sam file, should be blah.bc.tmp file
 my $repfamily_sam = $ARGV[0];
@@ -59,101 +85,77 @@ my %read_hash;
 &read_rep_family($repfamily_sam);
 &read_unique_mapped($gabe_rmRep_sam);
 
-my @repfamily_sam_split = split(/\//,$repfamily_sam);
-my $repfamily_sam_short = $repfamily_sam_split[$#repfamily_sam_split];
-
-my $output_fi = $repfamily_sam_short.".combined_w_uniquemap.rmDup.sam";
+my $output_fi = $repfamily_sam.".combined_w_uniquemap.rmDup.sam";
 open(OUT,">$output_fi");
 
-my $pre_rmdup_fi = $repfamily_sam_short.".combined_w_uniquemap.prermDup.sam";
+my ($total_unique_mapped_read_num,$rep_family_reads,$unique_genomic) = (0,0,0);
+
+my %count;
+my %count_enst;
+my $pre_rmdup_fi = $repfamily_sam.".combined_w_uniquemap.prermDup.sam";
 open(PREDUP,">$pre_rmdup_fi");
 &run_pcr_duplicate_removal();
 
 close(PREDUP);
 close(OUT);
-my $count_out = $output_fi.".parsed";
+my $count_out = $output_fi.".parsed_v2.20191022txt";
 open(COUNT,">$count_out");
-print COUNT "#READINFO\tAll reads:\t$all_count\tPCR duplicates removed:\t$duplicate_count\tUsable Remaining:\t$unique_count\tUsable from genomic mapping:\t$unique_genomic_count\tUsable from family mapping:\t$unique_repfamily_count\n";
+print COUNT "#READINFO\tAll reads:\t$all_count\tPCR duplicates removed:\t$duplicate_count\tUsable Remaining:\t$unique_count_old\tUsable from genomic mapping:\t$unique_genomic_count\tUsable from family mapping:\t$unique_repfamily_count\n";
 #print COUNT "#READINFO\tAll reads:\t$all_count\nPCR duplicates removed:\t$duplicate_count\nUsable Remainig:\t$unique_count\nUsable from genomic mapping:\t$unique_genomic_count\nUsable from family mapping:\t$unique_repfamily_count\n";
 
-&count_output();
+#&count_output();
+print COUNT "#READINFO\tUsableReads\t".$total_unique_mapped_read_num."\n";
+if ($total_unique_mapped_read_num > 0) {
+    print COUNT "#READINFO\tGenomicReads\t".$unique_genomic."\t".sprintf("%.5f",$unique_genomic/$total_unique_mapped_read_num)."\n";
+    print COUNT "#READINFO\tRepFamilyReads\t".$rep_family_reads."\t".sprintf("%.5f",$rep_family_reads/$total_unique_mapped_read_num)."\n";
+} else {
+    print COUNT "#READINFO\tGenomicReads\t".$unique_genomic."\t0\n";
+    print COUNT "#READINFO\tRepFamilyReads\t".$rep_family_reads."\t0\n";
+}
+
+my @sorted_total = sort {$count{$b} <=> $count{$a}} keys %count;
+for my $k (@sorted_total) {
+    print COUNT "TOTAL\t$k\t$count{$k}\t".sprintf("%.5f",$count{$k} * 1000000 / $total_unique_mapped_read_num)."\n";
+}
+
+my @sorted = sort {$count_enst{$b} <=> $count_enst{$a}} keys %count_enst;
+for my $s (@sorted) {
+    my ($ensttype,$multensts) = split(/\|\|/,$s);
+    my @multensts_split = split(/\|/,$multensts);
+    my @genes_final;
+    my $type = $ensttype;
+    for my $multensts_group (@multensts_split) {
+        my @gids = split(/\;\;/,$multensts_group);
+
+        my @genes_short;
+        for my $gid (@gids) {
+            if (exists $enst2gene{$gid}) {
+                push @genes_short,$enst2gene{$gid};
+            } else {
+                push @genes_short,$gid;
+            }
+        }
+        push @genes_final,join(";;",@genes_short);
+    }
+
+    my ($ensg_primary,$readnum,$rpm,$enst_all,$ensg_all) = ($type,$count_enst{$s},sprintf("%.5f",$count_enst{$s} * 1000000 / $total_unique_mapped_read_num),$s,join("|",@genes_final));
+
+
+    print COUNT "ELEMENT\t".$ensg_primary."\t".$readnum."\t".$rpm."\t".$enst_all."\t".$ensg_all."\n";
+}
+
+
+
 close(COUNT);
+
+
+
 
 my $out_done = $count_out.".done";
 open(DONE,">$out_done");
 print DONE "jobs done\n";
 close(DONE);
 
-
-sub count_output {
-#    print STDERR "doing unique read counting\n";
-    my %counter;
-    for my $r1name (keys %read_hash) {
-	if (exists $read_hash{$r1name}{file1flag} && $read_hash{$r1name}{file1flag} == 1) {
-	    if (exists $read_hash{$r1name}{file2flag} && $read_hash{$r1name}{file2flag} == 1) {
-		$counter{"intersect"}++;
-	    } else {
-		$counter{"bam1only"}++;
-	    }
-	} elsif (exists $read_hash{$r1name}{file2flag} && $read_hash{$r1name}{file2flag} == 1) {
-	    $counter{"bam2only"}++;
-	} else {
-	    print STDERR "fatal error - should never hit this $r1name\n";
-	}
-	$counter{"union"}++;
-    }
-
-    for my $key ("intersect","union","bam1only","bam2only") {
-	$counter{$key} = 0 unless (exists $counter{$key});
-    }
-    my ($a_only,$b_only,$intersect,$union) = ($counter{"bam1only"},$counter{"bam2only"},$counter{"intersect"},$counter{"union"});
-    my $total_unique_mapped_read_num = $unique_count;
-    print COUNT "#READINFO2\tRepMappingOnly\t$a_only\tUniqueMappingOnly\t$b_only\tIntersection\t$intersect\tUnion\t$union\n";
-
-
-#    print STDERR "now doing type counting and final stuff\n";
-    my %count;
-    my %count_enst;
-    for my $read (keys %read_hash) {
-	next unless (exists $read_hash{$read}{rep_flag});
-	my $ensttype = $read_hash{$read}{ensttype};
-
-	if ($ensttype =~ /Simple\_repeat/) {
-	    $ensttype = "Simple_repeat";
-	}
-
-	$count{$ensttype}++;
-
-	$count_enst{$ensttype."||".$read_hash{$read}{mult_ensts}}++;
-#           $count_enst{$ensttype."|".join("|",@{$read_hash{$read}{mult_ensts}{$ensttype}})}++;                  
-    }
-
-
-    for my $k (keys %count) {
-	print COUNT "TOTAL\t$k\t$count{$k}\t".sprintf("%.5f",$count{$k} * 1000000 / $total_unique_mapped_read_num)."\n";
-    }
-
-    my @sorted = sort {$count_enst{$b} <=> $count_enst{$a}} keys %count_enst;
-    for my $s (@sorted) {
-	my ($ensttype,$multensts) = split(/\|\|/,$s);
-	my @gids = split(/\|/,$multensts);
-	my $type = $ensttype;
-	my @genes;
-	for my $gid (@gids) {
-	    if (exists $enst2gene{$gid}) {
-		push @genes,$enst2gene{$gid};
-	    } else {
-		push @genes,$gid;
-	    }
-	}
-	
-	print COUNT "$type\t$count_enst{$s}\t".sprintf("%.5f",$count_enst{$s} * 1000000 / $total_unique_mapped_read_num)."\t$s\t".join("|",@genes)."\n"; 
-#    print "$type\t$geneid\t$count_enst{$s}\t$s\n";                      
-    }
-
-
-
-}
 
 # now do PCR duplicate removal
 
@@ -167,31 +169,40 @@ sub run_pcr_duplicate_removal {
 	my $r1 = $read_hash{$r1name}{R1};
 	
 	my @tmp_r1 = split(/\t/,$r1);
-#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
 	
 	my $r1sam_flag = $tmp_r1[1];
-
-	next if ($r1sam_flag == 4);
+        next if ($r1sam_flag == 4);
+#	next if ($r1sam_flag == 77 || $r1sam_flag == 141);
 	
 	my $frag_strand;
 ### This section is for only properly paired reads                                                                                                                                                                       
-	if ($r1sam_flag == 16 || $r1sam_flag == 272) {
-	    $frag_strand = "-";
-	} elsif ($r1sam_flag eq "0" || $r1sam_flag == 256) {
-	    $frag_strand = "+";
-	}  else {
-	    next;
-	    print STDERR "R1 strand error $r1sam_flag\n";
-	}
+#	if ($r1sam_flag == 99 || $r1sam_flag == 355) {
+#	    $frag_strand = "-";
+#	} elsif ($r1sam_flag == 83 || $r1sam_flag == 339) {
+#	    $frag_strand = "+";
+#	} elsif ($r1sam_flag == 147 || $r1sam_flag == 403) {
+#	    $frag_strand = "-";
+#	} elsif ($r1sam_flag == 163 || $r1sam_flag == 419) {
+#	    $frag_strand = "+";
+#	}  else {
+#	    next;
+#	    print STDERR "R1 strand error $r1sam_flag\n";
+#	}
 
+	if ($r1sam_flag == 16 || $r1sam_flag == 272) {
+            $frag_strand = "-";
+        } elsif ($r1sam_flag eq "0" || $r1sam_flag == 256) {
+            $frag_strand = "+";
+        }  else {
+            next;
+            print STDERR "R1 strand error $r1sam_flag\n";
+        }
+
+	
 	my @read_name = split(/\_/,$tmp_r1[0]);
 	my $randommer = pop(@read_name);
-	my $r1name = join("_",@read_name);
 
-#        my ($r1name,$randommer) = split(/\_/,$tmp_r1[0]);	
-#	my @read_name = split(/\:/,$tmp_r1[0]);
-#	my $randommer = $read_name[0];
-#	print STDERR "run_pcr_duplicate_removal readname $r1name, randommer $randommer\n";
 	my $r1_cigar = $tmp_r1[5];
 
       # 165 = R2 unmapped, R1 rev strand -- frag on fwd strand
@@ -210,13 +221,12 @@ sub run_pcr_duplicate_removal {
 	    my $r1_firstregion = $read_regions{"R1"}[scalar(@{$read_regions{"R1"}})-1];
 	    my ($r1_firstchr,$r1_firststr,$r1_firstpos) = split(/\:/,$r1_firstregion);
 	    my ($r1_firststart,$r1_firststop) = split(/\-/,$r1_firstpos);
-	    $hashing_value = $r1_firstchr.":".$r1_firststr.":".$r1_firststart."\t".$r1_firstchr.":".$r1_firststr.":".$r1_firststop;
+            $hashing_value = $r1_firstchr.":".$r1_firststr.":".$r1_firststart."\t".$r1_firstchr.":".$r1_firststr.":".$r1_firststop;
 	} elsif ($frag_strand eq "-") {
 	    my $r1_firstregion = $read_regions{"R1"}[0];
 	    my ($r1_firstchr,$r1_firststr,$r1_firstpos) = split(/\:/,$r1_firstregion);
 	    my ($r1_firststart,$r1_firststop) = split(/\-/,$r1_firstpos);
 	    $hashing_value = $r1_firstchr.":".$r1_firststr.":".$r1_firststart."\t".$r1_firstchr.":".$r1_firststr.":".$r1_firststop;
-
 	} else {
 	    print STDERR "strand error $frag_strand $r1\n";
 	}
@@ -233,24 +243,91 @@ sub run_pcr_duplicate_removal {
 	if (exists $fragment_hash{$r1_chr."|".$frag_strand}{$hashing_value.":".$randommer}) {
 	    $duplicate_count++;
 	    delete($read_hash{$r1name});
+	    next;
 	} else {
 	    $fragment_hash{$r1_chr."|".$frag_strand}{$hashing_value.":".$randommer} = 1;
-
+	    
 	    if (exists $read_hash{$r1name}{file1flag} && $read_hash{$r1name}{file1flag} == 1) {
 		# read is coming from familiy mapping
 		print OUT "".$r1."\tRepFamily\t$r1_chr\n";
+		push @tmp_r1,"RepFamily";
+		push @tmp_r1,$r1_chr;
+
 		$unique_repfamily_count++;
 	    } elsif (exists $read_hash{$r1name}{file2flag} && $read_hash{$r1name}{file2flag} == 1) {
 		# read is coming from familiy mapping                                              
                 print OUT "".$r1."\tUniqueGenomic\t".$read_hash{$r1name}{ensttype}."||".$read_hash{$r1name}{mult_ensts}."\n";
+		push @tmp_r1,"UniqueGenomic";
+		push @tmp_r1,$read_hash{$r1name}{ensttype}."||".$read_hash{$r1name}{mult_ensts};
+		
 		$unique_genomic_count++;
 	    } else {
 		print STDERR "this shouldn't be hit - fi1flag $read_hash{$r1name}{file1flag} fi2flag $read_hash{$r1name}{file2flag} $r1name\n";
 	    }
-
-
-	    $unique_count++;
 	}
+	
+	$unique_count_old++;
+	
+	
+	my $repmap_info = pop(@tmp_r1);
+	my $type = pop(@tmp_r1);
+	my $mult_transcripts = pop(@tmp_r1);
+	
+	my ($ensttype,$mult_ensts) = split(/\|\|/,$repmap_info);
+
+	if ($type eq "RepFamily" && ($r1_chr =~ /^chrM\|\|/ || $r1_chr =~ /^antisense_chrM\|\|/)) {
+	    my ($r1_chronly,$r1_repelement) = split(/\|\|/,$r1_chr);
+	    my $relative_strand = "+";
+	    if ($r1_repelement =~ /^antisense\_(.+)$/) {
+		$r1_repelement = $1;
+		$relative_strand = "-";
+	    }
+	    
+	    if ($r1_repelement =~ /^(.+)\_DOUBLEMAP$/ || $r1_repelement =~ /^antisense\_(.+)\_DOUBLEMAP$/) {
+		$r1_repelement = $1;
+	    }
+	    my $absolute_strand = $enst2chrstr{$r1_repelement}{str};
+	    if ($relative_strand eq "-") {
+		$absolute_strand = $convert_strand{$absolute_strand};
+	    }
+	    
+	    $ensttype = "chrMreprocess_".$absolute_strand."strand";
+	    $unique_genomic++;
+
+	} elsif ($type eq "RepFamily") {
+	    if ($mult_transcripts =~ /ZZ\:Z\:(.+)$/) {
+		$mult_ensts = $1;
+	    } else {
+		print STDERR "error $r1\n";
+	    }
+
+	    
+	    my @all_transcripts = split(/\|/,$mult_ensts);
+	    my ($primary_output,$full_output) = &reorder_transcripts_by_priority(\@all_transcripts);
+	    ($ensttype,$mult_ensts) = split(/\|\|/,$full_output);
+
+	    if ($ensttype =~ /^H1RNA/ || $ensttype =~ /^MRP/) {
+		$unique_genomic++;
+	    } else {	    
+		$rep_family_reads++;
+	    }	    
+	} elsif ($type eq "UniqueGenomic") {
+	    if ($r1_chr eq "chrM") {
+		$ensttype = "chrMreprocess_".$frag_strand."strand";
+	    }
+	    $unique_genomic++;
+	} else {
+	    print STDERR "error - this shouldn't happen $r1\n";
+	}
+	
+	if ($ensttype =~ /Simple\_repeat/) {
+	    $ensttype = "Simple_repeat";
+	}
+	
+	$count{$ensttype}++;
+	$count_enst{$ensttype."||".$mult_ensts}++;
+	$total_unique_mapped_read_num++
+	    
     }
 }
 
@@ -282,7 +359,7 @@ sub read_unique_mapped {
 	chomp($r1);
 	
 	my @tmp_r1 = split(/\t/,$r1);
-#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
+	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
 	
 	my $r1sam_flag = $tmp_r1[1];
 	next if ($r1sam_flag == 4);
@@ -307,31 +384,44 @@ sub read_unique_mapped {
 
 	my $frag_strand;
 ### This section is for only properly paired reads                       
-	if ($r1sam_flag == 16 || $r1sam_flag == 272) {
-	    $frag_strand = "-";
-	} elsif ($r1sam_flag eq "0" || $r1sam_flag == 256) {
-	    $frag_strand = "+";
-	}  else {
+#	if ($r1sam_flag == 99) {
+#	    $frag_strand = "-";
+#	} elsif ($r1sam_flag == 83) {
+#	    $frag_strand = "+";
+#	} elsif ($r1sam_flag == 147) {
+#	    $frag_strand = "-";
+#	    ($r1,$r2) = ($r2,$r1);
+#	    @tmp_r1 = split(/\t/,$r1);
+#	    @tmp_r2 = split(/\t/,$r2);	    	    
+#	} elsif ($r1sam_flag == 163) {
+#	    ($r1,$r2) =($r2,$r1);
+#	    @tmp_r1 = split(/\t/,$r1);
+#	    @tmp_r2 = split(/\t/,$r2);
+#	    $frag_strand = "+";
+#	}  else {
 #       print STDERR "R1 strand error $r1sam_flag\n";
-	    next;
-	}
+#	    next;
+#	}
 ###
-	my @read_name = split(/\_/,$tmp_r1[0]);
-        my $randommer = pop(@read_name);
-	my $r1name = join("_",@read_name);
+	if ($r1sam_flag == 16 || $r1sam_flag == 272) {
+            $frag_strand = "-";
+        } elsif ($r1sam_flag eq "0" || $r1sam_flag == 256) {
+            $frag_strand = "+";
+        }  else {
+#       print STDERR "R1 strand error $r1sam_flag\n";
+            next;
+        }
 
-#        my ($r1name,$randommer) = split(/\_/,$tmp_r1[0]);
-#	print STDERR "read_unique_mapped readname $r1name, randommer $randommer\n";
-#	my @read_name = split(/\:/,$tmp_r1[0]);
-#	my $randommer = $read_name[0];
+
+	my @read_name = split(/\:/,$tmp_r1[0]);
 	
 	my $r1_cigar = $tmp_r1[5];
-	
 	my $r1_chr = $tmp_r1[2];
 	my $r1_start = $tmp_r1[3];
 	
 	my @read_regions = &parse_cigar_string($r1_start,$r1_cigar,$r1_chr,$frag_strand);
 
+#this section is doing overlaps versus "peaks" = unique genomic repetitive elements = bed file regions from the repmasker run on hg19
 	my %tmp_hash;
 	for my $region (@read_regions) {
 	    my ($rchr,$rstr,$rpos) = split(/\:/,$region);
@@ -339,8 +429,8 @@ sub read_unique_mapped {
 
 	    my $verbose_flag = 0;
 
-	    my $rx = int($rstart / $hashing_value);
-	    my $ry = int($rstop  / $hashing_value);
+	    my $rx = int($rstart / $genome_hashing_value);
+	    my $ry = int($rstop  / $genome_hashing_value);
 	    for my $ri ($rx..$ry) {
 
 		for my $peak (@{$peaks{$rchr}{$rstr}{$ri}}) {
@@ -373,12 +463,11 @@ sub read_unique_mapped {
 
 	my $flags_r1 = join("\t",@tmp_r1[11..$#tmp_r1]);
 
-
 	my $r1_mismatch;
-
 	if ($flags_r1 =~ /MD\:Z\:(\S+)\s/ || $flags_r1 =~ /MD\:Z\:(\S+?)$/) {                       
 	    $r1_mismatch = $1;          
 	} 
+          
 	my $r1_phred = $tmp_r1[10];                   
 	my $r1_seq = $tmp_r1[9];                      
 	my $r1_mmscore = &get_alignment_score($r1_mismatch,$r1_cigar,$r1_phred,$r1_seq);               
@@ -407,99 +496,143 @@ sub read_unique_mapped {
 	my @sorted_convertedtype = sort {$a cmp $b} keys %converted_types;
 	my $all_ensttypes = join("|",@sorted_convertedtype);
 
-	# now throw out reads that uniquely map but don't overlap a RepBase element - removed for now, can add back in later
-	# clarifying note: what I'm doing here is if it overlaps with >=1 repbase element, it gets counted as THAT; otherwise, it goes through and gets counted as CDS/proxintron/etc
-	unless (scalar(keys %temp_peak_read_counts) >= 1) {
-	    
-	    my $read1_start_position;
-	    if ($frag_strand eq "+") {
-		$read1_start_position = $r1_start;
-	    } elsif ($frag_strand eq "-") {
-		my $last_region = $read_regions[$#read_regions];
-		my ($rchr,$rstr,$rpos) = split(/\:/,$last_region);
-		my ($rstart,$rstop) = split(/\-/,$rpos);
-		$read1_start_position = $rstop - 1;
-	    } else {
-		print STDERR "error $frag_strand\n";
-	    }
 
-	    my $feature_flag = 0;
-	    my %tmp_gencode_hash;
-	    
-            my $rx = int($read1_start_position / $hashing_value);
-	    for my $gencode (@{$gencode_features{$r1_chr}{$frag_strand}{$rx}}) {
-		my ($gencode_enst,$gencode_type,$gencode_region) = split(/\|/,$gencode);
-		my ($gencode_start,$gencode_stop) = split(/\-/,$gencode_region);
+## 20191023 - in my re-parsing, I assign anything that's in a microRNA or microRNA proximal region to those classes regardless of whether they overlap a repbase element or not - copying that to this script for now
+	my $read1_start_position;
+	if ($frag_strand eq "+") {
+	    $read1_start_position = $r1_start;
+	} elsif ($frag_strand eq "-") {
+	    my $last_region = $read_regions[$#read_regions];
+	    my ($rchr,$rstr,$rpos) = split(/\:/,$last_region);
+	    my ($rstart,$rstop) = split(/\-/,$rpos);
+	    $read1_start_position = $rstop - 1;
+	} else {
+	    print STDERR "error $frag_strand\n";
+	}
 
-		next if ($read1_start_position < $gencode_start);
-		next if ($read1_start_position >= $gencode_stop);
-		my $gencode_ensg = $enst2ensg{$gencode_enst};
-		$tmp_gencode_hash{$gencode_type}{$gencode_ensg}="contained";
-		$feature_flag = 1;
+	my $mirbase_feature_flag = 0;
+	my %tmp_mirbase_hash;
 
-	    }
+	my $rx = int($read1_start_position / $genome_hashing_value);
+	for my $mirbase (@{$mirbase_features{$r1_chr}{$frag_strand}{$rx}}) {
+	    my ($mirbase_enst,$mirbase_type,$mirbase_region) = split(/\|/,$mirbase);
+	    my ($mirbase_start,$mirbase_stop) = split(/\-/,$mirbase_region);
 
+	    next if ($read1_start_position < $mirbase_start);
+	    next if ($read1_start_position >= $mirbase_stop);
+	    my $mirbase_ensg = $enst2ensg{$mirbase_enst};
+	    $tmp_mirbase_hash{$mirbase_type}{$mirbase_ensg}="contained";
+	    $mirbase_feature_flag = 1;
+
+	}
+
+	if ($mirbase_feature_flag == 1) {
 	    my $final_feature_type = "intergenic";
 
-	    if ($feature_flag == 1) {
-		if (exists $tmp_gencode_hash{"CDS"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"CDS");
-		    $final_feature_type = "CDS";
-
-		} elsif (exists $tmp_gencode_hash{"3utr"} || exists $tmp_gencode_hash{"5utr"}) {
-		    if (exists $tmp_gencode_hash{"3utr"} && exists $tmp_gencode_hash{"5utr"}) {
-			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"3utr");
-			my $feature_type_flag2 = &get_type_flag(\%tmp_gencode_hash,"5utr");
-
-			unless ($feature_type_flag eq "contained" && $feature_type_flag2 eq "contained") {
-			    $feature_type_flag = "partial";
-			}
-
-			$final_feature_type = "5utr_and_3utr";
-		    } elsif (exists $tmp_gencode_hash{"3utr"}) {
-			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"3utr");
-			$final_feature_type = "3utr";
-		    } elsif (exists $tmp_gencode_hash{"5utr"}) {
-			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"5utr");
-			$final_feature_type = "5utr";
-		    } else {
-			print STDERR "weird shouldn't hit this\n";
-		    }
-		} elsif (exists $tmp_gencode_hash{"proxintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"proxintron");
-		    $final_feature_type = "proxintron";
-		} elsif (exists $tmp_gencode_hash{"distintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"distintron");
-		    $final_feature_type = "distintron";
-		} elsif (exists $tmp_gencode_hash{"noncoding_exon"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_exon");
-		    $final_feature_type = "noncoding_exon";
-		} elsif (exists $tmp_gencode_hash{"noncoding_proxintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_proxintron");
-		    $final_feature_type = "noncoding_proxintron";
-		} elsif (exists $tmp_gencode_hash{"noncoding_distintron"}) {
-		    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_distintron");
-		    $final_feature_type = "noncoding_distintron";
-		} elsif (exists $tmp_gencode_hash{"antisense_gencode"}) {		    
-		    $final_feature_type = "antisense_gencode";
-		} else {
-		    print STDERR "weird - shouldn't hit this? elements of tmp_gencode_hash are ".join("|",keys %tmp_gencode_hash)."\n";
-		}
+	    if (exists $tmp_mirbase_hash{"miRNA"}) {
+		my $feature_type_flag = &get_type_flag(\%tmp_mirbase_hash,"miRNA");
+		$final_feature_type = "miRNA";
+	    } elsif (exists $tmp_mirbase_hash{"miRNA-proximal"}) {
+		my $feature_type_flag = &get_type_flag(\%tmp_mirbase_hash,"miRNA-proximal");
+		$final_feature_type = "miRNA-proximal";
+	    } else {
+		print STDERR "this shouldn't be hit - mirbase_feature_flag is 1 but no miRNA or miRNA-proximal overlap? $r1\n";
 	    }
 
-#	    $read_counts{$final_feature_type}++;
-
-
-
 	    $all_ensttypes = "unique_".$final_feature_type;
-	    if (exists $tmp_gencode_hash{$final_feature_type}) {
+            if (exists $tmp_mirbase_hash{$final_feature_type}) {
 
+#20171019 - changed this to sort to be consistent across perl versions                                                                                                                                         
+                my @sorted_keys = sort {$a cmp $b} keys %{$tmp_mirbase_hash{$final_feature_type}};
+                $all_mapped_ensts = "unique_".join("|",@sorted_keys);
+#               $all_mapped_ensts = "unique_".join("|",keys %{$tmp_gencode_hash{$final_feature_type}});                                                                                                        
+            } else {
+                $all_mapped_ensts = "unique_".$final_feature_type;
+            }
+	} else {
+
+	# now throw out reads that uniquely map but don't overlap a RepBase element - removed for now, can add back in later
+	# clarifying note: what I'm doing here is if it overlaps with >=1 repbase element, it gets counted as THAT; otherwise, it goes through and gets counted as CDS/proxintron/etc
+	    unless (scalar(keys %temp_peak_read_counts) >= 1) {
+		
+		my $feature_flag = 0;
+		my %tmp_gencode_hash;
+	    
+		my $rx = int($read1_start_position / $genome_hashing_value);
+		for my $gencode (@{$gencode_features{$r1_chr}{$frag_strand}{$rx}}) {
+		    my ($gencode_enst,$gencode_type,$gencode_region) = split(/\|/,$gencode);
+		    my ($gencode_start,$gencode_stop) = split(/\-/,$gencode_region);
+		    
+		    next if ($read1_start_position < $gencode_start);
+		    next if ($read1_start_position >= $gencode_stop);
+		    my $gencode_ensg = $enst2ensg{$gencode_enst};
+		    $tmp_gencode_hash{$gencode_type}{$gencode_ensg}="contained";
+		    $feature_flag = 1;
+		    
+		}
+		
+		my $final_feature_type = "intergenic";
+		
+		if ($feature_flag == 1) {
+		    if (exists $tmp_gencode_hash{"CDS"}) {
+			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"CDS");
+			$final_feature_type = "CDS";
+			
+		    } elsif (exists $tmp_gencode_hash{"3utr"} || exists $tmp_gencode_hash{"5utr"}) {
+			if (exists $tmp_gencode_hash{"3utr"} && exists $tmp_gencode_hash{"5utr"}) {
+			    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"3utr");
+			    my $feature_type_flag2 = &get_type_flag(\%tmp_gencode_hash,"5utr");
+			    
+			    unless ($feature_type_flag eq "contained" && $feature_type_flag2 eq "contained") {
+				$feature_type_flag = "partial";
+			    }
+			    
+			    $final_feature_type = "5utr_and_3utr";
+			} elsif (exists $tmp_gencode_hash{"3utr"}) {
+			    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"3utr");
+			    $final_feature_type = "3utr";
+			} elsif (exists $tmp_gencode_hash{"5utr"}) {
+			    my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"5utr");
+			    $final_feature_type = "5utr";
+			} else {
+			    print STDERR "weird shouldn't hit this\n";
+			}
+		    } elsif (exists $tmp_gencode_hash{"proxintron"}) {
+			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"proxintron");
+			$final_feature_type = "proxintron";
+		    } elsif (exists $tmp_gencode_hash{"distintron"}) {
+			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"distintron");
+			$final_feature_type = "distintron";
+		    } elsif (exists $tmp_gencode_hash{"noncoding_exon"}) {
+			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_exon");
+			$final_feature_type = "noncoding_exon";
+		    } elsif (exists $tmp_gencode_hash{"noncoding_proxintron"}) {
+			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_proxintron");
+			$final_feature_type = "noncoding_proxintron";
+		    } elsif (exists $tmp_gencode_hash{"noncoding_distintron"}) {
+			my $feature_type_flag = &get_type_flag(\%tmp_gencode_hash,"noncoding_distintron");
+			$final_feature_type = "noncoding_distintron";
+		    } elsif (exists $tmp_gencode_hash{"antisense_gencode"}) {		    
+			$final_feature_type = "antisense_gencode";
+		    } else {
+			print STDERR "weird - shouldn't hit this? elements of tmp_gencode_hash are ".join("|",keys %tmp_gencode_hash)."\n";
+		    }
+		}
+		
+#	    $read_counts{$final_feature_type}++;
+		
+
+		
+		$all_ensttypes = "unique_".$final_feature_type;
+		if (exists $tmp_gencode_hash{$final_feature_type}) {
+		    
 #20171019 - changed this to sort to be consistent across perl versions
-		my @sorted_keys = sort {$a cmp $b} keys %{$tmp_gencode_hash{$final_feature_type}};
-		$all_mapped_ensts = "unique_".join("|",@sorted_keys);
+		    my @sorted_keys = sort {$a cmp $b} keys %{$tmp_gencode_hash{$final_feature_type}};
+		    $all_mapped_ensts = "unique_".join("|",@sorted_keys);
 #		$all_mapped_ensts = "unique_".join("|",keys %{$tmp_gencode_hash{$final_feature_type}});
-	    } else {
-		$all_mapped_ensts = "unique_".$final_feature_type;
+		} else {
+		    $all_mapped_ensts = "unique_".$final_feature_type;
+		}
 	    }
 	}
 #	next unless (scalar(keys %temp_peak_read_counts) >= 1);
@@ -536,29 +669,43 @@ sub read_rep_family {
 	}
 	
 	my @tmp_r1 = split(/\t/,$r1);
-#	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
-	my @read_name = split(/\_/,$tmp_r1[0]);
-        my $r1bc = pop(@read_name);
-	my $r1name = join("_",@read_name);
-
-#	my ($r1name,$r1bc) = split(/\_/,$tmp_r1[0]);
-#        print STDERR "read_rep_family readname $r1name, randommer $r1bc\n";
-
-
+	my ($r1name,$r1bc) = split(/\s+/,$tmp_r1[0]);
 	my $r1sam_flag = $tmp_r1[1];
+#	next if ($r1sam_flag == 77 || $r1sam_flag == 141);
 	next if ($r1sam_flag == 4);
+
 	
 	my $frag_strand;
-### This section is for only properly paired reads   
 	if ($r1sam_flag == 16 || $r1sam_flag == 272) {
-	    $frag_strand = "-";
-	} elsif ($r1sam_flag eq "0" || $r1sam_flag == 256) {
-	    $frag_strand = "+";
-	}  else {
-	    next;
-	    print STDERR "R1 strand error $r1sam_flag\n";
-	}
-###                                                                                                                              
+            $frag_strand = "-";
+        } elsif ($r1sam_flag eq "0" || $r1sam_flag == 256) {
+            $frag_strand = "+";
+        }  else {
+            next;
+            print STDERR "R1 strand error $r1sam_flag\n";
+        }
+
+
+### This section is for only properly paired reads   
+#	if ($r1sam_flag == 99 || $r1sam_flag == 355) {
+#	    $frag_strand = "-";
+#	} elsif ($r1sam_flag == 83 || $r1sam_flag == 339) {
+#	    $frag_strand = "+";
+#	} elsif ($r1sam_flag == 147 || $r1sam_flag == 403) {
+ #           ($r1,$r2) =($r2,$r1);
+#	    @tmp_r1 = split(/\t/,$r1);
+#	    @tmp_r2 = split(/\t/,$r2);
+#	    $frag_strand = "-";
+#	} elsif ($r1sam_flag == 163 || $r1sam_flag == 419) {
+ #           ($r1,$r2) =($r2,$r1);
+#	    @tmp_r1 = split(/\t/,$r1);
+#	    @tmp_r2 = split(/\t/,$r2);
+#	    $frag_strand = "+";
+#	}  else {
+#	    next;
+#	    print STDERR "R1 strand error $r1sam_flag\n";
+#	}
+###                                                                                                                                                                                                                                              
 	my $flags_r1 = join("\t",@tmp_r1[11..$#tmp_r1]);
 	
 	my $r1_score;
@@ -586,6 +733,7 @@ sub read_rep_family {
 	$read_hash{$r1name}{rep_score} = $total_score;
 	$read_hash{$r1name}{file1flag} = 1;
 	$read_hash{$r1name}{R1} = $r1;
+
 #    $read_hash{$r1name}{flags} = $enstpriority;                                                                                                                                                                                                 
 	$read_hash{$r1name}{mult_ensts} = $all_mapped_ensts;
 #    print "al $all_mapped_ensts\n";                                                                                                                                                                                                             
@@ -619,8 +767,8 @@ sub read_peakfi {
 
         next if ($chr eq "genoName");
 
-        my $x = int($start / $hashing_value);
-        my $y = int($stop  / $hashing_value);
+        my $x = int($start / $genome_hashing_value);
+        my $y = int($stop  / $genome_hashing_value);
 
         my $peak = $chr.":".$start."-".$stop.":".$strand.":".$gene;
 #       if (exists $peak_read_counts{$peak}{allpeaks}) {
@@ -670,6 +818,9 @@ sub read_in_filelists {
 #            $convert_enst2type{$enst."_antisense"} = $type_label."_antisense:".$priority_n;
             $convert_enst2type{$enst} = $type_label;
             $convert_enst2type{"antisense_".$enst} = "antisense_".$type_label;
+	    $convert_enst2priority{lc($enst)} = $type_label."|".$priority_n;
+            $convert_enst2priority{"antisense_".lc($enst)} = "antisense_".$type_label."|".$priority_n;
+
             $priority_n++;
         }
     }
@@ -784,9 +935,9 @@ sub parse_mismatch_string_foralignmentscore {
     my @phred_scoress = split(//,$phred_scores);
     my @quality_scores;
     for (my $i=0;$i<@phred_scoress;$i++) {
-#        $quality_scores[$i] = $convert_phred{$phred_scoress[$i]};
-        $quality_scores[$i] = ord($phred_scoress[$i]) - 33;
+	$quality_scores[$i] = ord($phred_scoress[$i]) - 33;
 	print STDERR "error quality score out of range $quality_scores[$i] $phred_scoress[$i]\n" if ($quality_scores[$i] < 0 || $quality_scores[$i] > 43);
+#        $quality_scores[$i] = $convert_phred{$phred_scoress[$i]};
     }
 
     my $current_pos = 0;
@@ -840,13 +991,8 @@ sub parse_mismatch_string_foralignmentscore {
             my $len = length($1);
             #insertions aren't penalized here; penalized in gap open/close                    
             $flags = substr($flags,$len+1);
-	} elsif ($flags =~ /(\S)\d/) {
-	    my $len = length($1);
-	    # this is a really specific error trap for some strange <FF> result in one single recent clip file
-            $flags = substr($flags,$len);
-
         } else {
-            print STDERR "this is a flag I'm not expecting $flags $read_seq\n";
+            print STDERR "this is a flag I'm not expecting $flags\n";
         }
     }
     return($mm_penalty);
@@ -863,8 +1009,8 @@ sub parse_cigar_string_foralignmentscore {
     my @quality_scores;
     for (my $i=0;$i<@phred_scoress;$i++) {
 	$quality_scores[$i] = ord($phred_scoress[$i]) - 33;
-        print STDERR "error quality score out of range $quality_scores[$i] $phred_scoress[$i]\n" if ($quality_scores[$i] < 0 || $quality_scores[$i] > 43);        
-#$quality_scores[$i] = $convert_phred{$phred_scoress[$i]};
+	print STDERR "error quality score out of range $quality_scores[$i] $phred_scoress[$i]\n" if ($quality_scores[$i] < 0 || $quality_scores[$i] > 43);
+#        $quality_scores[$i] = $convert_phred{$phred_scoress[$i]};
     }
 
     my $gap_open = 5;
@@ -909,7 +1055,7 @@ sub read_gencode {
     my $fi = shift;
 #    my $fi = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencodev19_comprehensive";     
     print STDERR "reading in $fi\n";
-    open(F,$fi);
+    open(F,$fi) || die "couldn't open gencode $fi\n";
     while (<F>) {
         chomp($_);
         my @tmp = split(/\t/,$_);
@@ -1046,8 +1192,8 @@ sub read_gencode {
         for my $feature (@tmp_features) {
             my ($enst,$type,$region) = split(/\|/,$feature);
             my ($reg_start,$reg_stop) = split(/\-/,$region);
-            my $x = int($reg_start/$hashing_value);
-            my $y = int($reg_stop /$hashing_value);
+            my $x = int($reg_start/$genome_hashing_value);
+            my $y = int($reg_stop /$genome_hashing_value);
 
             for my $j ($x..$y) {
                 push @{$gencode_features{$chr}{$str}{$j}},$feature;
@@ -1066,7 +1212,7 @@ sub read_gencode_gtf {
     my $file = shift;
 #    my $file = "/projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf";                                                                                                                        
     print STDERR "Reading in $file\n";
-    open(F,$file);
+    open(F,$file) || die "couldn't open gencode $file\n";
     for my $line (<F>) {
         chomp($line);
         next if ($line =~ /^\#/);
@@ -1132,3 +1278,168 @@ sub get_type_flag {
     return($feature_type_final);
 }
 
+
+
+
+sub reorder_transcripts_by_priority {
+    my $enst_ref = shift;
+    my @enst_list = @$enst_ref;
+
+    my %reptype_hash;
+    for my $enst_id_orig (@enst_list) {
+        my $enst_id = $enst_id_orig;
+        $enst_id =~ s/\_DOUBLEMAP$//;
+        $enst_id =~ s/\_spliced$//;
+        $enst_id =~ s/\_$//;
+        $enst_id = lc($enst_id);
+        unless (exists $convert_enst2priority{$enst_id} && $convert_enst2priority{$enst_id}) {
+            print STDERR "err $enst_id $enst_id_orig$convert_enst2priority{$enst_id}\n";
+        }
+        my ($rep_type,$priority_n) = split(/\|/,$convert_enst2priority{$enst_id});
+        $reptype_hash{$rep_type}{$enst_id_orig} = $priority_n;
+    }
+
+    my @sorted_reptypes = sort {$a cmp $b} keys %reptype_hash;
+    my @sorted_ensts_bytype;
+    my @sorted_topenst_bytype;
+    for my $sorted_reptype (@sorted_reptypes) {
+        my @sorted_ensts_by_priority = sort {$reptype_hash{$sorted_reptype}{$a} <=> $reptype_hash{$sorted_reptype}{$b}} keys %{$reptype_hash{$sorted_reptype}};
+        my $reptype_joined = join(";;",@sorted_ensts_by_priority);
+        push @sorted_ensts_bytype,$reptype_joined;
+        push @sorted_topenst_bytype,$sorted_ensts_by_priority[0];
+    }
+    my $output_mult_ensts = join("|",@sorted_ensts_bytype);
+    my $output_top_ensts = join("|",@sorted_topenst_bytype);
+    my $output_types = join("|",@sorted_reptypes);
+
+    my $primary_output = $output_types."||".$output_top_ensts;
+    my $full_output = $output_types."||".$output_mult_ensts;
+    return($primary_output,$full_output);
+}
+
+
+
+sub read_mirbase {
+    my $mirbase_file = shift;
+    open(MIR,$mirbase_fi);
+    for my $line (<MIR>) {
+        chomp($line);
+        $line =~ s/\r//g;
+        next if ($line =~ /^\#/);
+        my @tmp = split(/\t/,$line);
+        if ($tmp[2] eq "miRNA_primary_transcript") {
+            my $chr = $tmp[0];
+            my $start = $tmp[3]-1;
+            my $stop = $tmp[4];
+            my $str = $tmp[6];
+
+            if ($tmp[8]=~ /ID\=(\S+?)\;.+Name\=(\S+?)$/ || $tmp[8] =~ /ID\=(\S+?)\;.+Name\=(\S+?)\;/) {
+                my $id = $1;
+                my $gname = $2;
+
+                my $x = int($start/$genome_hashing_value);
+                my $y = int($stop /$genome_hashing_value);
+
+                my $feature = $id."|miRNA|".$start."-".$stop;
+                $enst2ensg{$id} = $id;
+                $ensg2name{$id}{$gname} = 1;
+#                print STDERR "feature $feature $chr $gname $str\n" if ($gname =~ /mir-21$/);                                                                            
+                for my $j ($x..$y) {
+                    push @{$mirbase_features{$chr}{$str}{$j}},$feature;
+                }
+
+                my $prox_upregion = ($start-500)."|".$start;
+                my $prox_dnregion = ($stop)."|".($stop+500);
+                for my $proxregion ($prox_upregion,$prox_dnregion) {
+                    my ($prox_start,$prox_stop) = split(/\|/,$proxregion);
+
+                    my $prox_x = int($prox_start / $genome_hashing_value);
+                    my $prox_y = int($prox_stop  / $genome_hashing_value);
+
+                    my $prox_feature = $id."|miRNA-proximal|".$prox_start."-".$prox_stop;
+
+                    for my $j ($prox_x..$prox_y) {
+                        push @{$mirbase_features{$chr}{$str}{$j}},$prox_feature;
+                    }
+                }
+
+            } else {
+                print STDERR "didn't parse this properly $tmp[8] $line\n";
+            }
+        }
+    }
+    close(MIR);
+}
+
+
+sub count_output {
+## this is depreciated in this script for the reparse version
+
+#    print STDERR "doing unique read counting\n";
+    my %counter;
+    for my $r1name (keys %read_hash) {
+	if (exists $read_hash{$r1name}{file1flag} && $read_hash{$r1name}{file1flag} == 1) {
+	    if (exists $read_hash{$r1name}{file2flag} && $read_hash{$r1name}{file2flag} == 1) {
+		$counter{"intersect"}++;
+	    } else {
+		$counter{"bam1only"}++;
+	    }
+	} elsif (exists $read_hash{$r1name}{file2flag} && $read_hash{$r1name}{file2flag} == 1) {
+	    $counter{"bam2only"}++;
+	} else {
+	    print STDERR "fatal error - should never hit this $r1name\n";
+	}
+	$counter{"union"}++;
+    }
+
+    for my $key ("intersect","union","bam1only","bam2only") {
+	$counter{$key} = 0 unless (exists $counter{$key});
+    }
+    my ($a_only,$b_only,$intersect,$union) = ($counter{"bam1only"},$counter{"bam2only"},$counter{"intersect"},$counter{"union"});
+    my $total_unique_mapped_read_num = $unique_count;
+    print COUNT "#READINFO2\tRepMappingOnly\t$a_only\tUniqueMappingOnly\t$b_only\tIntersection\t$intersect\tUnion\t$union\n";
+
+
+#    print STDERR "now doing type counting and final stuff\n";
+    my %count;
+    my %count_enst;
+    for my $read (keys %read_hash) {
+	next unless (exists $read_hash{$read}{rep_flag});
+	my $ensttype = $read_hash{$read}{ensttype};
+
+	if ($ensttype =~ /Simple\_repeat/) {
+	    $ensttype = "Simple_repeat";
+	}
+
+	$count{$ensttype}++;
+
+	$count_enst{$ensttype."||".$read_hash{$read}{mult_ensts}}++;
+#           $count_enst{$ensttype."|".join("|",@{$read_hash{$read}{mult_ensts}{$ensttype}})}++;                  
+    }
+
+
+    for my $k (keys %count) {
+	print COUNT "TOTAL\t$k\t$count{$k}\t".sprintf("%.5f",$count{$k} * 1000000 / $total_unique_mapped_read_num)."\n";
+    }
+
+    my @sorted = sort {$count_enst{$b} <=> $count_enst{$a}} keys %count_enst;
+    for my $s (@sorted) {
+	my ($ensttype,$multensts) = split(/\|\|/,$s);
+	my @gids = split(/\|/,$multensts);
+	my $type = $ensttype;
+	my @genes;
+	for my $gid (@gids) {
+	    if (exists $enst2gene{$gid}) {
+		push @genes,$enst2gene{$gid};
+	    } else {
+		push @genes,$gid;
+	    }
+	}
+	
+	print COUNT "$type\t$count_enst{$s}\t".sprintf("%.5f",$count_enst{$s} * 1000000 / $total_unique_mapped_read_num)."\t$s\t".join("|",@genes)."\n"; 
+#    print "$type\t$geneid\t$count_enst{$s}\t$s\n";                      
+    }
+
+
+
+}

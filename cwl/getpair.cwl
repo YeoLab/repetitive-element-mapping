@@ -7,8 +7,6 @@ class: ExpressionTool
 requirements:
   - class: InlineJavascriptRequirement
   - class: ResourceRequirement
-    coresMin: 1
-    coresMax: 16
     ramMin: 1000
 
 inputs:

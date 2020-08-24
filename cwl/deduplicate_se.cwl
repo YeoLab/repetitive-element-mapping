@@ -6,9 +6,12 @@ class: CommandLineTool
 
 requirements:
   - class: ResourceRequirement
-    coresMin: 4
-    ramMin: 64000
+    ramMin: 32000
 
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:0.1.0
+    
 baseCommand: [duplicate_removal_inline_paired_count_region_other_reads_SE.pl]
 
 inputs:

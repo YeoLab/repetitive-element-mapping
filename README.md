@@ -12,8 +12,6 @@ hash keys in 0.0.2. See NOTES.
 - cwlref-runner=1.0
 - python 2.7 with pandas and numpy installed
 
-(Or run the ```source create_environment.sh``` script)
-
 # Installation:
 - For Yeo Lab: ```module load ecliprepmap```
 - For all others:

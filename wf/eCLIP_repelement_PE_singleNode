@@ -17,11 +17,11 @@ set -o pipefail
 
 
 
-CWLRUNNER=cwltorq # either: cwltool cwltoil or cwltorq
+CWLRUNNER=cwltool # either: cwltool cwltoil or cwltorq
 WORKFLOW=wf_ecliprepmap_pe # the prefix of the workflow cwl (without .cwl extension)
 
 PIPELINE=REPELEMENTMAPPING  # workflow prefix
-PIPELINEVERSION=0.0.3  # workflow version
+PIPELINEVERSION=0.1.0  # workflow version
 
 FULLPATHCOMMAND=$0
 JOB_FILE=$1
@@ -208,6 +208,7 @@ then
     --realTimeLogging \
     --stats \
     --defaultMemory 64.0G \
+    --no-container \
     ${WORKFLOW_HOME}/cwl/${WORKFLOW}.cwl \
     ${JOB_FILE} \
     2>${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_LOG.txt | tee ${JOB_HOME}/${JOB_NAME}/${PIPELINE}_${JOB_NAME}_OUTPUT.json

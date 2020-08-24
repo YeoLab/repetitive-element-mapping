@@ -7,12 +7,13 @@ class: CommandLineTool
 requirements:
   - class: InlineJavascriptRequirement
   - class: ResourceRequirement
-    coresMin: 1
-    coresMax: 16
-    ramMin: 8000
-    tmpdirMin: 4000
-    outdirMin: 4000
+    coresMin: 8
+    ramMin: 16000
 
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:0.1.0
+    
 # # wrapped perl script for parsing bowtie results inline
 baseCommand: [parse_bowtie2_output_realtime_includemultifamily_PE.pl]
 

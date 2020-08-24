@@ -6,7 +6,6 @@ class: CommandLineTool
 
 baseCommand: [cat]
 
-
 inputs:
 
   files:

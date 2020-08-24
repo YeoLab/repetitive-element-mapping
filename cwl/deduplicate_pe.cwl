@@ -4,6 +4,14 @@ cwlVersion: v1.0
 
 class: CommandLineTool
 
+requirements:
+  - class: ResourceRequirement
+    ramMin: 32000
+
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:0.1.0
+    
 baseCommand: [duplicate_removal_inline_paired_count_region_other_reads_PE.pl]
 
 inputs:

@@ -6,7 +6,6 @@ class: CommandLineTool
 
 baseCommand: [gzip]
 
-
 inputs:
 
   stdout:

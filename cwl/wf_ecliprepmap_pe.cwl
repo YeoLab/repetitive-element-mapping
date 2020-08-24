@@ -165,9 +165,9 @@ steps:
       gencodeGTF: gencodeGTF
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
+      prefixes: prefixes
       chrM_genelist_file: chrM_genelist_file
       mirbase_gff3_file: mirbase_gff3_file
-      prefixes: prefixes
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files
@@ -176,6 +176,7 @@ steps:
       - output_concatenated_preRmDup_sam_file
       - output_parsed_files
       - output_combined_parsed_file
+      - output_combined_reparsed_file
 
   step_ecliprepmap_barcode2:
     run: wf_ecliprepmap_pe_1barcode.cwl
@@ -196,9 +197,9 @@ steps:
       gencodeGTF: gencodeGTF
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
+      prefixes: prefixes
       chrM_genelist_file: chrM_genelist_file
       mirbase_gff3_file: mirbase_gff3_file
-      prefixes: prefixes
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files
@@ -291,6 +292,7 @@ steps:
       mirbase_file: mirbase_gff3_file
     out:
       - reparsed_file
+      
 ###########################################################################
 # Repeat-map input sample (1 barcode)
 ###########################################################################
@@ -314,9 +316,9 @@ steps:
       gencodeGTF: gencodeGTF
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
+      prefixes: prefixes
       chrM_genelist_file: chrM_genelist_file
       mirbase_gff3_file: mirbase_gff3_file
-      prefixes: prefixes
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files

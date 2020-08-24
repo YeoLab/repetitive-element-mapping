@@ -7,6 +7,10 @@ class: CommandLineTool
 requirements:
   - class: InlineJavascriptRequirement
 
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:0.1.0
+    
 baseCommand: [reparse_samfile_updatedchrM_fixmultenstsort_PE.pl]
 
 inputs:

@@ -1,0 +1,44 @@
+#!/usr/bin/env eCLIP_repelement_SE_singleNode
+
+dataset: seCLIP_example
+
+barcode1r1FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/seCLIP_example.umi.r1TrTr.fq.gz 
+barcode1rmRepBam:
+  class: File
+  path: /home/centos/repmap_inputs/seCLIP_example.umi.r1TrTr.sorted.STARUnmapped.out.sorted.STARAligned.out.bam
+
+barcode1Inputr1FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/seCLIP_example.umi.r1TrTr.fq.gz
+barcode1InputrmRepBam:
+  class: File
+  path: /home/centos/repmap_inputs/seCLIP_example.umi.r1TrTr.sorted.STARUnmapped.out.sorted.STARAligned.out.bam
+
+
+bowtie2_db:
+  class: Directory
+  path: /home/centos/refdata/bowtie_reference
+bowtie2_prefix: MASTER_filelist.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+chrM_genelist_file:
+  class: File
+  path: /home/centos/refdata/genelists.chrM.wchr.txt
+fileListFile1:
+  class: File
+  path: /home/centos/refdata/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat
+fileListFile2:
+  class: File
+  path: /home/centos/refdata/ALLRepBase_elements.id_table.FULL
+gencodeGTF:
+  class: File
+  path: /home/centos/refdata/gencode.v19.chr_patch_hapl_scaff.annotation.gtf
+gencodeTableBrowser:
+  class: File
+  path: /home/centos/refdata/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+mirbase_gff3_file:
+  class: File
+  path: /home/centos/refdata/mirbase.v20.hg19.gff3
+repMaskBEDFile:
+  class: File
+  path: /home/centos/refdata/RepeatMask.bed

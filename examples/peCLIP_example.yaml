@@ -1,0 +1,61 @@
+#!/usr/bin/env eCLIP_repelement_PE_singleNode
+
+dataset: peCLIP_example
+
+barcode1r1FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-CLIP_S1_R1.A01_204_01_RBFOX2.adapterTrim.round2.fastq.gz
+barcode1r2FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-CLIP_S1_R2.A01_204_01_RBFOX2.adapterTrim.round2.fastq.gz
+barcode1rmRepBam:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-CLIP_S1_R1.A01_204_01_RBFOX2.adapterTrim.round2.rmRep.bam
+
+
+barcode2r1FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-CLIP_S1_R1.B06_204_01_RBFOX2.adapterTrim.round2.fastq.gz
+barcode2r2FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-CLIP_S1_R2.B06_204_01_RBFOX2.adapterTrim.round2.fastq.gz
+barcode2rmRepBam:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-CLIP_S1_R1.B06_204_01_RBFOX2.adapterTrim.round2.rmRep.bam
+
+
+barcode1Inputr1FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-INPUT_S2_R1.unassigned.adapterTrim.round2.fastq.gz
+barcode1Inputr2FastqGz:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-INPUT_S2_R2.unassigned.adapterTrim.round2.fastq.gz
+barcode1InputrmRepBam:
+  class: File
+  path: /home/centos/repmap_inputs/RBFOX2-204-INPUT_S2_R1.unassigned.adapterTrim.round2.rmRep.bam
+
+bowtie2_db:
+  class: Directory
+  path: /home/centos/refdata/bowtie_reference
+bowtie2_prefix: MASTER_filelist.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+chrM_genelist_file:
+  class: File
+  path: /home/centos/refdata/genelists.chrM.wchr.txt
+fileListFile1:
+  class: File
+  path: /home/centos/refdata/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat
+fileListFile2:
+  class: File
+  path: /home/centos/refdata/ALLRepBase_elements.id_table.FULL
+gencodeGTF:
+  class: File
+  path: /home/centos/refdata/gencode.v19.chr_patch_hapl_scaff.annotation.gtf
+gencodeTableBrowser:
+  class: File
+  path: /home/centos/refdata/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+mirbase_gff3_file:
+  class: File
+  path: /home/centos/refdata/mirbase.v20.hg19.gff3
+repMaskBEDFile:
+  class: File
+  path: /home/centos/refdata/RepeatMask.bed
