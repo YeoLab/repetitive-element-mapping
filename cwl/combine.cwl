@@ -4,6 +4,11 @@ cwlVersion: v1.0
 
 class: CommandLineTool
 
+requirements:
+  - class: InitialWorkDirRequirement
+    listing:
+      - $(inputs.files)
+      
 hints: 
   - class: DockerRequirement
     dockerPull: brianyee/repetitive_element_mapping:0.1.0
