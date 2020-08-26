@@ -120,7 +120,7 @@ outputs:
     outputSource: step_combine_parsed/output
   output_input_parsed:
     type: File
-    outputSource: step_ecliprepmap_input/output_combined_reparsed_file
+    outputSource: step_ecliprepmap_input/output_combined_parsed_file
   output_ip_reparsed:
     type: File
     outputSource: step_reparse/reparsed_file
