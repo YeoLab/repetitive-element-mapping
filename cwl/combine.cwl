@@ -5,9 +5,9 @@ cwlVersion: v1.0
 class: CommandLineTool
 
 requirements:
+  - class: InlineJavascriptRequirement
   - class: InitialWorkDirRequirement
-    listing:
-      - $(inputs.files)
+    listing: $(inputs.files)
       
 hints: 
   - class: DockerRequirement
