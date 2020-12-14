@@ -3,7 +3,8 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
-## [0.1.0]
+## [0.1.0] - 2020-12-13 last file before GRCh38
+
 
 ### Removed
 - Removed extraneous scripts and CWL documents leftover from previous versions

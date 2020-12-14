@@ -108,3 +108,4 @@ ENV/
 tests/
 
 .ipynb_checkpoints/
+SOURCEME
