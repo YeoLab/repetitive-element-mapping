@@ -10,9 +10,9 @@ requirements:
     coresMin: 8
     ramMin: 16000
 
-hints: 
-  - class: DockerRequirement
-    dockerPull: brianyee/repetitive_element_mapping:0.1.0
+# hints: 
+#   - class: DockerRequirement
+#     dockerPull: brianyee/repetitive_element_mapping:1.0.0
 
 # # wrapped perl script for parsing bowtie results inline
 baseCommand: [parse_bowtie2_output_realtime_includemultifamily_SE.pl]

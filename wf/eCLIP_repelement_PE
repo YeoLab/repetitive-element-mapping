@@ -17,11 +17,11 @@ set -o pipefail
 
 
 
-CWLRUNNER=cwltorq # either: cwltool cwltoil or cwltorq
+CWLRUNNER=cwltool # either: cwltool cwltoil or cwltorq
 WORKFLOW=wf_ecliprepmap_pe # the prefix of the workflow cwl (without .cwl extension)
 
 PIPELINE=REPELEMENTMAPPING  # workflow prefix
-PIPELINEVERSION=0.1.0  # workflow version
+PIPELINEVERSION=1.0.0  # workflow version
 
 FULLPATHCOMMAND=$0
 JOB_FILE=$1

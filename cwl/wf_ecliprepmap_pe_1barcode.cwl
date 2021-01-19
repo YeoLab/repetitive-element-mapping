@@ -30,19 +30,12 @@ inputs:
 
   fileListFile1:
     type: File
-  fileListFile2:
-    type: File
 
   gencodeGTF:
     type: File
   gencodeTableBrowser:
     type: File
   repMaskBEDFile:
-    type: File
-
-  chrM_genelist_file:
-    type: File
-  mirbase_gff3_file:
     type: File
 
   prefixes:
@@ -54,7 +47,11 @@ inputs:
       "TA","TC","TG","TT","TN",
       "NA","NC","NG","NT","NN"
     ]
-
+  
+  se_or_pe: 
+    type: string
+    default: PE
+    
 outputs:
 
   output_repeat_mapped_sam_file:
@@ -93,11 +90,6 @@ outputs:
     doc: "Combined output file containing read stats for all UMI prefixes"
     type: File
     outputSource: step_combine_parsed/output
-  
-  output_combined_reparsed_file:
-    doc: "re-parsed file"
-    type: File
-    outputSource: step_reparse/reparsed_file
 
 steps:
 
@@ -113,16 +105,18 @@ steps:
       - rep_sam
 
   step_splitbam_repsam:
-    run: splitbam_pe.cwl
+    run: splitbam.cwl
     in:
       sam_file: step_map_repetitive_elements/rep_sam
+      se_or_pe: se_or_pe
     out:
       - repsam_s
 
   step_splitbam_rmrepbam:
-    run: splitbam_pe.cwl
+    run: splitbam.cwl
     in:
       sam_file: rmRepBam
+      se_or_pe: se_or_pe
     out:
       - repsam_s
 
@@ -145,15 +139,16 @@ steps:
     doc: |
       Takes the repeat-mapped sam-like file, and the remove-replicate
       bam file, and uses UMI information to remove PCR duplicates.
-    run: deduplicate_pe.cwl
+    run: deduplicate.cwl
     in:
+      repFamilySam: step_getpair/prefixrep
+      rmRepSam: step_getpair/prefixrmrep
+      se_or_pe: se_or_pe
       gencodeGTF: gencodeGTF
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBedFile: repMaskBEDFile
       fileList1: fileListFile1
-      fileList2: fileListFile2
-      repFamilySam: step_getpair/prefixrep
-      rmRepSam: step_getpair/prefixrmrep
+
     scatter: [repFamilySam, rmRepSam]
     scatterMethod: dotproduct
 
@@ -218,14 +213,3 @@ steps:
           }
     out:
       - output
-
-  step_reparse:
-    run: reparse_samfile_updatedchrM_fixmultenstsort_PE.cwl
-    in:
-      sam_file: step_gzip_rmDup/gzipped
-      chrM_genelist_file: chrM_genelist_file
-      fileList1: fileListFile1
-      fileList2: fileListFile2
-      mirbase_file: mirbase_gff3_file
-    out:
-      - reparsed_file

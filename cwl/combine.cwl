@@ -9,11 +9,11 @@ requirements:
   - class: InitialWorkDirRequirement
     listing: $(inputs.files)
       
-hints: 
-  - class: DockerRequirement
-    dockerPull: brianyee/repetitive_element_mapping:0.1.0
+# hints: 
+#   - class: DockerRequirement
+#     dockerPull: brianyee/repetitive_element_mapping:1.0.0
     
-baseCommand: [merge_multiple_parsed_files.pl]
+baseCommand: [merge_multiple_parsed_files.simplified_20191022.pl]
 
 inputs:
 

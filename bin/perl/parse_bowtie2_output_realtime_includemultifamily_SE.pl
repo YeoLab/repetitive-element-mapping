@@ -9,34 +9,32 @@ my %multimapping_hash;
 
 my %rRNA_extra_hash;
 my %rRNA_extra_hash_rev;
-$rRNA_extra_hash{"RNA28S"} = "rRNA_extra";
-$rRNA_extra_hash{"RNA18S"} = "rRNA_extra";
-$rRNA_extra_hash{"RNA5-8S"} = "rRNA_extra";
-$rRNA_extra_hash{"antisense_RNA28S"} = "antisense_rRNA_extra";
-$rRNA_extra_hash{"antisense_RNA18S"} = "antisense_rRNA_extra";
-$rRNA_extra_hash{"antisense_RNA5-8S"} = "antisense_rRNA_extra";
+$rRNA_extra_hash{"RNA28S"} = "RNA45S";
+$rRNA_extra_hash{"RNA18S"} = "RNA45S";
+$rRNA_extra_hash{"RNA5-8S"} = "RNA45S";
+$rRNA_extra_hash{"antisense_RNA28S"} = "antisense_RNA45S";
+$rRNA_extra_hash{"antisense_RNA18S"} = "antisense_RNA45S";
+$rRNA_extra_hash{"antisense_RNA5-8S"} = "antisense_RNA45S";
 
-$rRNA_extra_hash_rev{"rRNA_extra"}{"RNA28S"} = 1;
-$rRNA_extra_hash_rev{"rRNA_extra"}{"RNA18S"} = 1;
-$rRNA_extra_hash_rev{"rRNA_extra"}{"RNA5-8S"} = 1;
-$rRNA_extra_hash_rev{"antisense_rRNA_extra"}{"antisense_RNA28S"} = 1;
-$rRNA_extra_hash_rev{"antisense_rRNA_extra"}{"antisense_RNA18S"} = 1;
-$rRNA_extra_hash_rev{"antisense_rRNA_extra"}{"antisense_RNA5-8S"} = 1;
-
-
+$rRNA_extra_hash_rev{"RNA45S"}{"RNA28S"} = 1;
+$rRNA_extra_hash_rev{"RNA45S"}{"RNA18S"} = 1;
+$rRNA_extra_hash_rev{"RNA45S"}{"RNA5-8S"} = 1;
+$rRNA_extra_hash_rev{"antisense_RNA45S"}{"antisense_RNA28S"} = 1;
+$rRNA_extra_hash_rev{"antisense_RNA45S"}{"antisense_RNA18S"} = 1;
+$rRNA_extra_hash_rev{"antisense_RNA45S"}{"antisense_RNA5-8S"} = 1;
 
 
+
+# my $species = $ARGV[3];
 #my $working_directory = "/home/elvannostrand/data/clip/CLIPseq_analysis/ENCODE_v9_20151209/PolIII_mapping/";
 # my $working_directory = $ARGV[2];
-# my $path = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/";
-#my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/filelist_POLIII";
-#my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed";
-# my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat";
 
-my $fastq_file1 = $ARGV[0];
-my $bowtie_db = $ARGV[1];
-my $output = $ARGV[2];
 my $filelist_file = $ARGV[3];
+# my $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/MASTER_filelist.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.20190424";
+# if ($species eq "hg38") {
+#     $filelist_file = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.list";
+# }
+
 &read_in_filelists($filelist_file);
 
 my $print_batch = 10000;
@@ -53,9 +51,9 @@ my $read_counter = 0;
 #my $fastq_file1 = "484_INPUT_S7_L001_R1_001.unassigned.adapterTrim.round2.fastq";
 #my $fastq_file2 = "484_INPUT_S7_L001_R2_001.unassigned.adapterTrim.round2.fastq";
 
+my $fastq_file1 = $ARGV[0];
 
-
-
+my $bowtie_db = $ARGV[1];
 #my $bowtie_db = "/home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/filelist_POLIII.combined.Nflank";
 my @bowtie_db_split = split(/\//,$bowtie_db);
 my $bowtie_db_short = $bowtie_db_split[$#bowtie_db_split];
@@ -63,7 +61,7 @@ my $bowtie_db_short = $bowtie_db_split[$#bowtie_db_split];
 my @fastq_fi1_split = split(/\//,$fastq_file1);
 my $fastq_fi1_short = $fastq_fi1_split[$#fastq_fi1_split];
 
-
+my $output = $ARGV[2];
 #my $output = $working_directory.$fastq_fi1_short.".mapped_vs_".$bowtie_db_short.".sam";
 my $bowtie_out = $output.".bowtieout";
 open(SAMOUT,">$output");
@@ -72,11 +70,11 @@ open(MULTIMAP,">$multimapping_out");
 my $done_file = $output.".done";
 
 #
-my $command = "stdbuf -oL bowtie2 -q --sensitive -a -p 8 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out";
+my $command = "stdbuf -oL bowtie2 -q --sensitive -a -p 1 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out";
 #my $command = "/projects/ps-yeolab/software/bowtie-1.1.1/./bowtie -q -1 $fastq_file1 -2 $fastq_file2 $bowtie_db -a -v 2 --best --strata -S 2> $bowtie_out";
 print STDERR "command $command\n";
 #my $pid = open(BOWTIE, "-|", "unbuffer /projects/ps-yeolab/software/bowtie-1.1.1/./bowtie -q -1 $fastq_file1 -2 $fastq_file2 $genelistfi  -a -v 2 --best --strata -S 2> $bowtie_out");
-my $pid = open(BOWTIE, "-|", "stdbuf -oL bowtie2 -q --sensitive -a -p 8 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out");
+my $pid = open(BOWTIE, "-|", "stdbuf -oL bowtie2 -q --sensitive -a -p 3 --no-mixed --reorder -x $bowtie_db -U $fastq_file1 2> $bowtie_out");
 #my $pid = open(BOWTIE, "-|", "stdbuf -oL /projects/ps-yeolab/software/bowtie-1.1.1/./bowtie -q -1 $fastq_file1 -2 $fastq_file2 $bowtie_db  -a -v 2 --best --strata -S 2> $bowtie_out");
 #print "PID $pid\n";
 my %fragment_hash;
@@ -323,7 +321,7 @@ if ($pid) {
 			$read_hash{$r1name}{master_enst}{$ensttype} = $mapped_enst_full;
 
 		    }
-#		    $rRNA_extra_hash_rev{"rRNA_extra"}{"RNA28S"} = 1;
+
 
 		} else {
 		    print "maps to two families - $ensttype\n" if ($debug_flag == 1);
@@ -463,7 +461,7 @@ sub print_output {
 sub read_in_filelists {
     my $fi = shift;
     my $priority_n = 0;
-    open(F,$fi);
+    open(F,$fi) || die "no $fi\n";
     for my $line (<F>) {
 	chomp($line);
 	my ($allenst,$allensg,$gid,$type_label,$typefile) = split(/\t/,$line);
