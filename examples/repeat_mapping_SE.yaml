@@ -1,0 +1,31 @@
+#!/usr/bin/env eCLIP_repelement_SE_singleNode
+
+dataset: seCLIP_example
+barcode1r1FastqGz:
+  class: File
+  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IP.umi.r1.fqTrTr.sorted.fq.gz
+barcode1rmRepBam:
+  class: File
+  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IP.umi.r1.fq.genome-mapped.bam
+barcode1Inputr1FastqGz:
+  class: File
+  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IN.umi.r1.fqTrTr.sorted.fq.gz
+barcode1InputrmRepBam:
+  class: File
+  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IN.umi.r1.fq.genome-mapped.bam
+bowtie2_db:
+  class: Directory
+  path: /home/centos/repeat-family-mapping-grch38/bowtie2_index/
+bowtie2_prefix: MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+fileListFile1:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv
+gencodeGTF:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+gencodeTableBrowser:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat.tsv
+repMaskBEDFile:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/UniqueGenomicElements.hg38.bed

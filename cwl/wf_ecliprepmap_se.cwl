@@ -114,6 +114,7 @@ steps:
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
       prefixes: prefixes
+      se_or_pe: se_or_pe
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files
@@ -145,6 +146,7 @@ steps:
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
       prefixes: prefixes
+      se_or_pe: se_or_pe
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files
