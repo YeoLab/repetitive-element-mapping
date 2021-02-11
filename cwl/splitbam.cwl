@@ -4,9 +4,9 @@ cwlVersion: v1.0
 
 class: CommandLineTool
 
-# hints: 
-#   - class: DockerRequirement
-#     dockerPull: brianyee/repetitive_element_mapping:1.0.0
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:1.0.0
     
 baseCommand: [split_bam_to_subfiles_SEorPE.pl]
 

@@ -8,9 +8,9 @@ requirements:
   - class: ResourceRequirement
     ramMin: 32000
         
-# hints: 
-#   - class: DockerRequirement
-#     dockerPull: brianyee/repetitive_element_mapping:1.0.0
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:1.0.0
 
 baseCommand: [duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl]
 

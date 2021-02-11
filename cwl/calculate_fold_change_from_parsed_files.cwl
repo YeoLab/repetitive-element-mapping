@@ -7,9 +7,9 @@ class: CommandLineTool
 requirements:
   - class: InlineJavascriptRequirement
 
-# hints: 
-#   - class: DockerRequirement
-#     dockerPull: brianyee/repetitive_element_mapping:1.0.0
+hints: 
+  - class: DockerRequirement
+    dockerPull: brianyee/repetitive_element_mapping:1.0.0
     
 baseCommand: [calculate_fold_change_from_parsed_files.py]
 
