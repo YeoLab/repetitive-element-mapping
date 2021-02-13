@@ -3,16 +3,16 @@
 dataset: seCLIP_example
 barcode1r1FastqGz:
   class: File
-  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IP.umi.r1.fqTrTr.sorted.fq.gz
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_SE.IP.umi.r1.fqTrTr.sorted.fq.gz
 barcode1rmRepBam:
   class: File
-  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IP.umi.r1.fq.genome-mapped.bam
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_SE.IP.umi.r1.fq.genome-mapped.bam
 barcode1Inputr1FastqGz:
   class: File
-  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IN.umi.r1.fqTrTr.sorted.fq.gz
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_SE.IN.umi.r1.fqTrTr.sorted.fq.gz
 barcode1InputrmRepBam:
   class: File
-  path: /home/centos/data_for_repeat_mapping_hg38/EXAMPLE_SE.IN.umi.r1.fq.genome-mapped.bam
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_SE.IN.umi.r1.fq.genome-mapped.bam
 bowtie2_db:
   class: Directory
   path: /home/centos/repeat-family-mapping-grch38/bowtie2_index/
