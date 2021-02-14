@@ -11,9 +11,6 @@ requirements:
 
 inputs:
 
-  dataset:
-    type: string
-
   barcode1r1FastqGz:
     type: File
   barcode1r2FastqGz:
@@ -27,7 +24,7 @@ inputs:
     type: File
   barcode2rmRepBam:
     type: File
-
+    
   barcode1Inputr1FastqGz:
     type: File
   barcode1Inputr2FastqGz:
@@ -58,19 +55,11 @@ inputs:
       "TA","TC","TG","TT","TN",
       "NA","NC","NG","NT","NN"
     ]
-
+  se_or_pe: 
+    type: string
+    default: PE
+    
 outputs:
-
-
-  ### PRE RMDUPED SAM FILE INTERMEDIATES ###
-
-
-  # output_barcode1_concatenated_pre_rmDup_sam_file:
-  #   type: File
-  #   outputSource: step_ecliprepmap_barcode1/output_concatenated_preRmDup_sam_file
-  # output_barcode2_concatenated_pre_rmDup_sam_file:
-  #   type: File
-  #   outputSource: step_ecliprepmap_barcode2/output_concatenated_preRmDup_sam_file
 
 
   ### PRE RMDUPED SAM FILE FINAL OUTPUTS ###
@@ -84,21 +73,9 @@ outputs:
     outputSource: step_ecliprepmap_input/output_concatenated_preRmDup_sam_file
 
 
-  ### RMDUPED SAM FILE INTERMEDIATES ###
-
-
-  # output_barcode1_concatenated_rmDup_sam_file:
-  #   type: File
-  #   outputSource: step_ecliprepmap_barcode1/output_concatenated_rmDup_sam_file
-  # output_barcode2_concatenated_rmDup_sam_file:
-  #   type: File
-  #   outputSource: step_ecliprepmap_barcode2/output_concatenated_rmDup_sam_file
-
-
   ### RMDUPED SAM FILE FINAL OUTPUTS ###
 
-
-  output_ip_concatenated_rmDup_sam_file:
+  output_barcode1_concatenated_rmDup_sam_file:
     type: File
     outputSource: step_gzip_rmDup/gzipped
   output_input_concatenated_rmDup_sam_file:
@@ -131,10 +108,10 @@ steps:
     run: wf_ecliprepmap_pe_1barcode.cwl
     in:
       dataset:
-        source: dataset
+        source: barcode1r1FastqGz
         valueFrom: |
           ${
-            return self + ".barcode1";
+            return self.nameroot + ".barcode1";
           }
       r1FastqGz: barcode1r1FastqGz
       r2FastqGz: barcode1r2FastqGz
@@ -146,6 +123,7 @@ steps:
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
       prefixes: prefixes
+      se_or_pe: se_or_pe
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files
@@ -159,21 +137,55 @@ steps:
     run: wf_ecliprepmap_pe_1barcode.cwl
     in:
       dataset:
-        source: dataset
+        source: barcode2r1FastqGz
         valueFrom: |
           ${
-            return self + ".barcode2";
+            return self.nameroot + ".barcode2";
           }
       r1FastqGz: barcode2r1FastqGz
       r2FastqGz: barcode2r2FastqGz
+      rmRepBam: barcode2rmRepBam
       bowtie2_db: bowtie2_db
       bowtie2_prefix: bowtie2_prefix
       fileListFile1: fileListFile1
-      rmRepBam: barcode2rmRepBam
       gencodeGTF: gencodeGTF
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBEDFile: repMaskBEDFile
       prefixes: prefixes
+      se_or_pe: se_or_pe
+    out:
+      - output_repeat_mapped_sam_file
+      - output_rmDup_sam_files
+      - output_pre_rmDup_sam_files
+      - output_concatenated_rmDup_sam_file
+      - output_concatenated_preRmDup_sam_file
+      - output_parsed_files
+      - output_combined_parsed_file
+      
+###########################################################################
+# Repeat-map input sample (1 sample)
+###########################################################################
+
+  step_ecliprepmap_input:
+    run: wf_ecliprepmap_pe_1barcode.cwl
+    in:
+      dataset:
+        source: barcode1Inputr1FastqGz
+        valueFrom: |
+          ${
+            return self.nameroot + ".input";
+          }
+      r1FastqGz: barcode1Inputr1FastqGz
+      r2FastqGz: barcode1Inputr2FastqGz
+      bowtie2_db: bowtie2_db
+      bowtie2_prefix: bowtie2_prefix
+      fileListFile1: fileListFile1
+      rmRepBam: barcode1InputrmRepBam
+      gencodeGTF: gencodeGTF
+      gencodeTableBrowser: gencodeTableBrowser
+      repMaskBEDFile: repMaskBEDFile
+      prefixes: prefixes
+      se_or_pe: se_or_pe
     out:
       - output_repeat_mapped_sam_file
       - output_rmDup_sam_files
@@ -184,8 +196,36 @@ steps:
       - output_combined_parsed_file
 
 ###########################################################################
-# Combine rmdup and pre-rmdup files from each barcode into single output
+# Combine parsed files and calculate fold change/entropy
 ###########################################################################
+
+  step_combine_parsed:
+    doc: "concatenates all final statistics using custom perl script"
+    run: combine.cwl
+    in:
+      files:
+        source: [
+          step_ecliprepmap_barcode1/output_parsed_files, 
+          step_ecliprepmap_barcode2/output_parsed_files
+        ]
+        linkMerge: merge_flattened
+      outputFile: 
+        source: barcode1r1FastqGz
+        valueFrom: |
+          ${
+            return self.nameroot + ".combined.parsed";
+          }
+    out: 
+      - output
+      
+  step_calculate_fold_change_from_parsed_files:
+    run: calculate_fold_change_from_parsed_files.cwl
+    in:
+      ip_parsed_file: step_combine_parsed/output
+      input_parsed_file: step_ecliprepmap_input/output_combined_parsed_file
+    out:
+      - out_file_nopipes_file
+      - out_file_withpipes_file
 
   step_concatenate_rmDup:
     doc: "concatenates all rmdup sam files using cat"
@@ -197,10 +237,10 @@ steps:
           - step_ecliprepmap_barcode2/output_rmDup_sam_files
         linkMerge: merge_flattened
       concatenated_output:
-        source: dataset
+        source: barcode1r1FastqGz
         valueFrom: |
           ${
-            return self + ".RmDup.sam";
+            return self.nameroot + ".rmDup.sam";
           }
     out:
       - concatenated
@@ -222,10 +262,10 @@ steps:
           - step_ecliprepmap_barcode2/output_pre_rmDup_sam_files
         linkMerge: merge_flattened
       concatenated_output:
-        source: dataset
+        source: barcode1r1FastqGz
         valueFrom: |
           ${
-            return self + ".preRmDup.sam";
+            return self.nameroot + ".preRmDup.sam";
           }
     out:
       - concatenated
@@ -236,66 +276,3 @@ steps:
       input: step_concatenate_pre_rmDup/concatenated
     out:
       - gzipped
-
-  step_combine_parsed:
-    doc: "concatenates all final statistics using custom perl script"
-    run: combine.cwl
-    in:
-      files:
-        source:
-          - step_ecliprepmap_barcode1/output_parsed_files
-          - step_ecliprepmap_barcode2/output_parsed_files
-        linkMerge: merge_flattened
-      outputFile:
-        source: dataset
-        valueFrom: |
-          ${
-            return self + ".parsed";
-          }
-    out:
-      - output
-
-###########################################################################
-# Repeat-map input sample (1 barcode)
-###########################################################################
-
-  step_ecliprepmap_input:
-    run: wf_ecliprepmap_pe_1barcode.cwl
-    in:
-      dataset:
-        source: dataset
-        valueFrom: |
-          ${
-            return self + ".input";
-          }
-      r1FastqGz: barcode1Inputr1FastqGz
-      r2FastqGz: barcode1Inputr2FastqGz
-      bowtie2_db: bowtie2_db
-      bowtie2_prefix: bowtie2_prefix
-      fileListFile1: fileListFile1
-      rmRepBam: barcode1InputrmRepBam
-      gencodeGTF: gencodeGTF
-      gencodeTableBrowser: gencodeTableBrowser
-      repMaskBEDFile: repMaskBEDFile
-      prefixes: prefixes
-    out:
-      - output_repeat_mapped_sam_file
-      - output_rmDup_sam_files
-      - output_pre_rmDup_sam_files
-      - output_concatenated_rmDup_sam_file
-      - output_concatenated_preRmDup_sam_file
-      - output_parsed_files
-      - output_combined_parsed_file
-
-###########################################################################
-# Combine parsed files and calculate fold change/entropy
-###########################################################################
-
-  step_calculate_fold_change_from_parsed_files:
-    run: calculate_fold_change_from_parsed_files.cwl
-    in:
-      ip_parsed_file: step_combine_parsed/output
-      input_parsed_file: step_ecliprepmap_input/output_combined_parsed_file
-    out:
-      - out_file_nopipes_file
-      - out_file_withpipes_file

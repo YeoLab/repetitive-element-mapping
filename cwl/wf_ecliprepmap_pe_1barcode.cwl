@@ -72,13 +72,11 @@ outputs:
   output_concatenated_rmDup_sam_file:
     doc: "Final remove duplicate SAM-like file"
     type: File
-    # outputSource: step_concatenate_rmDup/concatenated
     outputSource: step_gzip_rmDup/gzipped
 
   output_concatenated_preRmDup_sam_file:
     doc: "Final duplicated SAM-like file"
     type: File
-    # outputSource: step_concatenate_preRmDup/concatenated
     outputSource: step_gzip_preRmDup/gzipped
 
   output_parsed_files:
@@ -148,7 +146,7 @@ steps:
       gencodeTableBrowser: gencodeTableBrowser
       repMaskBedFile: repMaskBEDFile
       fileList1: fileListFile1
-
+      
     scatter: [repFamilySam, rmRepSam]
     scatterMethod: dotproduct
 
