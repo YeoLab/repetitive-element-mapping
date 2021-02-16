@@ -15,12 +15,12 @@ hash keys in 0.0.2. See NOTES.
 # Installation:
 - For Yeo Lab: ```module load ecliprepmap```
 - For all others:
-    - see the ```create_environment_repelement.sh``` script, or install the following packages:
-      - python=2.7
-      - perl
+    - see the ```DockerRequirement``` from each tool to see the specific requirements for each step. The custom scripts have been tested using the following software/versions:
+      - python=3.6
+      - perl (5.10.1+)
       - bowtie2=2.2.6
-      - pandas
-      - numpy
+      - pandas (1.1.3+)
+      - numpy (1.18+)
       - cwltool==1.0.20180306140409
       - cwltest
       - galaxy-lib==17.9.3
@@ -28,9 +28,16 @@ hash keys in 0.0.2. See NOTES.
     are correctly in your path.
 
 # Example data: 
-- [example reference data for hg19](https://external-collaborator-data.s3-us-west-1.amazonaws.com/reference-data/repeat-mapping-hg19-refdata.tar.gz)
+- [example reference data for GRCh38 (hg38)](https://external-collaborator-data.s3-us-west-1.amazonaws.com/reference-data/repeat-family-mapping-grch38.tar.gz)
+- [example input files from eCLIP for GRCh38 (hg38)](https://external-collaborator-data.s3-us-west-1.amazonaws.com/reference-data/example_data_for_repeat_mapping_hg38.tar.gz)
 # Methods:
-- (map_repetitive_elements_PE.cwl - parse_bowtie2_output_realtime_includemultifamily) Runs bowtie2 using the following commands: ```bowtie2 -q --sensitive -a -p 3 --no-mixed --reorder -x $bowtie_db -1 $fastq_file1 -2 $fastq_file2 2> $bowtie_out```, where:
+- (```map_repetitive_elements_/*.cwl``` - ```parse_bowtie2_output_realtime_includemultifamily_/*.pl```) Runs bowtie2 using the following commands: 
+```bash
+bowtie2 -q --sensitive -a -p 3 --no-mixed --reorder -x $bowtie_db -1 $fastq_file1 -2 $fastq_file2 2> $bowtie_out
+```
+
+where:
+
     - $fastq_file1 is read 1 of a trimmed CLIPSEQ expt
     - $fastq_file2 is read 2 of a trimmed CLIPSEQ expt
     - $bowtie_db is a bowtie database created using a manually curated set of repeat elements from RepBase or other.
@@ -44,7 +51,7 @@ hash keys in 0.0.2. See NOTES.
                 - Name of all elements is kept
             - Note: all reads that map to multiple families (not used for downstream analysis).
         - Create a SAM-like file
-- (deduplicate_pe.cwl - duplicate_removal_inline_paired_count_region_other_reads) Merge repeat analysis with unique genomic mapping and remove PCR duplicates
+- (```deduplicate.cwl``` - ```duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl```) Merge repeat analysis with unique genomic mapping and remove PCR duplicates
     - Use the randomer UMIs to remove duplicates based on quality
         - To save memory, both the SAM-like file and the uniquely mapped BAM file
         are split based on the first two nucleotides of the randomner umi. De-duplication
@@ -54,8 +61,6 @@ hash keys in 0.0.2. See NOTES.
     read = 2 * 2 * 6 alignment score better than to repeat element,
     throw out repeat element and use genome mapping. Otherwise keep the repeat
     element mapped read.
-- (reparse_samfile_updatedchrM_fixmultenstsort_PE.cwl - reparse_samfile_updatedchrM_fixmultenstsort_PE.pl) re-parses and sorts some minor edgecases. Generates a new parsed "reparsed" file.
-    - $mirbase_file is a species-specific gff3 file from mirbase.org
 
 ### Determining the most correct assignment among elements within one family:
 - Between longer and shorter transcripts: keep the shorter one
@@ -100,3 +105,7 @@ be excluded from downstream analysis.
 Information content is calculated as: log2(clip_rpr/input_rpr).
 - High fold changes and information content (no guidelines yet to this cutoff)
 typically indicate elements enriched in the experiment.
+
+# References:
+- Van Nostrand, E.L., Pratt, G.A., Yee, B.A. et al. Principles of RNA processing from analysis of enhanced CLIP maps for 150 RNA binding proteins. Genome Biol 21, 90 (2020). https://doi.org/10.1186/s13059-020-01982-9
+
