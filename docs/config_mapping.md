@@ -5,7 +5,14 @@ The previous `config/config.yaml` only covered mini validation fixtures for stag
 It did not yet expose the full CWL-style runtime inputs.
 
 ## Current mapping approach
-`config/config.yaml` now includes CWL-compatible key names at top level.
+`config/config.yaml` includes CWL-compatible key names at top level.
+You can also pass an existing CWL-style job YAML via:
+
+```bash
+snakemake --config cwl_input_yaml=/path/to/job.yaml ...
+```
+
+When `cwl_input_yaml` is provided, mapped keys from that file override defaults in `config/config.yaml`.
 
 CWL YAML key -> Snakemake key:
 - `dataset` -> `dataset`
@@ -24,6 +31,18 @@ CWL YAML key -> Snakemake key:
 
 ## Validation-only section
 The `mini_validation` subsection is separate and only used for deterministic fixture testing of currently implemented stages.
+
+## `class/path` object handling
+For any supported key with a value like:
+
+```yaml
+someKey:
+  class: File
+  path: relative/or/absolute/path
+```
+
+the adapter uses `path` as the runtime value.
+Relative paths are resolved relative to the job YAML file directory.
 
 ## Practical note
 For production runs, populate the top-level CWL-compatible keys with real file paths.

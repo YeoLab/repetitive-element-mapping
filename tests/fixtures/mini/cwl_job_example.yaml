@@ -1,0 +1,38 @@
+dataset: fixture_dataset
+
+barcode1r1FastqGz:
+  class: File
+  path: source/ip.preRmDup.sam.mini.gz
+
+barcode1rmRepBam:
+  class: File
+  path: /abs/path/ip.bam
+
+barcode1Inputr1FastqGz:
+  class: File
+  path: source/input.preRmDup.sam.mini.gz
+
+barcode1InputrmRepBam:
+  class: File
+  path: /abs/path/input.bam
+
+bowtie2_db:
+  class: Directory
+  path: refs/bowtie2_index
+
+bowtie2_prefix: MASTER_FILELIST
+fileListFile1:
+  class: File
+  path: refs/filelist.tsv
+gencodeGTF:
+  class: File
+  path: refs/gencode.gtf
+gencodeTableBrowser:
+  class: File
+  path: refs/gencode.table.tsv
+repMaskBEDFile:
+  class: File
+  path: refs/repmask.bed
+
+prefixes: [AA, AC, TT]
+se_or_pe: SE
