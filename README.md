@@ -46,6 +46,15 @@ mamba activate ./.conda-env
 ```
 
 ## Input specification
+
+## CWL Input Alignment
+This branch uses CWL-compatible keys directly in `config/config.yaml` (top-level), including:
+- `barcode1r1FastqGz`, `barcode1rmRepBam`
+- `barcode1Inputr1FastqGz`, `barcode1InputrmRepBam`
+- `bowtie2_db`, `bowtie2_prefix`, `fileListFile1`, `gencodeGTF`, `gencodeTableBrowser`, `repMaskBEDFile`
+
+The separate `mini_validation` block is only for deterministic fixture tests while conversion is in progress.
+See `docs/config_mapping.md` for the one-to-one mapping details.
 The current implemented Snakemake stages use mini fixture inputs configured in `config/config.yaml`:
 
 - `mini.source_sam_gz`: compressed SAM-like file used for split stage.

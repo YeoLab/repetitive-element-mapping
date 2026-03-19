@@ -6,7 +6,7 @@ rule all:
 
 rule unzip_mini_sam:
     input:
-        config['mini']['source_sam_gz']
+        config['mini_validation']['source_sam_gz']
     output:
         'results/mini/split/ip.preRmDup.sam.mini.sam'
     shell:
@@ -30,7 +30,7 @@ rule split_mini_sam_python:
 rule verify_split_against_manifest:
     input:
         split_dir='results/mini/split/python_tmp',
-        manifest=config['mini']['split_manifest'],
+        manifest=config['mini_validation']['split_manifest'],
     output:
         'results/mini/split/verified.ok'
     script:
@@ -39,8 +39,8 @@ rule verify_split_against_manifest:
 
 rule merge_parsed_python:
     input:
-        config['mini']['merge_input_1'],
-        config['mini']['merge_input_2'],
+        config['mini_validation']['merge_input_1'],
+        config['mini_validation']['merge_input_2'],
     output:
         'results/mini/merge/merged.python.parsed'
     shell:
@@ -50,7 +50,7 @@ rule merge_parsed_python:
 rule verify_merge_against_expected:
     input:
         produced='results/mini/merge/merged.python.parsed',
-        expected=config['mini']['merge_expected'],
+        expected=config['mini_validation']['merge_expected'],
     output:
         'results/mini/merge/verified.ok'
     script:
