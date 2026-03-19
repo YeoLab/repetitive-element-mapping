@@ -47,14 +47,11 @@ rule merge_parsed_python:
         'python3 {workflow.basedir}/bin/python/merge_multiple_parsed_files.simplified_20191022.py {output} {input[0]} {input[1]}'
 
 
-rule verify_merge_against_perl:
+rule verify_merge_against_expected:
     input:
-        py='results/mini/merge/merged.python.parsed',
-        in1=config['mini']['merge_input_1'],
-        in2=config['mini']['merge_input_2'],
+        produced='results/mini/merge/merged.python.parsed',
+        expected=config['mini']['merge_expected'],
     output:
         'results/mini/merge/verified.ok'
-    params:
-        perl_script=workflow.basedir + '/bin/perl/merge_multiple_parsed_files.simplified_20191022.pl'
     script:
-        '../scripts/verify_merge_vs_perl.py'
+        '../scripts/verify_merge_against_expected.py'

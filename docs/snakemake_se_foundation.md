@@ -1,35 +1,28 @@
-# Snakemake SE Foundation (Step 5a)
+# Snakemake SE Foundation
 
-## Scope completed in this step
-Converted and validated the following SE workflow stages in Snakemake:
-1. Split SAM by UMI prefix (`split_bam_to_subfiles_SEorPE`) using Python conversion.
-2. Merge parsed per-prefix outputs (`merge_multiple_parsed_files`) using Python conversion.
+## Implemented stages
+1. Split SAM by UMI prefix (`split_bam_to_subfiles_SEorPE.py`).
+2. Merge parsed statistics files (`merge_multiple_parsed_files.simplified_20191022.py`).
 
-## Snakemake files
+## Files
 - `Snakefile`
 - `config/config.yaml`
 - `workflow/rules/se_foundation.smk`
 - `workflow/scripts/verify_split_manifest.py`
-- `workflow/scripts/verify_merge_vs_perl.py`
+- `workflow/scripts/verify_merge_against_expected.py`
 
-## Validation approach
-- Split stage: compare Python split outputs against a Perl-derived manifest
-  (`tests/fixtures/mini/expected/split.perl.manifest.tsv`).
-- Merge stage: run Perl merge and Python merge on same mini parsed inputs and
-  compare structured outputs with tolerant float checks.
+## Validation strategy
+- Split stage output files are validated against
+  `tests/fixtures/mini/expected/split.expected.manifest.tsv`.
+- Merge stage output is validated against
+  `tests/fixtures/mini/expected/merged.expected.parsed`.
 
-## Run command
+## Run
 ```bash
-HOME=/Users/brianyee/Documents/github/repetitive-element-mapping \
-/Users/brianyee/Documents/github/repetitive-element-mapping/.conda-env/bin/snakemake -j1 -p -F all
+HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all
 ```
 
-Note: setting `HOME` to workspace avoids sandbox cache permission issues for Snakemake.
-
-## Pending for full SE migration
-Still to implement in Snakemake for full SE parity:
-- repetitive-element mapping (`parse_bowtie2...SE`)
-- split of rmRep BAM + prefix pairing
-- deduplication stage wiring
-- concatenate/gzip final outputs
-- fold-change stage wiring and expected output comparisons
+## Next extensions
+- Add mapping stage rules.
+- Add deduplication stage rules.
+- Add full end-to-end stage chaining for production data.
