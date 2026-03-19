@@ -111,8 +111,9 @@ tests/*
 !tests/fixtures/
 !tests/fixtures/**
 !tests/test_mini_fixtures_manifest.py
-!tests/test_split_merge_parity.py
-!tests/test_python_shims.py
+!tests/test_split_merge_python_expected.py
+!tests/test_parse_se_python.py
+!tests/test_cwl_yaml_adapter.py
 tests/__pycache__/
 tests/*.pyc
 
