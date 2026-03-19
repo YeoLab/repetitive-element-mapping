@@ -117,6 +117,10 @@ tests/__pycache__/
 tests/*.pyc
 
 .conda-env/
+.snakemake/
+results/
+tests/fixtures/mini/source/failed_jobs_list.txt
+tests/fixtures/mini/source/failed_jobs_list.txt.lck
 
 .ipynb_checkpoints/
 SOURCEME

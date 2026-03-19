@@ -1,0 +1,5 @@
+mini:
+  source_sam_gz: tests/fixtures/mini/source/ip.preRmDup.sam.mini.gz
+  split_manifest: tests/fixtures/mini/expected/split.perl.manifest.tsv
+  merge_input_1: tests/fixtures/mini/source/merge_input_1.parsed_v2.txt
+  merge_input_2: tests/fixtures/mini/source/merge_input_2.parsed_v2.txt
