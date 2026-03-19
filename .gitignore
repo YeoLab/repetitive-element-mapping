@@ -111,6 +111,7 @@ tests/*
 !tests/fixtures/
 !tests/fixtures/**
 !tests/test_mini_fixtures_manifest.py
+!tests/test_split_merge_parity.py
 tests/__pycache__/
 tests/*.pyc
 
