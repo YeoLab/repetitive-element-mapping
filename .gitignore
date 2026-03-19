@@ -106,6 +106,15 @@ ENV/
 .idea/
 
 tests/
+!tests/
+tests/*
+!tests/fixtures/
+!tests/fixtures/**
+!tests/test_mini_fixtures_manifest.py
+tests/__pycache__/
+tests/*.pyc
+
+.conda-env/
 
 .ipynb_checkpoints/
 SOURCEME
