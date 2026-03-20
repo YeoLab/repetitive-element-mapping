@@ -31,19 +31,25 @@ touch "${RUN_HOME}/${PIPELINE}_${JOB_NAME}_WORKFLOW-wf_ecliprepmap_se"
     --config pipeline_profile=dropin run_mode=SE cwl_input_yaml="${JOB_FILE}"
 )
 
-IP_DATASET=$("${WORKFLOW_HOME}/.conda-env/bin/python" - <<'PY' "${JOB_FILE}"
+IP_DATASET=$("${WORKFLOW_HOME}/.conda-env/bin/python" - <<'PY' "${WORKFLOW_HOME}" "${JOB_FILE}"
 from pathlib import Path
-import yaml, sys
-d = yaml.safe_load(Path(sys.argv[1]).read_text())
-name = Path(d["barcode1r1FastqGz"]["path"]).name
+import sys
+sys.path.insert(0, sys.argv[1])
+from workflow.config_adapter import map_job_to_config, load_yaml
+job = load_yaml(sys.argv[2])
+cfg = map_job_to_config(job, base_dir=Path(sys.argv[2]).parent)
+name = Path(cfg["barcode1r1FastqGz"]).name
 print((name[:-3] if name.endswith(".gz") else Path(name).stem) + ".barcode1")
 PY
 )
-INPUT_DATASET=$("${WORKFLOW_HOME}/.conda-env/bin/python" - <<'PY' "${JOB_FILE}"
+INPUT_DATASET=$("${WORKFLOW_HOME}/.conda-env/bin/python" - <<'PY' "${WORKFLOW_HOME}" "${JOB_FILE}"
 from pathlib import Path
-import yaml, sys
-d = yaml.safe_load(Path(sys.argv[1]).read_text())
-name = Path(d["barcode1Inputr1FastqGz"]["path"]).name
+import sys
+sys.path.insert(0, sys.argv[1])
+from workflow.config_adapter import map_job_to_config, load_yaml
+job = load_yaml(sys.argv[2])
+cfg = map_job_to_config(job, base_dir=Path(sys.argv[2]).parent)
+name = Path(cfg["barcode1Inputr1FastqGz"]).name
 print((name[:-3] if name.endswith(".gz") else Path(name).stem) + ".input")
 PY
 )

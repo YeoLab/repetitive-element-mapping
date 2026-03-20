@@ -24,13 +24,24 @@ mamba create -y -p ./.conda-env -c conda-forge -c bioconda \
 
 ## Inputs
 
-The workflow accepts CWL-style YAML (`class` + `path`) via:
+The ETL parser accepts either:
+
+1. Legacy CWL-style YAML (`class` + `path` objects).
+2. New simplified YAML schema (`samples` + `references` blocks).
+
+Both normalize to the same internal config keys.
+
+Examples:
+- Legacy: `examples/repeat_mapping_SE.yaml`, `examples/repeat_mapping_PE.yaml`
+- Simplified: `examples/repeat_mapping_SE.simple.yaml`, `examples/repeat_mapping_PE.simple.yaml`
+
+Use either with:
 
 ```bash
 --config cwl_input_yaml=/absolute/path/to/job.yaml
 ```
 
-Supported keys include:
+Normalized keys include:
 - `dataset`
 - `barcode1r1FastqGz`, `barcode1r2FastqGz`, `barcode1rmRepBam`
 - `barcode2r1FastqGz`, `barcode2r2FastqGz`, `barcode2rmRepBam`
@@ -39,7 +50,7 @@ Supported keys include:
 - `gencodeGTF`, `gencodeTableBrowser`, `repMaskBEDFile`
 - `prefixes`, `se_or_pe`
 
-Relative `path` values are resolved relative to the YAML file location.
+For both formats, relative paths are resolved relative to the YAML file location.
 
 ## Outputs
 

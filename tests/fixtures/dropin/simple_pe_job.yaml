@@ -1,0 +1,25 @@
+dataset: simple_pe
+mode: PE
+prefixes: [AA]
+
+samples:
+  ip:
+    r1: mock_pe_r1.fastq.gz
+    r2: mock_pe_r2.fastq.gz
+    rmrep_bam: mock_rmrep_pe.sam
+  ip2:
+    r1: mock_pe_r1_b2.fastq.gz
+    r2: mock_pe_r2_b2.fastq.gz
+    rmrep_bam: mock_rmrep_pe.sam
+  input:
+    r1: mock_pe_r1_input.fastq.gz
+    r2: mock_pe_r2_input.fastq.gz
+    rmrep_bam: mock_rmrep_pe.sam
+
+references:
+  bowtie2_db: .
+  bowtie2_prefix: mock_index
+  fileListFile1: mock_filelist.tsv
+  gencodeGTF: mock.gtf
+  gencodeTableBrowser: mock.table.tsv
+  repMaskBEDFile: mock.bed
