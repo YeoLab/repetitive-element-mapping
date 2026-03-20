@@ -1,0 +1,46 @@
+dataset: mock_pe
+barcode1r1FastqGz:
+  class: File
+  path: mock_pe_r1.fastq.gz
+barcode1r2FastqGz:
+  class: File
+  path: mock_pe_r2.fastq.gz
+barcode1rmRepBam:
+  class: File
+  path: mock_rmrep_pe.sam
+barcode2r1FastqGz:
+  class: File
+  path: mock_pe_r1_b2.fastq.gz
+barcode2r2FastqGz:
+  class: File
+  path: mock_pe_r2_b2.fastq.gz
+barcode2rmRepBam:
+  class: File
+  path: mock_rmrep_pe.sam
+barcode1Inputr1FastqGz:
+  class: File
+  path: mock_pe_r1_input.fastq.gz
+barcode1Inputr2FastqGz:
+  class: File
+  path: mock_pe_r2_input.fastq.gz
+barcode1InputrmRepBam:
+  class: File
+  path: mock_rmrep_pe.sam
+bowtie2_db:
+  class: Directory
+  path: .
+bowtie2_prefix: mock_index
+fileListFile1:
+  class: File
+  path: mock_filelist.tsv
+gencodeGTF:
+  class: File
+  path: mock.gtf
+gencodeTableBrowser:
+  class: File
+  path: mock.table.tsv
+repMaskBEDFile:
+  class: File
+  path: mock.bed
+prefixes: [AA]
+se_or_pe: PE

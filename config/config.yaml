@@ -1,9 +1,19 @@
 # CWL-compatible input names for SE pipeline wiring
 # Fill these with real dataset paths for production runs.
 dataset: seCLIP_example
+pipeline_profile: mini
+run_mode: SE
+
 barcode1r1FastqGz: ""
+barcode1r2FastqGz: ""
 barcode1rmRepBam: ""
+
+barcode2r1FastqGz: ""
+barcode2r2FastqGz: ""
+barcode2rmRepBam: ""
+
 barcode1Inputr1FastqGz: ""
+barcode1Inputr2FastqGz: ""
 barcode1InputrmRepBam: ""
 
 bowtie2_db: ""

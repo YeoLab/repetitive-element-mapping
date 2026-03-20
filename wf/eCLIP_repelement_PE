@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o pipefail
+
+JOB_FILE=${1:-}
+if [[ -z "${JOB_FILE}" ]]; then
+  echo "Usage: wf/eCLIP_repelement_PE <job.yaml>" >&2
+  exit 2
+fi
+
+WORKFLOW_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+JOB_HOME="$( cd "$( dirname "${JOB_FILE}" )" && pwd )"
+JOB_BASENAME="${JOB_FILE##*/}"
+JOB_NAME="${JOB_BASENAME%.*}"
+PIPELINE="REPELEMENTMAPPING"
+PIPELINEVERSION="1.0.0"
+
+RUN_HOME="${JOB_HOME}/${JOB_NAME}"
+RESULTSDIR="${RUN_HOME}/results"
+mkdir -p "${RESULTSDIR}"
+
+cp "${JOB_FILE}" "${RUN_HOME}/${PIPELINE}_${JOB_NAME}_INPUT.yaml"
+chmod -x "${RUN_HOME}/${PIPELINE}_${JOB_NAME}_INPUT.yaml" || true
+touch "${RUN_HOME}/${PIPELINE}_${JOB_NAME}_VERSION-${PIPELINEVERSION}"
+touch "${RUN_HOME}/${PIPELINE}_${JOB_NAME}_WORKFLOW-wf_ecliprepmap_pe"
+
+(
+  cd "${WORKFLOW_HOME}"
+  HOME="${WORKFLOW_HOME}" ./.conda-env/bin/snakemake -j1 -p -F all \
+    --config pipeline_profile=dropin run_mode=PE cwl_input_yaml="${JOB_FILE}"
+)
+
+IP_DATASET=$("${WORKFLOW_HOME}/.conda-env/bin/python" - <<'PY' "${JOB_FILE}"
+from pathlib import Path
+import yaml, sys
+d = yaml.safe_load(Path(sys.argv[1]).read_text())
+name = Path(d["barcode1r1FastqGz"]["path"]).name
+print(name[:-3] if name.endswith(".gz") else Path(name).stem)
+PY
+)
+INPUT_DATASET=$("${WORKFLOW_HOME}/.conda-env/bin/python" - <<'PY' "${JOB_FILE}"
+from pathlib import Path
+import yaml, sys
+d = yaml.safe_load(Path(sys.argv[1]).read_text())
+name = Path(d["barcode1Inputr1FastqGz"]["path"]).name
+print((name[:-3] if name.endswith(".gz") else Path(name).stem) + ".input")
+PY
+)
+
+cp "${WORKFLOW_HOME}/results/dropin/pe_ip/final/preRmDup.sam.gz" "${RESULTSDIR}/${IP_DATASET}.preRmDup.sam.gz"
+cp "${WORKFLOW_HOME}/results/dropin/input/final/preRmDup.sam.gz" "${RESULTSDIR}/${INPUT_DATASET}.preRmDup.sam.gz"
+cp "${WORKFLOW_HOME}/results/dropin/pe_ip/final/rmDup.sam.gz" "${RESULTSDIR}/${IP_DATASET}.rmDup.sam.gz"
+cp "${WORKFLOW_HOME}/results/dropin/input/final/rmDup.sam.gz" "${RESULTSDIR}/${INPUT_DATASET}.rmDup.sam.gz"
+cp "${WORKFLOW_HOME}/results/dropin/pe_ip/final/combined.parsed" "${RESULTSDIR}/${IP_DATASET}.combined.parsed"
+cp "${WORKFLOW_HOME}/results/dropin/input/final/combined.parsed" "${RESULTSDIR}/${INPUT_DATASET}.parsed"
+cp "${WORKFLOW_HOME}/results/dropin/pe_ip/final/nopipes.tsv" "${RESULTSDIR}/${IP_DATASET}.combined.nopipes.tsv"
+cp "${WORKFLOW_HOME}/results/dropin/pe_ip/final/withpipes.tsv" "${RESULTSDIR}/${IP_DATASET}.combined.withpipes.tsv"
+
+MAP_JSON=$(
+cat <<JSON
+{
+  "output_ip_concatenated_pre_rmDup_sam_file": "${RESULTSDIR}/${IP_DATASET}.preRmDup.sam.gz",
+  "output_input_concatenated_pre_rmDup_sam_file": "${RESULTSDIR}/${INPUT_DATASET}.preRmDup.sam.gz",
+  "output_barcode1_concatenated_rmDup_sam_file": "${RESULTSDIR}/${IP_DATASET}.rmDup.sam.gz",
+  "output_input_concatenated_rmDup_sam_file": "${RESULTSDIR}/${INPUT_DATASET}.rmDup.sam.gz",
+  "output_ip_parsed": "${RESULTSDIR}/${IP_DATASET}.combined.parsed",
+  "output_input_parsed": "${RESULTSDIR}/${INPUT_DATASET}.parsed",
+  "output_nopipes": "${RESULTSDIR}/${IP_DATASET}.combined.nopipes.tsv",
+  "output_withpipes": "${RESULTSDIR}/${IP_DATASET}.combined.withpipes.tsv"
+}
+JSON
+)
+
+python3 "${WORKFLOW_HOME}/bin/python/write_repelement_output_json.py" \
+  --out-json "${RUN_HOME}/${PIPELINE}_${JOB_NAME}_OUTPUT.json" \
+  --mapping-json "${MAP_JSON}"
+
+echo "SUCCESS: ${JOB_NAME} PROCESSED WITH ${PIPELINEVERSION}"

@@ -29,6 +29,7 @@ RRNA_EXTRA_HASH_REV = {
 @dataclass
 class ReadRecord:
     r1: Dict[str, str] = field(default_factory=dict)
+    r2: Dict[str, str] = field(default_factory=dict)
     flags: Dict[str, int] = field(default_factory=dict)
     quality: int = 0
     mult_ensts: Dict[str, List[str]] = field(default_factory=lambda: defaultdict(list))
@@ -51,7 +52,6 @@ def read_in_filelists(filelist_file: Path) -> tuple[dict[str, str], dict[str, st
             allenst, _allensg, gid, type_label = parts[:4]
             type_label = type_label.rstrip('_')
             if not allenst:
-                print(f'error missing enst {line} {filelist_file}', file=sys.stderr)
                 continue
             for enst in allenst.split('|'):
                 enst2gene[enst] = gid
@@ -80,24 +80,35 @@ def print_output(read_hash: dict[str, ReadRecord], samout, multimapping_hash: di
         ensttype_join = '|'.join(ensttype_array)
         masterenst_join = '|'.join(masterenst_array)
 
-        if len(rec.flags) == 1:
-            r1_cols = rec.r1[ensttype].split('\t')
+        def annotate_pair(k: str, mult_value: str) -> tuple[str, str]:
+            r1_cols = rec.r1[k].split('\t')
+            r2_cols = rec.r2[k].split('\t')
             r1_cols[2] = f'{ensttype_join}||{masterenst_join}'
-            r1_line = '\t'.join(r1_cols)
+            r2_cols[2] = f'{ensttype_join}||{masterenst_join}'
+            return (
+                '\t'.join(r1_cols) + f'\tZZ:Z:{mult_value}',
+                '\t'.join(r2_cols) + f'\tZZ:Z:{mult_value}',
+            )
+
+        if len(rec.flags) == 1:
             zz = '|'.join(rec.mult_ensts.get(ensttype, []))
-            samout.write(f'{r1_line}\tZZ:Z:{zz}\n')
+            r1_line, r2_line = annotate_pair(ensttype, zz)
+            samout.write(r1_line + '\n')
+            samout.write(r2_line + '\n')
         else:
             all_mult_ensts: list[str] = []
             for key in ensttype_array:
                 all_mult_ensts.append('|'.join(rec.mult_ensts.get(key, [])))
             final_mult_ensts = '|'.join(all_mult_ensts)
-            if ensttype not in rec.r1:
-                print(f"weird error - {read_name} {ensttype} readhash doesn't exist ? {rec.flags.get(ensttype)}", file=sys.stderr)
+            if ensttype not in rec.r1 or ensttype not in rec.r2:
+                print(
+                    f"weird error - {read_name} {ensttype} readhash doesn't exist ? {rec.flags.get(ensttype)}",
+                    file=sys.stderr,
+                )
                 continue
-            r1_cols = rec.r1[ensttype].split('\t')
-            r1_cols[2] = f'{ensttype_join}||{masterenst_join}'
-            r1_line = '\t'.join(r1_cols)
-            samout.write(f'{r1_line}\tZZ:Z:{final_mult_ensts}\n')
+            r1_line, r2_line = annotate_pair(ensttype, final_mult_ensts)
+            samout.write(r1_line + '\n')
+            samout.write(r2_line + '\n')
             multimapping_type = '|'.join(rec.flags.keys())
             multimapping_hash[multimapping_type] = multimapping_hash.get(multimapping_type, 0) + 1
 
@@ -125,8 +136,10 @@ def stream_sam_lines(args: argparse.Namespace):
         '--reorder',
         '-x',
         args.bowtie_db,
-        '-U',
+        '-1',
         args.fastq_file1,
+        '-2',
+        args.fastq_file2,
     ]
     print('command ' + ' '.join(cmd) + f' 2> {bowtie_out}', file=sys.stderr)
     with Path(bowtie_out).open('w', encoding='utf-8') as err:
@@ -140,8 +153,9 @@ def stream_sam_lines(args: argparse.Namespace):
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description='Python port of parse_bowtie2_output_realtime_includemultifamily_SE.pl')
+    ap = argparse.ArgumentParser(description='Python port of parse_bowtie2_output_realtime_includemultifamily_PE.pl')
     ap.add_argument('fastq_file1')
+    ap.add_argument('fastq_file2')
     ap.add_argument('bowtie_db')
     ap.add_argument('output')
     ap.add_argument('filelist_file')
@@ -161,48 +175,55 @@ def main() -> int:
     read_counter = 0
     prev_r1name = ''
 
+    sam_iter = iter(stream_sam_lines(args))
     with output_path.open('w', encoding='utf-8') as samout:
-        for raw in stream_sam_lines(args):
+        for raw in sam_iter:
             r1 = raw.rstrip('\n')
             if r1.startswith('@'):
                 samout.write(r1 + '\n')
                 continue
 
-            cols = r1.split('\t')
-            if len(cols) < 12:
+            try:
+                r2 = next(sam_iter).rstrip('\n')
+            except StopIteration:
+                break
+            if r2.startswith('@'):
                 continue
 
-            read_name_parts = cols[0].split('_')
-            if len(read_name_parts) > 1:
-                r1name = '_'.join(read_name_parts[:-1])
-            else:
-                r1name = cols[0]
+            cols1 = r1.split('\t')
+            cols2 = r2.split('\t')
+            if len(cols1) < 12 or len(cols2) < 12:
+                continue
+
+            r1name = cols1[0].split()[0]
+            r2name = cols2[0].split()[0]
+            if r1name != r2name:
+                continue
 
             try:
-                r1sam_flag = int(cols[1])
+                r1sam_flag = int(cols1[1])
             except ValueError:
                 continue
-            if r1sam_flag == 4:
+            if r1sam_flag in (77, 141):
                 continue
 
-            if r1sam_flag in (16, 272):
+            if r1sam_flag in (99, 355, 147, 403):
                 frag_strand = '-'
-            elif r1sam_flag in (0, 256):
+            elif r1sam_flag in (83, 339, 163, 419):
                 frag_strand = '+'
             else:
                 continue
 
-            paired_mismatch_score = parse_as_score(cols[11:])
+            paired_mismatch_score = parse_as_score(cols1[11:]) + parse_as_score(cols2[11:])
 
-            mapped_enst = cols[2]
-            mapped_enst_full = cols[2]
+            mapped_enst = cols1[2]
+            mapped_enst_full = cols1[2]
             if mapped_enst.endswith('_spliced'):
                 mapped_enst = mapped_enst[: -len('_spliced')]
             if mapped_enst.endswith('_withgenomeflank'):
                 mapped_enst = mapped_enst[: -len('_withgenomeflank')]
 
             if mapped_enst not in convert_enst2type:
-                print(f'enst2type is missing for {mapped_enst} {r1}', file=sys.stderr)
                 continue
             ensttype, enstpriority_s = convert_enst2type[mapped_enst].split(':', 1)
             enstpriority = int(enstpriority_s)
@@ -222,6 +243,7 @@ def main() -> int:
             if r1name not in read_hash:
                 rec = ReadRecord()
                 rec.r1[ensttype] = r1
+                rec.r2[ensttype] = r2
                 rec.flags[ensttype] = enstpriority
                 rec.quality = paired_mismatch_score
                 rec.mult_ensts[ensttype].append(mapped_enst_full)
@@ -236,6 +258,7 @@ def main() -> int:
             if paired_mismatch_score > rec.quality:
                 newrec = ReadRecord()
                 newrec.r1[ensttype] = r1
+                newrec.r2[ensttype] = r2
                 newrec.flags[ensttype] = enstpriority
                 newrec.quality = paired_mismatch_score
                 newrec.mult_ensts[ensttype].append(mapped_enst_full)
@@ -251,6 +274,7 @@ def main() -> int:
                         pass
                     elif old_full == mapped_enst_full + '_withgenomeflank' or old_full == mapped_enst_full + '_spliced':
                         rec.r1[ensttype] = r1
+                        rec.r2[ensttype] = r2
                         rec.flags[ensttype] = enstpriority
                         for i, v in enumerate(rec.mult_ensts.get(ensttype, [])):
                             if v == old_full:
@@ -264,6 +288,7 @@ def main() -> int:
                         rec.master_enst[ensttype] = mapped_enst_full + '_DOUBLEMAP'
                 elif enstpriority < rec.flags[ensttype]:
                     rec.r1[ensttype] = r1
+                    rec.r2[ensttype] = r2
                     rec.flags[ensttype] = enstpriority
                     rec.mult_ensts[ensttype].insert(0, mapped_enst_full)
                     rec.enst[mapped_enst] = mapped_enst_full
@@ -273,11 +298,13 @@ def main() -> int:
             elif ensttype in RRNA_EXTRA_HASH and RRNA_EXTRA_HASH[ensttype] in rec.r1:
                 old_rrna = RRNA_EXTRA_HASH[ensttype]
                 rec.r1.pop(old_rrna, None)
+                rec.r2.pop(old_rrna, None)
                 rec.flags.pop(old_rrna, None)
                 rec.master_enst.pop(old_rrna, None)
                 rec.mult_ensts.pop(old_rrna, None)
                 rec.enst.pop('NR_046235.1', None)
                 rec.r1[ensttype] = r1
+                rec.r2[ensttype] = r2
                 rec.flags[ensttype] = enstpriority
                 rec.quality = paired_mismatch_score
                 rec.enst[mapped_enst] = mapped_enst_full
@@ -287,6 +314,7 @@ def main() -> int:
                 rna_flag = any(el in rec.r1 for el in RRNA_EXTRA_HASH_REV[ensttype])
                 if not rna_flag:
                     rec.r1[ensttype] = r1
+                    rec.r2[ensttype] = r2
                     rec.flags[ensttype] = enstpriority
                     rec.quality = paired_mismatch_score
                     rec.enst[mapped_enst] = mapped_enst_full
@@ -294,6 +322,7 @@ def main() -> int:
                     rec.master_enst[ensttype] = mapped_enst_full
             else:
                 rec.r1[ensttype] = r1
+                rec.r2[ensttype] = r2
                 rec.flags[ensttype] = enstpriority
                 rec.quality = paired_mismatch_score
                 rec.enst[mapped_enst] = mapped_enst_full

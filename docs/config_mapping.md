@@ -16,16 +16,24 @@ When `cwl_input_yaml` is provided, mapped keys from that file override defaults 
 
 CWL YAML key -> Snakemake key:
 - `dataset` -> `dataset`
+- `barcode1r2FastqGz` -> `barcode1r2FastqGz`
 - `barcode1r1FastqGz` -> `barcode1r1FastqGz`
 - `barcode1rmRepBam` -> `barcode1rmRepBam`
+- `barcode2r1FastqGz` -> `barcode2r1FastqGz`
+- `barcode2r2FastqGz` -> `barcode2r2FastqGz`
+- `barcode2rmRepBam` -> `barcode2rmRepBam`
 - `barcode1Inputr1FastqGz` -> `barcode1Inputr1FastqGz`
+- `barcode1Inputr2FastqGz` -> `barcode1Inputr2FastqGz`
 - `barcode1InputrmRepBam` -> `barcode1InputrmRepBam`
 - `bowtie2_db` -> `bowtie2_db`
 - `bowtie2_prefix` -> `bowtie2_prefix`
 - `fileListFile1` -> `fileListFile1`
+- `fileListFile2` -> `fileListFile2`
 - `gencodeGTF` -> `gencodeGTF`
 - `gencodeTableBrowser` -> `gencodeTableBrowser`
 - `repMaskBEDFile` -> `repMaskBEDFile`
+- `chrM_genelist_file` -> `chrM_genelist_file`
+- `mirbase_gff3_file` -> `mirbase_gff3_file`
 - `prefixes` -> `prefixes`
 - `se_or_pe` -> `se_or_pe`
 

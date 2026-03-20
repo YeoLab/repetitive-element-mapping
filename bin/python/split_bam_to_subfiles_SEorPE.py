@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -16,8 +18,12 @@ def sam_stream(path: Path):
             for line in fh:
                 yield line
     elif path.suffix == '.bam':
+        samtools_bin = os.environ.get('SAMTOOLS_BIN') or shutil.which('samtools')
+        if not samtools_bin:
+            repo_samtools = Path(__file__).resolve().parents[2] / '.conda-env' / 'bin' / 'samtools'
+            samtools_bin = str(repo_samtools) if repo_samtools.exists() else 'samtools'
         proc = subprocess.Popen(
-            ['samtools', 'view', '-h', str(path)],
+            [samtools_bin, 'view', '-h', str(path)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

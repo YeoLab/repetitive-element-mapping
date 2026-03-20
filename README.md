@@ -1,128 +1,118 @@
 # repetitive-element-mapping
 
-Python + Snakemake pipeline for repetitive element mapping with deterministic mini fixtures for validation.
+Python + Snakemake implementation of the repetitive element mapping workflow.
 
-## What is in this branch
-- Python implementation scripts in `bin/python/`.
-- Snakemake workflow entrypoint in `Snakefile`.
-- Rule modules in `workflow/rules/`.
-- Validation scripts in `workflow/scripts/`.
-- Mini fixtures and expected outputs in `tests/fixtures/mini/`.
+This branch contains no CWL execution path and no Perl runtime dependency.
 
-## Repository layout
-- `Snakefile`: top-level workflow entrypoint.
-- `config/config.yaml`: runtime file paths for mini validation inputs and expected outputs.
-- `bin/python/split_bam_to_subfiles_SEorPE.py`: split SAM/BAM by UMI prefix.
-- `bin/python/merge_multiple_parsed_files.simplified_20191022.py`: merge parsed statistics files.
-- `workflow/rules/se_foundation.smk`: currently implemented, testable workflow stages.
-- `workflow/scripts/verify_split_manifest.py`: checksum validation for split outputs.
-- `workflow/scripts/verify_merge_against_expected.py`: checksum validation for merged output.
+## Overview
 
-## Requirements
-- Python 3.11+
-- Snakemake 9+
-- samtools 1.23+
-- bowtie2 2.5+
-- pytest 9+
+There are two execution profiles:
+
+1. `mini` profile (default): deterministic fixture validation for core converted components.
+2. `dropin` profile: full SE/PE Snakemake workflow driven by CWL-style YAML job inputs.
 
 ## Installation
 
-### 1) Clone
 ```bash
 git clone https://github.com/YeoLab/repetitive-element-mapping.git
 cd repetitive-element-mapping
-git checkout codex/python-conversion
-```
+git checkout codex/python-conversion-python-only-cleanup
 
-### 2) Create environment
-```bash
 mamba create -y -p ./.conda-env -c conda-forge -c bioconda \
   python=3.11 snakemake bowtie2 samtools pandas numpy pyyaml pytest
 ```
 
-### 3) Activate
+## Inputs
+
+The workflow accepts CWL-style YAML (`class` + `path`) via:
+
 ```bash
-mamba activate ./.conda-env
+--config cwl_input_yaml=/absolute/path/to/job.yaml
 ```
 
-## Input specification
+Supported keys include:
+- `dataset`
+- `barcode1r1FastqGz`, `barcode1r2FastqGz`, `barcode1rmRepBam`
+- `barcode2r1FastqGz`, `barcode2r2FastqGz`, `barcode2rmRepBam`
+- `barcode1Inputr1FastqGz`, `barcode1Inputr2FastqGz`, `barcode1InputrmRepBam`
+- `bowtie2_db`, `bowtie2_prefix`, `fileListFile1`
+- `gencodeGTF`, `gencodeTableBrowser`, `repMaskBEDFile`
+- `prefixes`, `se_or_pe`
 
-## CWL-style YAML Input Alignment
-This branch supports two equivalent ways to provide run configuration:
+Relative `path` values are resolved relative to the YAML file location.
 
-1) Populate top-level keys in `config/config.yaml`.
-2) Pass an existing CWL-style job YAML at runtime:
-```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p all \
-  --config cwl_input_yaml=/absolute/path/to/job.yaml
-```
+## Outputs
 
-Supported CWL-compatible keys:
-- `barcode1r1FastqGz`, `barcode1rmRepBam`
-- `barcode1Inputr1FastqGz`, `barcode1InputrmRepBam`
-- `bowtie2_db`, `bowtie2_prefix`, `fileListFile1`, `gencodeGTF`, `gencodeTableBrowser`, `repMaskBEDFile`
-- `dataset`, `prefixes`, `se_or_pe`
+### Drop-in workflow (SE)
+Generated in `results/dropin/` and exported by wrapper to `<job_name>/results`:
+- `<ip>.preRmDup.sam.gz`
+- `<input>.preRmDup.sam.gz`
+- `<ip>.rmDup.sam.gz`
+- `<input>.rmDup.sam.gz`
+- `<ip>.parsed`
+- `<input>.parsed`
+- `<ip>.nopipes.tsv`
+- `<ip>.withpipes.tsv`
 
-For `class: File` / `class: Directory` objects, the `path` value is extracted. Relative `path` values are resolved relative to the YAML file location.
+Wrapper also writes:
+- `REPELEMENTMAPPING_<job>_OUTPUT.json`
+- `REPELEMENTMAPPING_<job>_VERSION-1.0.0`
 
-The separate `mini_validation` block is only for deterministic fixture tests while conversion is in progress.
-See `docs/config_mapping.md` for the one-to-one mapping details.
-The current implemented Snakemake stages use mini fixture inputs configured in `config/config.yaml`:
+### Drop-in workflow (PE)
+Generated similarly, including combined IP outputs from barcode1+barcode2 and input outputs.
 
-- `mini_validation.source_sam_gz`: compressed SAM-like file used for split stage.
-- `mini_validation.merge_input_1`: parsed stats input file #1 for merge stage.
-- `mini_validation.merge_input_2`: parsed stats input file #2 for merge stage.
-- `mini_validation.split_manifest`: expected checksums for 25 split output files.
-- `mini_validation.merge_expected`: expected merged parsed output.
+## Running
 
-You can update these paths to point to your own test data as long as formats match.
+### 1) Mini validation profile
 
-## Output specification
-Running the current workflow stages produces:
-
-- `results/mini/split/python_tmp/*.tmp`: 25 prefix-split files (`AA`..`NN`).
-- `results/mini/split/verified.ok`: split-stage validation success marker.
-- `results/mini/merge/merged.python.parsed`: merged parsed output.
-- `results/mini/merge/verified.ok`: merge-stage validation success marker.
-
-## Run instructions (deployment)
-
-### Local execution
-```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p all
-```
-
-`HOME=$(pwd)` keeps Snakemake cache files inside workspace and avoids host cache permission issues.
-
-### Re-run all stages from scratch
 ```bash
 HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all
 ```
 
-### Cluster deployment pattern
-Use your site profile/launcher as usual, for example:
+### 2) Drop-in profile directly with Snakemake
+
+SE:
 ```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake --profile <your-profile> all
+HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all \
+  --config pipeline_profile=dropin run_mode=SE cwl_input_yaml=/abs/job_se.yaml
+```
+
+PE:
+```bash
+HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all \
+  --config pipeline_profile=dropin run_mode=PE cwl_input_yaml=/abs/job_pe.yaml
+```
+
+### 3) Drop-in wrapper commands (legacy entrypoint style)
+
+SE:
+```bash
+./wf/eCLIP_repelement_SE /abs/job_se.yaml
+```
+
+PE:
+```bash
+./wf/eCLIP_repelement_PE /abs/job_pe.yaml
 ```
 
 ## Testing
 
-### Unit/integration tests
+Unit tests:
 ```bash
-./.conda-env/bin/python -m pytest -q tests/test_mini_fixtures_manifest.py
+./.conda-env/bin/python -m pytest -q \
+  tests/test_mini_fixtures_manifest.py \
+  tests/test_split_merge_python_expected.py \
+  tests/test_parse_se_python.py \
+  tests/test_parse_pe_python.py \
+  tests/test_cwl_yaml_adapter.py
 ```
 
-### Workflow validation run
-```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all
-```
+Drop-in synthetic fixtures:
+- SE fixture YAML: `tests/fixtures/dropin/se_job.yaml`
+- PE fixture YAML: `tests/fixtures/dropin/pe_job.yaml`
 
-## Regenerating expected artifacts
-If you intentionally update core Python logic, regenerate mini expected artifacts and commit them:
+Example:
 ```bash
-python3 scripts/generate_python_expected_artifacts.py
+./wf/eCLIP_repelement_SE tests/fixtures/dropin/se_job.yaml
+./wf/eCLIP_repelement_PE tests/fixtures/dropin/pe_job.yaml
 ```
-
-This refreshes:
-- `tests/fixtures/mini/expected/split.expected.manifest.tsv`
-- `tests/fixtures/mini/expected/merged.expected.parsed`

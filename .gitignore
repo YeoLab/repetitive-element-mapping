@@ -114,6 +114,7 @@ tests/*
 !tests/test_split_merge_python_expected.py
 !tests/test_parse_se_python.py
 !tests/test_cwl_yaml_adapter.py
+!tests/test_parse_pe_python.py
 tests/__pycache__/
 tests/*.pyc
 
