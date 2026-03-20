@@ -18,13 +18,14 @@ git clone https://github.com/YeoLab/repetitive-element-mapping.git
 cd repetitive-element-mapping
 git checkout codex/python-conversion-python-only-cleanup
 
-mamba create -y -p ./.conda-env -c conda-forge -c bioconda \
-  python=3.11 snakemake bowtie2 samtools pandas numpy pyyaml pytest
-
-or
-conda activate snakemake9
-module load bowtie2 python3essential
+mamba create -y -n repelement-snakemake -c conda-forge -c bioconda \
+  snakemake mamba
+conda activate repelement-snakemake
 ```
+
+Rule-specific environments are defined in:
+- `workflow/envs/dropin.yaml`
+- `workflow/envs/mini.yaml`
 
 ## Inputs
 
@@ -81,7 +82,8 @@ Generated similarly, including combined IP outputs from barcode1+barcode2 and in
 ### 1) Mini validation profile
 
 ```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all
+snakemake -kps Snakefile -j1 -p --use-conda -F all \
+  --config pipeline_profile=mini
 ```
 
 ### 2) Drop-in profile directly with Snakemake
@@ -89,12 +91,13 @@ HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all
 SE:
 ```bash
 snakemake -kps Snakefile --profile profiles/tscc2_snakemake9 -j8 -p \
+  --use-conda \
   --config pipeline_profile=dropin run_mode=SE cwl_input_yaml=/tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/repeat_mapping_SE.simple.yaml
 ```
 
 PE:
 ```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all \
+snakemake -kps Snakefile -j8 -p --use-conda -F all \
   --config pipeline_profile=dropin run_mode=PE cwl_input_yaml=/abs/job_pe.yaml
 ```
 
@@ -110,11 +113,29 @@ PE:
 ./wf/eCLIP_repelement_PE /abs/job_pe.yaml
 ```
 
+## Rule Documentation
+
+Rule-level documentation is embedded directly in Snakemake:
+- A comment above each rule explains purpose and expected behavior.
+- A `message:` field on each rule describes runtime activity.
+- Each executable rule specifies `conda:` and optional module loading.
+
+Module loading is controlled with config keys in `config/config.yaml`:
+
+```yaml
+module_init: "source /etc/profile.d/modules.sh"
+modules:
+  bowtie2: ""
+  samtools: ""
+```
+
+Set module values when you need HPC module support, or leave empty strings to skip module loading.
+
 ## Testing
 
 Unit tests:
 ```bash
-./.conda-env/bin/python -m pytest -q \
+python -m pytest -q \
   tests/test_mini_fixtures_manifest.py \
   tests/test_split_merge_python_expected.py \
   tests/test_parse_se_python.py \

@@ -4,6 +4,13 @@ dataset: seCLIP_example
 pipeline_profile: mini
 run_mode: SE
 
+# Optional module loading for HPC environments.
+# Leave values empty to skip module loading entirely.
+module_init: "source /etc/profile.d/modules.sh"
+modules:
+  bowtie2: ""
+  samtools: ""
+
 barcode1r1FastqGz: ""
 barcode1r2FastqGz: ""
 barcode1rmRepBam: ""

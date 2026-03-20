@@ -1,0 +1,11 @@
+name: repelement-dropin
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - bowtie2>=2.5
+  - samtools>=1.17
+  - numpy
+  - pandas
