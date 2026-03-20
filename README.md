@@ -20,6 +20,10 @@ git checkout codex/python-conversion-python-only-cleanup
 
 mamba create -y -p ./.conda-env -c conda-forge -c bioconda \
   python=3.11 snakemake bowtie2 samtools pandas numpy pyyaml pytest
+
+or
+conda activate snakemake9
+module load bowtie2 python3essential
 ```
 
 ## Inputs
@@ -84,8 +88,8 @@ HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all
 
 SE:
 ```bash
-HOME=$(pwd) ./.conda-env/bin/snakemake -j1 -p -F all \
-  --config pipeline_profile=dropin run_mode=SE cwl_input_yaml=/abs/job_se.yaml
+snakemake -kps Snakefile --profile profiles/tscc2_snakemake9 -j8 -p \
+  --config pipeline_profile=dropin run_mode=SE cwl_input_yaml=/tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/repeat_mapping_SE.simple.yaml
 ```
 
 PE:
