@@ -1,0 +1,55 @@
+#!/usr/bin/env eCLIP_repelement_PE
+
+## eCLIP_repelement_PE
+
+dataset: peCLIP_example
+
+barcode1r1FastqGz:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_clip.A01.r1.fqTrTr.sorted.fq.gz
+barcode1r2FastqGz:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_clip.A01.r2.fqTrTr.sorted.fq.gz
+barcode1rmRepBam:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_clip.A01.r1.fq.genome-mapped.bam
+
+
+barcode2r1FastqGz:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_clip.B06.r1.fqTrTr.sorted.fq.gz
+barcode2r2FastqGz:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_clip.B06.r2.fqTrTr.sorted.fq.gz
+barcode2rmRepBam:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_clip.B06.r1.fq.genome-mapped.bam
+
+
+barcode1Inputr1FastqGz:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_input.NIL.r1.fqTrTr.sorted.fq.gz
+barcode1Inputr2FastqGz:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_input.NIL.r2.fqTrTr.sorted.fq.gz
+barcode1InputrmRepBam:
+  class: File
+  path: /home/centos/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.rep1_input.NIL.r1.fq.genome-mapped.bam
+bowtie2_db:
+  class: Directory
+  path: /home/centos/repeat-family-mapping-grch38/bowtie2_index/
+bowtie2_prefix: MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+fileListFile1:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv
+gencodeGTF:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+gencodeTableBrowser:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat.tsv
+repMaskBEDFile:
+  class: File
+  path: /home/centos/repeat-family-mapping-grch38/UniqueGenomicElements.hg38.bed
+
+

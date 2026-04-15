@@ -1,0 +1,18 @@
+dataset: seCLIP_example
+mode: SE
+
+samples:
+  ip:
+    r1: /tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IP.umi.r1.fqTrTr.sorted.fq.gz
+    rmrep_bam: /tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IP.umi.r1.fq.genome-mappedSoSo.bam
+  input:
+    r1: /tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IN.umi.r1.fqTrTr.sorted.fq.gz
+    rmrep_bam: /tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IN.umi.r1.fq.genome-mappedSoSo.bam
+
+references:
+  bowtie2_db: /tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index
+  bowtie2_prefix: MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+  fileListFile1: /tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.list
+  gencodeGTF: /tscc/projects/ps-yeolab4/genomes/hg38/gencode/v33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+  gencodeTableBrowser: /tscc/projects/ps-yeolab4/genomes/hg38/gencode/v33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+  repMaskBEDFile: /tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/UniqueGenomicElements.hg38.bed

@@ -1,0 +1,57 @@
+# Beads Input File for Repetitive Element Mapping Tests
+# Format: output_path | checksum | source_url_or_path
+# Generated: 2026-04-15
+#
+# This file enables reproducible reconstruction of test data using the beads tool
+# Install: pip install beads-bio
+# Usage: beads make
+#
+# Note: Some files may need to be obtained from TSCC storage or generated from scripts
+# Files marked with "generate:" require running a script to create
+
+# Mini Test Fixtures - Source Data
+tests/fixtures/mini/source/ip.preRmDup.sam.mini.gz | f6749227444bc327255cd98fe7e54be5c7c19daaacc90dd15ec2fbb996f9f9e6 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/source/ip.preRmDup.sam.mini.gz
+tests/fixtures/mini/source/input.preRmDup.sam.mini.gz | 24f3307ebfce353325bdea0813a54b2201ef83da12059af8aa3292a4fe705f2b | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/source/input.preRmDup.sam.mini.gz
+tests/fixtures/mini/source/merge_input_1.parsed_v2.txt | 3c0a90323c04fd3fb853f1acb45206390e68908e1042e7073bf4b6b1ae587b42 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/source/merge_input_1.parsed_v2.txt
+tests/fixtures/mini/source/merge_input_2.parsed_v2.txt | 7e1faae81ff307f2522d2576ad4c4bde583e18be7e1eaa3b6f9d57eaf9338ef5 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/source/merge_input_2.parsed_v2.txt
+
+# Mini Test Fixtures - Expected Outputs (for validation)
+tests/fixtures/mini/expected/ip.parsed.mini.gz | fdc33e2b6f6a6b7df23f21c5bbffc87bfcd0e682d1309e541d703edf9e5c74dd | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/ip.parsed.mini.gz
+tests/fixtures/mini/expected/input.parsed.mini.gz | 63a47234eff4e54612065eb4386bb24c2a817165884c15b3aebb5245e199148d | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/input.parsed.mini.gz
+tests/fixtures/mini/expected/ip.rmDup.sam.mini.gz | 920ce5732417fcb46d9fbcf3c348e2dbf99f4d8fd74fe8c3248231f9855d77e8 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/ip.rmDup.sam.mini.gz
+tests/fixtures/mini/expected/input.rmDup.sam.mini.gz | 479a3774b8867e41292aff93a23c539cd220549522a2244a49e1b6d509f7f4a1 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/input.rmDup.sam.mini.gz
+tests/fixtures/mini/expected/ip.reparsed.nopipes.mini.tsv.gz | ab76d446267a23dad0f5d815ef0db2bc8d152155cbd7ac5d6ecf0be089ec5c72 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/ip.reparsed.nopipes.mini.tsv.gz
+tests/fixtures/mini/expected/ip.reparsed.withpipes.mini.tsv.gz | db976f71def48a10632aeaaa71226a6c19260c254da85c7f9e0afb0de3339255 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/ip.reparsed.withpipes.mini.tsv.gz
+tests/fixtures/mini/expected/merged.expected.parsed | bce73da7c0297c605f646b17ed4b9ec0a2c2f2ecfc693d03601ff0799cbcbdbc | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/merged.expected.parsed
+tests/fixtures/mini/expected/split.expected.manifest.tsv | e272596ba514c5b61355d405b9457fca595f516fc7646d6f3072e82967e5c642 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/expected/split.expected.manifest.tsv
+
+# Mini Test Fixtures - Configuration Files (lightweight, already in test-provenance/)
+tests/fixtures/mini/manifest.tsv | 873c9c964d70097c2ccd3299500ff6c9a2fd753c4727137a4885aaadd7cc2450 | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/manifest.tsv
+tests/fixtures/mini/cwl_job_example.yaml | 0897b8769657d6c5b5fbc7ca34af6759c4903c30550eb2eb6375ee79efad26ce | tscc:/tscc/projects/ps-yeolab3/bay001/codebase/repetitive-element-mapping/tests/fixtures/mini/cwl_job_example.yaml
+
+# Example Test Data - SE Workflow
+examples/test-data/se/INV_B.IP.umi.r1.fqTrTr.sorted.fq.gz | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IP.umi.r1.fqTrTr.sorted.fq.gz
+examples/test-data/se/INV_B.IP.umi.r1.fq.genome-mappedSoSo.bam | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IP.umi.r1.fq.genome-mappedSoSo.bam
+examples/test-data/se/INV_B.IN.umi.r1.fqTrTr.sorted.fq.gz | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IN.umi.r1.fqTrTr.sorted.fq.gz
+examples/test-data/se/INV_B.IN.umi.r1.fq.genome-mappedSoSo.bam | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/eclip/0.7.0/tests/other_examples/INV_B_singleNode/results/INV_B.IN.umi.r1.fq.genome-mappedSoSo.bam
+
+# Reference Data - Bowtie2 Index (large, may need separate distribution)
+# Note: Bowtie2 indices are binary and may need to be rebuilt on target architecture
+references/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.1.bt2 | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.1.bt2
+references/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.2.bt2 | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.2.bt2
+references/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.3.bt2 | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.3.bt2
+references/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.4.bt2 | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.4.bt2
+references/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.rev.1.bt2 | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.rev.1.bt2
+references/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.rev.2.bt2 | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.rev.2.bt2
+
+# Reference Data - Annotation Files
+references/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.list | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.list
+references/hg38/UniqueGenomicElements.hg38.bed | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/software/ecliprepmap/1.0.0/examples/inputs/UniqueGenomicElements.hg38.bed
+
+# Reference Data - Gencode (publicly available)
+references/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf | CHECKSUM_NEEDED | https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.gz
+references/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat | CHECKSUM_NEEDED | tscc:/tscc/projects/ps-yeolab4/genomes/hg38/gencode/v33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+
+# Note: Files with CHECKSUM_NEEDED should have checksums computed before distribution
+# Run: sha256sum <file> to generate checksums
+# Files with "tscc:" prefix require access to TSCC storage or alternative download location

@@ -1,0 +1,7 @@
+#!/usr/bin/env splitbam.cwl
+
+sam_file:
+  class: File
+  path: inputs/204_RBFOX2.rep1_clip.A01.r1.fq.genome-mappedSo.bam
+
+se_or_pe: PE

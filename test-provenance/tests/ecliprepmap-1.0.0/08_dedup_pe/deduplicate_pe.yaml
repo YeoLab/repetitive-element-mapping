@@ -1,0 +1,27 @@
+#!/usr/bin/env deduplicate.cwl
+
+repFamilySam:
+  class: File
+  path: inputs/AA.204_RBFOX2.rep1_clip.A01.r1.fqTrTr.sorted.fq.Rep.sam.tmp
+
+rmRepSam:
+  class: File
+  path: inputs/AA.204_RBFOX2.rep1_clip.A01.r1.fq.genome-mappedSo.bam.tmp
+
+se_or_pe: PE
+
+gencodeGTF: 
+  class: File
+  path: /projects/ps-yeolab4/genomes/hg38/gencode/v33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+
+gencodeTableBrowser:
+  class: File
+  path: /projects/ps-yeolab4/genomes/hg38/gencode/v33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+
+repMaskBedFile:
+  class: File
+  path: /home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/hg38/UniqueGenomicElements.hg38.bed
+
+fileList1:
+  class: File
+  path: /home/elvannostrand/data/clip/CLIPseq_analysis/RNA_type_analysis/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.list

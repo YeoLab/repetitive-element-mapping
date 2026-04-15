@@ -1,0 +1,15 @@
+#!/usr/bin/env combine.cwl
+
+outputFile: parsed.txt
+  
+files:
+  - class: File
+    path: inputs/AA.INV_B.IN.umi.r1.fqTrTr.sorted.fq.Rep.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt
+  - class: File
+    path: inputs/AC.INV_B.IN.umi.r1.fqTrTr.sorted.fq.Rep.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt
+  - class: File
+    path: inputs/AG.INV_B.IN.umi.r1.fqTrTr.sorted.fq.Rep.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt
+  - class: File
+    path: inputs/AT.INV_B.IN.umi.r1.fqTrTr.sorted.fq.Rep.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt
+  - class: File
+    path: inputs/AN.INV_B.IN.umi.r1.fqTrTr.sorted.fq.Rep.sam.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt
