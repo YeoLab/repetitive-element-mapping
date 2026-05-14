@@ -1,9 +1,0 @@
-relative_path	size_bytes	sha256
-tests/fixtures/mini/expected/input.parsed.mini.gz	6492	63a47234eff4e54612065eb4386bb24c2a817165884c15b3aebb5245e199148d
-tests/fixtures/mini/expected/input.rmDup.sam.mini.gz	174824	479a3774b8867e41292aff93a23c539cd220549522a2244a49e1b6d509f7f4a1
-tests/fixtures/mini/expected/ip.parsed.mini.gz	6292	fdc33e2b6f6a6b7df23f21c5bbffc87bfcd0e682d1309e541d703edf9e5c74dd
-tests/fixtures/mini/expected/ip.reparsed.nopipes.mini.tsv.gz	7188	ab76d446267a23dad0f5d815ef0db2bc8d152155cbd7ac5d6ecf0be089ec5c72
-tests/fixtures/mini/expected/ip.reparsed.withpipes.mini.tsv.gz	12851	db976f71def48a10632aeaaa71226a6c19260c254da85c7f9e0afb0de3339255
-tests/fixtures/mini/expected/ip.rmDup.sam.mini.gz	185900	920ce5732417fcb46d9fbcf3c348e2dbf99f4d8fd74fe8c3248231f9855d77e8
-tests/fixtures/mini/source/input.preRmDup.sam.mini.gz	198136	24f3307ebfce353325bdea0813a54b2201ef83da12059af8aa3292a4fe705f2b
-tests/fixtures/mini/source/ip.preRmDup.sam.mini.gz	204694	f6749227444bc327255cd98fe7e54be5c7c19daaacc90dd15ec2fbb996f9f9e6
