@@ -15,6 +15,9 @@ configfile: "config/config.yaml"
 # ---------------------------------------------------------------------------
 
 PERL = "/tscc/projects/ps-yeolab4/software/perl/5.10.1/bin/perl"
+
+# Perl 5.10.1 is a Singularity container wrapper; load singularitypro for all rules
+shell.prefix("module load singularitypro; ")
 PYTHON_ECLIP = "/tscc/projects/ps-yeolab4/software/miniconda_tscc2/envs/ecliprepmap-0.1.0/bin/python"
 PREFIXES = [
     "AA", "AC", "AG", "AT", "AN",

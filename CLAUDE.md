@@ -39,8 +39,14 @@ Docker image: `brianyee/repetitive_element_mapping:1.0.0`
 
 ### Snakemake Workflow (TSCC)
 
-```
-TODO
+Always use `module load singularitypro` before running Snakemake, because the Perl 5.10.1
+binary (`/tscc/projects/ps-yeolab4/software/perl/5.10.1/bin/perl`) is a Singularity container
+wrapper that requires `singularity` in PATH at rule execution time.
+
+```bash
+module load singularitypro
+conda activate snakemake9
+snakemake --configfile examples/repeat_mapping_SE_small.yaml --cores 8 --use-conda --conda-prefix conda-env --rerun-incomplete
 ```
 
 On TSCC with SLURM, use the profile:

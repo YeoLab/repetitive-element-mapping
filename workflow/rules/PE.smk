@@ -43,17 +43,21 @@ rule map_rep_pe:
 
 rule merge_ip_parsed:
     """
-    PE only: merge barcode1 + barcode2 parsed files into a single combined.parsed
-    used as the IP input to fold_change.
+    PE only: merge all 50 per-prefix parsed_v2 files (25 barcode1 + 25 barcode2)
+    into a single combined.parsed for fold_change.
+
+    Must feed per-prefix files directly — NOT the per-sample combined files.
+    The merge script outputs #READINFO\tAllReads format which it cannot re-parse,
+    so two-level merging breaks. CWL does this in one step too.
     """
     input:
         bc1 = expand(
-            "{outdir}/barcode1/{dataset}.barcode1.parsed",
-            outdir=OUTPUT_DIR, dataset=DATASET,
+            "{outdir}/barcode1/dedup/{prefix}/{prefix}.rep.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt",
+            outdir=OUTPUT_DIR, prefix=PREFIXES,
         ),
         bc2 = expand(
-            "{outdir}/barcode2/{dataset}.barcode2.parsed",
-            outdir=OUTPUT_DIR, dataset=DATASET,
+            "{outdir}/barcode2/dedup/{prefix}/{prefix}.rep.tmp.combined_w_uniquemap.rmDup.sam.parsed_v2.20201210.txt",
+            outdir=OUTPUT_DIR, prefix=PREFIXES,
         ),
     output:
         combined = expand(
