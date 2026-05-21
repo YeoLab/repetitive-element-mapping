@@ -11,7 +11,6 @@ executor: slurm
 slurm-no-account: true
 default-resources:
   slurm_partition: "gold"
-  slurm_account: "csd792"
   runtime: 480
   mem_mb: 32000
-  slurm_extra: "--qos=hcg-csd792"
+  slurm_extra: "--account=csd792 --qos=hcg-csd792"
