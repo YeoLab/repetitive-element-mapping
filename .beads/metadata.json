@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "repetitive_element_mapping",
+  "project_id": "ed3e6e21-d777-4f03-8fa0-f8158cf6ba45"
+}
