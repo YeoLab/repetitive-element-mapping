@@ -8,6 +8,7 @@ conda-frontend: conda
 rerun-incomplete: true
 jobs: 30
 executor: slurm
+slurm-no-account: true
 default-resources:
   slurm_partition: "gold"
   slurm_account: "csd792"
