@@ -4,9 +4,9 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.11
+  - python=3.10
   - samtools>=1.17
-  - bowtie2=2.2.6
+  - bowtie2>=2.5
   - numpy
   - pandas
   - pysam
