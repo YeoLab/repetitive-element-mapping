@@ -1,0 +1,16 @@
+printshellcmds: true
+notemp: true
+latency-wait: 60
+retries: 2
+use-conda: true
+conda-prefix: "conda-env"
+conda-frontend: conda
+rerun-incomplete: true
+jobs: 30
+executor: slurm
+default-resources:
+  slurm_partition: "gold"
+  slurm_account: "csd792"
+  runtime: 480
+  mem_mb: 32000
+  slurm_extra: "--qos=hcg-csd792"

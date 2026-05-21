@@ -1,0 +1,20 @@
+# config/config.yaml — template, override with: snakemake --configfile your_config.yaml
+se_or_pe: SE
+dataset: my_dataset
+output_dir: results
+
+reference:
+  bowtie2_db: ""
+  bowtie2_prefix: ""
+  file_list: ""
+  gencode_gtf: ""
+  gencode_table_browser: ""
+  rep_mask_bed: ""
+
+barcode1:
+  r1: ""
+  bam: ""
+
+input:
+  r1: ""
+  bam: ""
