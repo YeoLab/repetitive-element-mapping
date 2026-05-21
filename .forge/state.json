@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0.0",
+  "pipeline_id": "forge-95f4684e",
+  "created_utc": "2026-05-14T00:00:00Z",
+  "updated_utc": "2026-05-14T00:00:00Z",
+  "current_stage": "3-implement",
+  "stages": {
+    "0-research": {
+      "status": "SKIPPED",
+      "skip_reason": "generate_refdata.md is a detailed PRD with explicit acceptance criteria, 5 implementation steps, and reference data sources. No additional research needed.",
+      "skipped_utc": "2026-05-14T00:00:00Z"
+    },
+    "1-requirements": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-14T00:00:00Z",
+      "artifacts": [
+        "stages/1-requirements/architect-prompt.md",
+        "stages/1-requirements/context/"
+      ]
+    },
+    "2-architect": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-14T00:00:00Z",
+      "artifacts": [
+        "stages/2-architect/architecture-plan.md",
+        "stages/2-architect/implementer-prompt.md",
+        "stages/2-architect/assumptions.json",
+        "stages/2-architect/requirements-trace.json",
+        "stages/2-architect/threat-model.md",
+        "stages/2-architect/DECISIONS_SUMMARY.md",
+        "stages/2-architect/exploration-report.md",
+        "stages/2-architect/handoff.json",
+        "stages/2-architect/stage-summary.json",
+        "stages/2-architect/adrs/",
+        "stages/2-architect/tasks/"
+      ]
+    },
+    "2.5-spec": {
+      "status": "SKIPPED",
+      "skip_reason": "Architect task files are sufficiently detailed for direct implementation; TDD scaffold not applicable to data file generation scripts",
+      "skipped_utc": "2026-05-14T00:00:00Z"
+    },
+    "2.75-tdad": {
+      "status": "SKIPPED",
+      "skip_reason": "Architect task files are sufficiently detailed for direct implementation; TDD scaffold not applicable to data file generation scripts",
+      "skipped_utc": "2026-05-14T00:00:00Z"
+    },
+    "3.0-test-scaffold": {
+      "status": "SKIPPED",
+      "skip_reason": "Architect task files are sufficiently detailed for direct implementation; TDD scaffold not applicable to data file generation scripts",
+      "skipped_utc": "2026-05-14T00:00:00Z"
+    }
+  },
+  "cost": {
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "total_estimated_usd": 0,
+    "per_stage": {}
+  },
+  "loop_count": {},
+  "git": {
+    "base_commit": "7fe2a54e7792b6348f9a3406e6bcb89d9d014f43"
+  }
+}

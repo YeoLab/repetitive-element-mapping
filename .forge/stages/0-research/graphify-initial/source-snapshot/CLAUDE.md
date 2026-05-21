@@ -10,6 +10,8 @@ This is the **eCLIP repetitive element mapping** pipeline (ecliprepmap). Given t
 3. Deduplicates using randomer UMIs, resolving conflicts between unique genomic and repeat-family mappings
 4. Outputs per-element read counts and fold enrichment (IP vs. Input)
 
+There are two parallel implementations: the original **CWL workflow** (production-ready, orchestrated by bash scripts in `wf/`) and a newer **Snakemake "dropin" workflow** (in `workflow/rules/`) that calls the same Perl scripts via Python shim wrappers.
+
 ## Running the Pipeline
 
 ### CWL Workflow (Yeo Lab / TSCC)
@@ -37,23 +39,53 @@ cwltool --debug \
 
 Docker image: `brianyee/repetitive_element_mapping:1.0.0`
 
-### Snakemake Workflow (TSCC)
+### Snakemake Dropin Workflow (TSCC)
 
-```
-TODO
+The dropin workflow accepts the same YAML inputs as the CWL workflow. Run from the repo root:
+
+```bash
+snakemake \
+  --snakefile workflow/rules/dropin_repelement.smk \
+  --config barcode1r1FastqGz=/path/to/r1.fq.gz \
+           barcode1r2FastqGz=/path/to/r2.fq.gz \
+           barcode1rmRepBam=/path/to/rmrep.bam \
+           barcode1Inputr1FastqGz=/path/to/input_r1.fq.gz \
+           barcode1Inputr2FastqGz=/path/to/input_r2.fq.gz \
+           barcode1InputrmRepBam=/path/to/input_rmrep.bam \
+           bowtie2_db=/path/to/bowtie2_index \
+           bowtie2_prefix=MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat \
+           fileListFile1=/path/to/MASTER_FILELIST.tsv \
+           gencodeGTF=/path/to/gencode.gtf \
+           gencodeTableBrowser=/path/to/gencode.gtf.parsed_ucsc_tableformat.tsv \
+           repMaskBEDFile=/path/to/UniqueGenomicElements.hg38.bed \
+           se_or_pe=PE
+
+# For SE runs, set se_or_pe=SE and only provide barcode1r1FastqGz/barcode1rmRepBam
 ```
 
 On TSCC with SLURM, use the profile:
 
 ```bash
 snakemake \
-  --snakefile /path/to/Snakefile \
+  --snakefile workflow/rules/dropin_repelement.smk \
   --profile profiles/tscc2_snakemake9 \
   --config ...
 ```
 
 The SLURM profile (`profiles/tscc2_snakemake9/`) defaults to partition `gold`, account `csd792`, 20 GB memory, 30-minute wall time. The dropin workflow uses `--use-conda` with `workflow/envs/dropin.yaml` (Python 3.11, bowtie2 ≥2.5, samtools ≥1.17, numpy, pandas).
 
+### SE Foundation Tests (mini-dataset)
+
+```bash
+snakemake \
+  --snakefile workflow/rules/se_foundation.smk \
+  --config mini.source_sam_gz=tests/fixtures/mini/source/ip.preRmDup.sam.mini.gz \
+           mini.split_manifest=tests/fixtures/mini/expected/split.perl.manifest.tsv \
+           mini.merge_input_1=tests/fixtures/mini/source/merge_input_1.parsed_v2.txt \
+           mini.merge_input_2=tests/fixtures/mini/source/merge_input_2.parsed_v2.txt
+```
+
+This verifies that the Python port of `split_bam_to_subfiles_SEorPE` produces the same split files as the Perl original, and that `merge_multiple_parsed_files.py` matches Perl output.
 
 ## Workflow Architecture
 
@@ -81,6 +113,22 @@ rmRepBam input           →  splitbam (rmrep BAM)  ┘                         
 5. **`combine.cwl`** — `merge_multiple_parsed_files.simplified_20191022.pl` merges the 25 per-prefix `.parsed` files into one.
 
 `wf_ecliprepmap_pe.cwl` runs two IP barcodes in parallel (via the 1-barcode sub-workflow), then merges them with `combine.cwl` and computes fold change. `wf_ecliprepmap_se.cwl` is structurally identical but with one IP barcode.
+
+**Final step (both):** `calculate_fold_change_from_parsed_files.cwl` → `bin/calculate_fold_change_from_parsed_files.py` → `.nopipes.tsv` and `.withpipes.tsv`.
+
+### Snakemake Dropin vs. CWL: Script Layer
+
+The Snakemake dropin runs the **same Perl scripts** as the CWL workflow but invokes them through thin Python shims in `bin/python/`:
+
+| `bin/python/` script | Delegates to |
+|---|---|
+| `parse_bowtie2_output_realtime_includemultifamily_PE.py` | `bin/perl/parse_bowtie2_output_realtime_includemultifamily_PE.pl` |
+| `parse_bowtie2_output_realtime_includemultifamily_SE.py` | `bin/perl/parse_bowtie2_output_realtime_includemultifamily_SE.pl` |
+| `duplicate_removal_inline_paired...py` | `bin/perl/duplicate_removal_inline_paired...pl` |
+| `split_bam_to_subfiles_SEorPE.py` | Pure Python re-implementation (does NOT delegate to Perl) |
+| `merge_multiple_parsed_files.simplified_20191022.py` | Pure Python re-implementation (does NOT delegate to Perl) |
+
+The shims use `_perl_compat.py` which resolves the Perl script relative to the repo root and calls it with `subprocess`. `split_bam_to_subfiles_SEorPE.py` and `merge_multiple_parsed_files.py` are full Python ports that the `se_foundation.smk` tests verify against Perl output.
 
 ## Required Reference Files
 

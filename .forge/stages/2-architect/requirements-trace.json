@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0",
+  "stage": "2-architect",
+  "prepared_utc": "2026-05-14T00:00:00Z",
+  "description": "Trace every functional requirement, NFR, and acceptance criterion to the tasks that satisfy it. Used by the build stage to verify coverage and by the QA stage to plan tests.",
+  "trace": {
+    "FR-01": {
+      "description": "generate_parsed_ucsc_tableformat.py CLI + 11-col format",
+      "tasks": ["T-02"],
+      "acs": ["AC-T02-1", "AC-T02-2", "AC-T02-3", "AC-T02-4"]
+    },
+    "FR-02": {
+      "description": "generate_bowtie2_index.py CLI + missing-IDs handling",
+      "tasks": ["T-04"],
+      "acs": ["AC-T04-1", "AC-T04-3", "AC-T04-4", "AC-T04-5"]
+    },
+    "FR-03": {
+      "description": "generate_unique_genomic_elements.py CLI + WARNINGs for missing optional inputs",
+      "tasks": ["T-06"],
+      "acs": ["AC-T06-1", "AC-T06-2", "AC-T06-4", "AC-T06-5"]
+    },
+    "FR-04": {
+      "description": "generate_master_filelist.py CLI + 5-col TSV + NR_ entries",
+      "tasks": ["T-08"],
+      "acs": ["AC-T08-1", "AC-T08-2", "AC-T08-7"]
+    },
+    "FR-05": {
+      "description": "All scripts handle .gtf.gz inputs",
+      "tasks": ["T-01", "T-02", "T-04", "T-08", "T-12"],
+      "acs": ["AC-T02-7", "AC-T04-7", "AC-T12-6"]
+    },
+    "FR-06": {
+      "description": "generate_bowtie2_index.py runs bowtie2-build and bowtie2-inspect",
+      "tasks": ["T-04"],
+      "acs": ["AC-T04-1", "AC-T04-2"]
+    },
+    "FR-07": {
+      "description": "All scripts print progress to stderr and exit non-zero on error",
+      "tasks": ["T-02", "T-04", "T-06", "T-08"],
+      "acs": ["AC-T02-5", "AC-T02-6", "AC-T04-1", "AC-T06-8", "AC-T08-1"]
+    },
+    "FR-08": {
+      "description": "Missing IDs >1% produces missing_ids_report.txt",
+      "tasks": ["T-04"],
+      "acs": ["AC-T04-5"]
+    },
+    "FR-09": {
+      "description": "Deterministic output",
+      "tasks": ["T-02", "T-03", "T-04", "T-06", "T-08"],
+      "acs": ["AC-T03-1", "AC-T03-3"]
+    },
+    "FR-10": {
+      "description": "Wrapper script for one-assembly end-to-end run",
+      "tasks": ["T-12"],
+      "acs": ["AC-T12-1", "AC-T12-2"]
+    },
+    "NFR-01": {
+      "description": "No new conda packages",
+      "tasks": ["T-01"],
+      "acs": ["AC-T01-1"],
+      "notes": "Verified by importing only stdlib + pybedtools + pandas in _shared.py and each script."
+    },
+    "NFR-02": {
+      "description": "Each assembly completes within 2 hr on 20 GB / 4 CPU",
+      "tasks": ["T-10", "T-11"],
+      "acs": [],
+      "notes": "No explicit AC; relies on `time` measurements during T-10/T-11 execution."
+    },
+    "NFR-03": {
+      "description": "Tab delimiters, Unix LF, no trailing whitespace",
+      "tasks": ["T-02", "T-06", "T-08"],
+      "acs": ["AC-T02-3", "AC-T06-1", "AC-T08-2"]
+    },
+    "NFR-04": {
+      "description": "Non-interactive; argparse",
+      "tasks": ["T-02", "T-04", "T-06", "T-08"],
+      "acs": ["AC-T02-1", "AC-T04-1", "AC-T06-8", "AC-T08-1"]
+    },
+    "NFR-05": {
+      "description": "Script + timestamp header where format permits",
+      "tasks": ["T-02"],
+      "acs": [],
+      "notes": "Architecture plan §4.3: parsed_ucsc has #-header line for tooling but no separate provenance line. MASTER_FILELIST has no header (strict format); script logs to stderr per requirements clause."
+    },
+    "AC-01": {
+      "description": "hg38 parsed_ucsc_tableformat reproduced 100% identically",
+      "tasks": ["T-03"],
+      "acs": ["AC-T03-1", "AC-T03-2", "AC-T03-3"]
+    },
+    "AC-02": {
+      "description": "mm10 parsed_ucsc_tableformat generated",
+      "tasks": ["T-10"],
+      "acs": ["AC-T10-1", "AC-T10-2"]
+    },
+    "AC-03": {
+      "description": "mm39 parsed_ucsc_tableformat generated",
+      "tasks": ["T-11"],
+      "acs": ["AC-T11-1", "AC-T11-6"]
+    },
+    "AC-04": {
+      "description": "hg38 bowtie2 FASTA reproduced ≥99%",
+      "tasks": ["T-05"],
+      "acs": ["AC-T05-1", "AC-T05-2"]
+    },
+    "AC-05": {
+      "description": "mm10 bowtie2_index generated",
+      "tasks": ["T-10"],
+      "acs": ["AC-T10-3", "AC-T10-4"]
+    },
+    "AC-06": {
+      "description": "mm39 bowtie2_index generated",
+      "tasks": ["T-11"],
+      "acs": ["AC-T11-1", "AC-T11-2"]
+    },
+    "AC-07": {
+      "description": "hg38 UniqueGenomicElements reproduced ±1%",
+      "tasks": ["T-07"],
+      "acs": ["AC-T07-1", "AC-T07-2"]
+    },
+    "AC-08": {
+      "description": "mm10 UniqueGenomicElements generated",
+      "tasks": ["T-10"],
+      "acs": ["AC-T10-5"]
+    },
+    "AC-09": {
+      "description": "mm39 UniqueGenomicElements without tRNA/miRNA with WARNINGs",
+      "tasks": ["T-11"],
+      "acs": ["AC-T11-3", "AC-T11-5"]
+    },
+    "AC-10": {
+      "description": "hg38 MASTER_FILELIST reproduced ±1%",
+      "tasks": ["T-09"],
+      "acs": ["AC-T09-1", "AC-T09-2", "AC-T09-4"]
+    },
+    "AC-11": {
+      "description": "mm10 MASTER_FILELIST with NR_, tRNA, miRNA",
+      "tasks": ["T-10"],
+      "acs": ["AC-T10-6", "AC-T10-7"]
+    },
+    "AC-12": {
+      "description": "mm39 MASTER_FILELIST without tRNA/miRNA",
+      "tasks": ["T-11"],
+      "acs": ["AC-T11-4"]
+    },
+    "AC-13": {
+      "description": "Perl SE parse script runs with mm10 MASTER_FILELIST",
+      "tasks": ["T-12"],
+      "acs": ["AC-T12-5"]
+    },
+    "AC-14": {
+      "description": "snakemake -n passes for mm10 references",
+      "tasks": ["T-12"],
+      "acs": ["AC-T12-3", "AC-T12-4"]
+    },
+    "AC-15": {
+      "description": "Missing ID warning fires when >1% missing",
+      "tasks": ["T-04"],
+      "acs": ["AC-T04-5"]
+    },
+    "AC-16": {
+      "description": "Scripts accept .gtf and .gtf.gz",
+      "tasks": ["T-01", "T-02", "T-04", "T-12"],
+      "acs": ["AC-T02-7", "AC-T04-7", "AC-T12-6"]
+    }
+  },
+  "coverage_summary": {
+    "functional_requirements_total": 10,
+    "functional_requirements_traced": 10,
+    "nfrs_total": 5,
+    "nfrs_traced": 5,
+    "acceptance_criteria_total": 16,
+    "acceptance_criteria_traced": 16,
+    "tasks_total": 12,
+    "uncovered_requirements": []
+  }
+}

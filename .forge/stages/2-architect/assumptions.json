@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "stage": "2-architect",
+  "prepared_utc": "2026-05-14T00:00:00Z",
+  "assumptions": [
+    {
+      "id": "A-01",
+      "statement": "mm10 and mm39 genome FASTA files (and .fai indices) are present at examples/inputs/{mm10,mm39}/downloaded/ as the user has staged symlinks to /tscc/projects/ps-yeolab3/bay001/annotations/.",
+      "category": "external-dependency",
+      "confidence": "high",
+      "evidence": "ls confirmed mm10.fa, mm10.fa.fai, GRCm39.primary_assembly.genome.fa, .fa.fai all present as symlinks (2026-05-14).",
+      "invalidation_impact": "generate_bowtie2_index.py will fail in T-10/T-11 with 'Genome FASTA not found' error. Implementer must coordinate with user to restore symlinks."
+    },
+    {
+      "id": "A-02",
+      "statement": "mm39 will not have tRNA or miRNA gff3 source files; scripts treat both as optional and emit WARNINGs when absent.",
+      "category": "external-dependency",
+      "confidence": "high",
+      "evidence": "mm39/downloaded/ has no mm39.trna.tsv.gz and no .gff3 file; documented in requirements §3 file inventory.",
+      "invalidation_impact": "If files appear later, scripts already accept them as optional CLI args — re-run T-11 to incorporate."
+    },
+    {
+      "id": "A-03",
+      "statement": "Perl scripts parse_bowtie2_output_*.pl (SE/PE) and duplicate_removal_*.pl require NO modification because all assembly-specific paths come through ARGV.",
+      "category": "framework-capability",
+      "confidence": "high",
+      "evidence": "Inspected source: hardcoded paths are commented out (lines 28-35 of SE parser); only ARGV[3] is active.",
+      "invalidation_impact": "If a hardcoded path is discovered to be active for a specific code path, that script must be modified. AC-13 covers detection."
+    },
+    {
+      "id": "A-04",
+      "statement": "RepElement_pipeline_1dataset.pl is out-of-scope; it has hardcoded $species='hg38' but is NOT called by CWL or Snakemake dropin.",
+      "category": "scope-boundary",
+      "confidence": "high",
+      "evidence": "grep across cwl/ and workflow/ rules: no references to RepElement_pipeline_1dataset.pl.",
+      "invalidation_impact": "If user invokes the legacy script directly with mm10/mm39 paths, they must update $species manually. Documented in NOTES."
+    },
+    {
+      "id": "A-05",
+      "statement": "The MASTER_FILELIST column order observed in hg38 (5 columns) is fully assembly-generic; the Perl read_in_filelists() function uses col1 as hash key only.",
+      "category": "framework-capability",
+      "confidence": "high",
+      "evidence": "Inspected parse_bowtie2_output_realtime_includemultifamily_SE.pl sub read_in_filelists (line 461+); hashes by col1.",
+      "invalidation_impact": "If Perl reads other columns positionally, mm10/mm39 may fail downstream Perl steps. AC-13 verifies."
+    },
+    {
+      "id": "A-06",
+      "statement": "parsed_ucsc_tableformat sort order is (gene_id, transcript_id); within each transcript, exons are sorted by start position.",
+      "category": "data-format",
+      "confidence": "medium",
+      "evidence": "Pattern visible in first 100 lines of hg38 reference; needs full diff confirmation in T-03 reproduction.",
+      "invalidation_impact": "Reproduction diff will reveal alternate sort key; implementer iterates in T-03 before generating mouse files."
+    },
+    {
+      "id": "A-07",
+      "statement": "NR_046233.2.fasta is pre-curated with appropriate headers for the rRNA sub-regions (18S/28S/45S) and should be appended verbatim, not split.",
+      "category": "data-format",
+      "confidence": "medium",
+      "evidence": "File size 13,664 bytes suggests multiple records; format inspection in T-04 will confirm header convention.",
+      "invalidation_impact": "If headers do not match Perl rRNA_extra_hash keys (RNA18S/RNA28S/RNA5-8S → RNA45S), implementer must either re-header the FASTA copy in the output dir or split with explicit suffix naming."
+    },
+    {
+      "id": "A-08",
+      "statement": "bowtie2 index prefix MASTER_FILELIST.{YYYYMMDD}.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat is acceptable as a literal naming convention for mouse outputs.",
+      "category": "naming-convention",
+      "confidence": "high",
+      "evidence": "Pattern visible in hg38 examples/inputs/hg38/bowtie2_index/; the YAML configs reference the prefix as a string only.",
+      "invalidation_impact": "If CWL/Snakemake requires a fixed prefix, the wrapper script run_assembly.sh can be adjusted to override --output-prefix."
+    },
+    {
+      "id": "A-09",
+      "statement": "All inputs (GTF, TSV, FASTA) are trusted, locally-staged bioinformatics files; no input sanitization required.",
+      "category": "security",
+      "confidence": "high",
+      "evidence": "Files are read-only group files under examples/inputs/; security context in context/07-security-requirements.md.",
+      "invalidation_impact": "If inputs ever come from untrusted sources, attribute-field parsing would need quoting/escape handling. Out-of-scope for now."
+    },
+    {
+      "id": "A-10",
+      "statement": "samtools faidx is available on PATH via module load ecliprepmap/1.0.0 or the dropin conda env.",
+      "category": "framework-capability",
+      "confidence": "high",
+      "evidence": "samtools >=1.17 listed in workflow/envs/dropin.yaml; module documented in technical-constraints.",
+      "invalidation_impact": "Step 2 fails before bowtie2-build runs; clear error message instructs user to load module."
+    },
+    {
+      "id": "A-11",
+      "statement": "The hg38 reference was generated by a deterministic process; identical inputs produce identical outputs.",
+      "category": "external-process",
+      "confidence": "medium",
+      "evidence": "Pipeline documentation expects deterministic Perl scripts; hg38 reference file present and stable in repo.",
+      "invalidation_impact": "If the original generator was non-deterministic (e.g., relied on hash iteration order in Python 3.6-), AC-01 100% identical may be infeasible. Falls back to ≥99% threshold; documented as escalation in R-07."
+    }
+  ]
+}
