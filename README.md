@@ -32,13 +32,39 @@ hash keys in 0.0.2. See NOTES.
 The Snakemake workflow is an alternative to the CWL launchers for TSCC users. It uses the same
 Perl/Python scripts but manages jobs with Snakemake instead of cwltool.
 
-**Setup** (one-time):
+## Quick start with downsampled test data
+
+The repository includes downsampled example inputs in `examples/inputs/downsampled/` and
+pre-built reference data at `examples/inputs/hg38/` for a quick end-to-end test.
+
+**Step 1 — Activate the environment:**
 ```bash
 module load singularitypro    # required: Perl 5.10.1 is a Singularity wrapper
 conda activate snakemake9
 ```
 
-**Run locally** (recommended for interactive sessions):
+**Step 2 — Run the SE small test:**
+```bash
+snakemake \
+  --configfile examples/repeat_mapping_SE_small.yaml \
+  --cores 8 --use-conda --conda-prefix conda-env --rerun-incomplete \
+  --resources mem_mb=32000
+```
+
+**Step 3 — Run the PE small test:**
+```bash
+snakemake \
+  --configfile examples/repeat_mapping_PE_small.yaml \
+  --cores 8 --use-conda --conda-prefix conda-env --rerun-incomplete \
+  --resources mem_mb=32000
+```
+
+Expected outputs land in `results/se_small/` and `results/pe_small/`. The key result files are
+`<dataset>.nopipes.tsv` (unambiguous repeat families) and `<dataset>.withpipes.tsv` (all families).
+
+## Running on full datasets
+
+**Locally** (interactive session with ≥32 GB RAM):
 ```bash
 snakemake \
   --configfile examples/repeat_mapping_SE_full.yaml \
@@ -46,10 +72,9 @@ snakemake \
   --resources mem_mb=32000    # serializes dedup to 1 job at a time; remove if >32GB RAM
 ```
 
-Use `examples/repeat_mapping_PE_full.yaml` for paired-end data. Smaller test configs are at
-`examples/repeat_mapping_SE_small.yaml` / `examples/repeat_mapping_PE_small.yaml`.
+Use `examples/repeat_mapping_PE_full.yaml` for paired-end data.
 
-**Run on SLURM** (from a login node — not from within an interactive job):
+**On SLURM** (from a login node — not from within an interactive job):
 ```bash
 snakemake \
   --configfile examples/repeat_mapping_SE_full.yaml \
@@ -59,7 +84,9 @@ snakemake \
 The SLURM profile (`profiles/tscc2_snakemake9/`) submits to partition `gold`, account `csd792`,
 with 32GB memory and 8h wall time per job.
 
-**Config file format** (`examples/repeat_mapping_SE_full.yaml`):
+## Config file format
+
+`examples/repeat_mapping_SE_full.yaml`:
 ```yaml
 dataset: seCLIP_example
 se_or_pe: SE
