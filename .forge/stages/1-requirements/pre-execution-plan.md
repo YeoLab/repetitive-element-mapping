@@ -1,19 +1,16 @@
 ## Pre-Execution Plan: 1-requirements
 
 1. **Three most likely failure modes**:
-   - Missing mm10/mm39 source files: generate_refdata.md assumes files exist under examples/inputs/{assembly}/downloaded/. If absent, requirements will be unverifiable. Watch for empty directory listings.
-   - Format spec derivation errors: MASTER_FILELIST and UniqueGenomicElements formats must be inferred from hg38 reference; incorrect column mapping creates broken AC. Watch for column count mismatches when examining hg38 reference files.
-   - Scope creep on Perl modifications: prompt says "modify only if hardcoded values prevent acceptance of new annotations." Must nail down exactly which values are hardcoded and what constitutes an acceptable threshold.
+   - Missing CWL step details: translate_cwl.md describes the pipeline at a high level; the architect needs exact CWL tool inputs/outputs. Mitigation: requirements stage must read all CWL files in cwl/ directly.
+   - Ambiguous SE/PE config structure: translate_cwl.md says "enforce appropriate input structure" but doesn't define the config schema. Mitigation: surface this as an explicit AC for the architect.
+   - Scatter/deduplication memory threshold unclear: translate_cwl.md says "run full non-deduplicated example to profile step_deduplicate" — this is a runtime decision, not a pre-implementation AC. Mitigation: flag as a deferred decision requiring profiling.
 
-2. **First verification steps**:
-   - List examples/inputs/ to confirm all three assemblies exist (hg38, mm10, mm39)
-   - Inventory downloaded/ subdirectories for each assembly
-   - Inspect hg38 reference output files to extract column schemas
+2. **First verification steps**: Confirm that the 11-14 context files cover: (a) exact CWL tool specs, (b) SE vs PE workflow differences, (c) test data locations, (d) expected output file formats and acceptance checks.
 
 3. **Context dependencies**:
-   - prompts/generate_refdata.md (primary task spec)
-   - examples/inputs/hg38/ (format ground truth)
-   - examples/inputs/mm10/downloaded/ and examples/inputs/mm39/downloaded/ (source file availability)
-   - bin/perl/*.pl (for scope-of-modification assessment)
-   - cwl/ workflow files (for compatibility verification context)
-   - .forge/stages/0-research/graphify-initial/GRAPH_REPORT.md (knowledge graph context)
+   - prompts/translate_cwl.md (the PRD)
+   - cwl/ directory (all CWL files — the source to translate)
+   - examples/repeat_mapping_PE.yaml and examples/repeat_mapping_SE.yaml (input format)
+   - examples/example_data_for_repeat_mapping_hg38/ (test data)
+   - test-provenance/ (reference outputs for validation)
+   - profiles/tscc2_snakemake9/ (SLURM profile constraints)

@@ -1,121 +1,90 @@
-# Code References
+# 11 - Code References
 
-## Key Files for the Implementer
+## Key Repository Files
 
-### Ground Truth Reference Files (hg38, read-only)
+### CWL Workflows (source of truth for translation)
 
-| File | Path | Purpose |
-|------|------|---------|
-| parsed_ucsc_tableformat | `examples/inputs/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat` | Column schema and row format ground truth (249,044 lines) |
-| MASTER_FILELIST TSV | `examples/inputs/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv` | 5-column TSV ground truth (26,422 lines) |
-| MASTER_FILELIST list | `examples/inputs/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.list` | Identical content to TSV; .list extension is what Perl reads |
-| UniqueGenomicElements | `examples/inputs/hg38/UniqueGenomicElements.hg38.bed` | 6-column BED ground truth (5,618,483 lines) |
-| bowtie2_index FASTA | `examples/inputs/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.fa` | Combined FASTA showing sequence header naming conventions |
-| bowtie2_index dir | `examples/inputs/hg38/bowtie2_index/` | Contains 7 files: 6 .bt2 index + 1 .fa |
+| File | Purpose |
+|------|---------|
+| `cwl/wf_ecliprepmap_pe.cwl` | Top-level PE workflow (2 barcodes + input) |
+| `cwl/wf_ecliprepmap_se.cwl` | Top-level SE workflow (1 barcode + input) |
+| `cwl/wf_ecliprepmap_pe_1barcode.cwl` | Per-barcode PE sub-workflow with scatter |
+| `cwl/wf_ecliprepmap_se_1barcode.cwl` | Per-barcode SE sub-workflow with scatter |
+| `cwl/map_repetitive_elements_pe.cwl` | Bowtie2 PE mapping step (8 CPU, 16 GB) |
+| `cwl/map_repetitive_elements_se.cwl` | Bowtie2 SE mapping step (8 CPU, 16 GB) |
+| `cwl/splitbam.cwl` | Split BAM/SAM by UMI prefix |
+| `cwl/getpair.cwl` | ExpressionTool to match rep/rmrep .tmp pairs by prefix |
+| `cwl/deduplicate.cwl` | Deduplication (32 GB) |
+| `cwl/concatenate.cwl` | cat command wrapper |
+| `cwl/gzip.cwl` | gzip -c wrapper |
+| `cwl/combine.cwl` | merge parsed files (uses InitialWorkDirRequirement) |
+| `cwl/calculate_fold_change_from_parsed_files.cwl` | Fold change calculation |
 
-### Source Input Files (per assembly)
+### Perl Scripts (bin/perl/)
 
-**hg38:**
-- `examples/inputs/hg38/downloaded/gencode.v33.chr_patch_hapl_scaff.annotation.gtf` (symlink)
-- `examples/inputs/hg38/downloaded/hg38.fasta` (symlink to GRCh38_no_alt... fasta)
-- `examples/inputs/hg38/downloaded/hg38.repeatmasker.tsv.gz`
-- `examples/inputs/hg38/downloaded/hg38.simplerepeats.tsv.gz`
-- `examples/inputs/hg38/downloaded/hg38.trna.tsv.gz`
-- `examples/inputs/hg38/downloaded/hsa.gff3`
+| Script | Role |
+|--------|------|
+| `parse_bowtie2_output_realtime_includemultifamily_PE.pl` | PE bowtie2 + parse |
+| `parse_bowtie2_output_realtime_includemultifamily_SE.pl` | SE bowtie2 + parse |
+| `split_bam_to_subfiles_SEorPE.pl` | UMI prefix splitting |
+| `duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl` | Deduplication |
+| `duplicate_removal.pl` | Softlink to above |
+| `merge_multiple_parsed_files.simplified_20191022.pl` | Merge parsed stats |
 
-**mm10:**
-- `examples/inputs/mm10/downloaded/gencode.VM23.annotation.gtf.gz`
-- `examples/inputs/mm10/downloaded/mm10.repeatmasker.tsv.gz`
-- `examples/inputs/mm10/downloaded/mm10.simplerepeats.tsv.gz`
-- `examples/inputs/mm10/downloaded/mm10.trna.tsv.gz`
-- `examples/inputs/mm10/downloaded/mmu.gff3`
-- `examples/inputs/mm10/downloaded/NR_046233.2.fasta`
+### Python Scripts (bin/python/)
 
-**mm39:**
-- `examples/inputs/mm39/downloaded/gencode.VM38.annotation.gtf.gz`
-- `examples/inputs/mm39/downloaded/mm39.repeatmasker.tsv.gz`
-- `examples/inputs/mm39/downloaded/mm39.simplerepeats.tsv.gz`
-- `examples/inputs/mm39/downloaded/NR_046233.2.fasta`
-- **Missing:** mm39.trna.tsv.gz, mm39.gff3 (not available; scripts must handle absence gracefully)
-- **Missing:** mm39 genome FASTA (must be sourced externally)
+| Script | Role |
+|--------|------|
+| `calculate_fold_change_from_parsed_files.py` | Compute fold enrichment from parsed files |
 
-### Perl Scripts (read; modify only if hardcoded values block compatibility)
+### Example Config YAMLs
 
-| Script | Path | Notes |
-|--------|------|-------|
-| parse_bowtie2_SE | `bin/perl/parse_bowtie2_output_realtime_includemultifamily_SE.pl` | Reads MASTER_FILELIST via ARGV[3]; hardcoded paths are commented out |
-| parse_bowtie2_PE | `bin/perl/parse_bowtie2_output_realtime_includemultifamily_PE.pl` | Same pattern as SE |
-| deduplicate | `bin/perl/duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl` | Check for assembly assumptions |
-| split_bam | `bin/perl/split_bam_to_subfiles_SEorPE.pl` | Comment mentions hg38 but logic is assembly-agnostic |
-| RepElement_pipeline | `bin/perl/RepElement_pipeline_1dataset.pl` | Has `my $species = "hg38"` hardcoded on line 4; NOT called by CWL or Snakemake dropin |
+| File | Purpose |
+|------|---------|
+| `examples/repeat_mapping_PE.yaml` | Full PE config (3 barcodes) |
+| `examples/repeat_mapping_SE.yaml` | Full SE config (2 samples) |
 
-### Python Shims (read-only context)
+### Example Data
 
-| Script | Path | Notes |
-|--------|------|-------|
-| perl_compat | `bin/python/_perl_compat.py` | Resolves Perl script paths relative to repo root |
-| split_bam py | `bin/python/split_bam_to_subfiles_SEorPE.py` | Pure Python port verified against Perl output |
-| merge_parsed py | `bin/python/merge_multiple_parsed_files.simplified_20191022.py` | Pure Python port |
+- `examples/example_data_for_repeat_mapping_hg38/EXAMPLE_PE.*` — PE FASTQs and BAMs (3 samples)
+- `examples/example_data_for_repeat_mapping_hg38/EXAMPLE_SE.*` — SE FASTQs and BAMs (2 samples)
 
-### CWL Workflow Files (read-only for compatibility verification)
+### Reference Data (hg38)
 
-| File | Path |
-|------|------|
-| SE top-level | `cwl/wf_ecliprepmap_se.cwl` |
-| PE top-level | `cwl/wf_ecliprepmap_pe.cwl` |
-| Map step | `cwl/map_repetitive_elements_se.cwl`, `cwl/map_repetitive_elements_pe.cwl` |
-| Deduplicate step | `cwl/deduplicate.cwl` |
+- `examples/inputs/hg38/bowtie2_index/MASTER_FILELIST.20201203.*` — bowtie2 index
+- `examples/inputs/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv` — fileListFile1
+- `examples/inputs/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat` — gencodeTableBrowser
+- `examples/inputs/hg38/downloaded/gencode.v33.chr_patch_hapl_scaff.annotation.gtf` — gencodeGTF
+- `examples/inputs/hg38/UniqueGenomicElements.hg38.bed` — repMaskBEDFile
 
-### Snakemake Files (read-only for compatibility verification)
+### Validation Reference Outputs
 
-| File | Path |
-|------|------|
-| Dropin workflow | `workflow/rules/dropin_repelement.smk` |
-| Conda env | `workflow/envs/dropin.yaml` |
-| SLURM profile | `profiles/tscc2_snakemake9/` |
+- `test-provenance/tests/ecliprepmap-1.0.0/wf_ecliprepmap_se/wf_ecliprepmap_se/results/INV_B.IP.umi.r1.fqTrTr.sorted.fq.barcode1.nopipes.tsv`
+- `test-provenance/tests/ecliprepmap-1.0.0/wf_ecliprepmap_se/wf_ecliprepmap_se/results/INV_B.IP.umi.r1.fqTrTr.sorted.fq.barcode1.withpipes.tsv`
+- `test-provenance/tests/ecliprepmap-1.0.0/wf_ecliprepmap_pe/wf_ecliprepmap_pe/results/204_01_RBFOX2.nopipes.tsv`
+- `test-provenance/tests/ecliprepmap-1.0.0/wf_ecliprepmap_pe/wf_ecliprepmap_pe/results/204_01_RBFOX2.withpipes.tsv`
 
-### Task Specification
+## Critical CWL Logic to Replicate in Snakemake
 
-| File | Path |
-|------|------|
-| Primary task prompt | `prompts/generate_refdata.md` |
-| Project context | `CLAUDE.md` |
-| Knowledge graph | `.forge/stages/0-research/graphify-initial/GRAPH_REPORT.md` |
-
-### New Scripts to Create (by implementer)
-
-All new scripts must be placed in a logical location (e.g., `bin/python/refdata_generation/` or `bin/python/`) and accept assembly-generic CLI arguments:
-
-1. `generate_parsed_ucsc_tableformat.py` — Step 1
-2. `generate_bowtie2_index.py` — Step 2
-3. `generate_unique_genomic_elements.py` — Step 3
-4. `generate_master_filelist.py` — Step 4
-
-### Verification Commands
-
-```bash
-# Dry-run Snakemake with SE mm10 references
-snakemake -s workflow/rules/dropin_repelement.smk \
-  --config se_or_pe=SE \
-    barcode1r1FastqGz=<path> \
-    barcode1rmRepBam=<path> \
-    barcode1Inputr1FastqGz=<path> \
-    barcode1InputrmRepBam=<path> \
-    bowtie2_db=examples/inputs/mm10/bowtie2_index \
-    bowtie2_prefix=MASTER_FILELIST.<date>.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat \
-    fileListFile1=examples/inputs/mm10/MASTER_FILELIST.<date>.*.tsv \
-    gencodeGTF=<mm10_gtf> \
-    gencodeTableBrowser=examples/inputs/mm10/gencode.VM23.*.parsed_ucsc_tableformat \
-    repMaskBEDFile=examples/inputs/mm10/UniqueGenomicElements.mm10.bed \
-  -n
-
-# Line count comparison (example)
-wc -l examples/inputs/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
-# Expected: 249044
-
-wc -l examples/inputs/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv
-# Expected: 26422
-
-wc -l examples/inputs/hg38/UniqueGenomicElements.hg38.bed
-# Expected: 5618483
+### getpair.cwl (ExpressionTool)
+The CWL getpair tool matches rep and rmrep .tmp files by checking if the filename starts with the prefix:
+```javascript
+if (rep_s[i].basename.indexOf(prefix) == 0) { prefixrep = rep_s[i]; }
+if (rmrep_s[i].basename.indexOf(prefix) == 0) { prefixrmrep = rmrep_s[i]; }
 ```
+In Snakemake: use a `{prefix}` wildcard; the splitbam rule must name outputs as `{prefix}.rep.tmp` and `{prefix}.rmrep.tmp` (or similar), and the deduplicate rule uses `{prefix}` as a wildcard to match both.
+
+### dataset name derivation in CWL
+In CWL, the dataset name for a barcode is derived from the r1 FASTQ filename:
+```javascript
+return self.nameroot + ".barcode1";  // self = r1FastqGz
+```
+`nameroot` strips one extension (e.g., `.gz` → `EXAMPLE_PE.rep1_clip.A01.r1.fqTrTr.sorted.fq`).
+
+In Snakemake: use the `dataset` config key directly as the base name (simpler and more explicit).
+
+### PE final rmDup concatenation
+In CWL `wf_ecliprepmap_pe.cwl`, the `step_concatenate_rmDup` concatenates rmDup files from BOTH barcode1 AND barcode2 (merge_flattened linkMerge). The final IP SAM output covers both barcodes.
+
+### combine_parsed for PE
+In CWL PE, `step_combine_parsed` receives parsed files from barcode1 AND barcode2 (merge_flattened), then the merged output is used for fold change against the input's combined parsed file.

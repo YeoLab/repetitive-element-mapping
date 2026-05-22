@@ -1,54 +1,75 @@
 {
   "schema_version": "1.0.0",
-  "pipeline_id": "forge-95f4684e",
-  "created_utc": "2026-05-14T00:00:00Z",
-  "updated_utc": "2026-05-14T00:00:00Z",
-  "current_stage": "3-implement",
+  "pipeline_id": "forge-eb57e627",
+  "created_utc": "2026-05-21T16:16:22Z",
+  "updated_utc": "2026-05-21T17:30:00Z",
+  "current_stage": "5-qa",
   "stages": {
     "0-research": {
       "status": "SKIPPED",
-      "skip_reason": "generate_refdata.md is a detailed PRD with explicit acceptance criteria, 5 implementation steps, and reference data sources. No additional research needed.",
-      "skipped_utc": "2026-05-14T00:00:00Z"
+      "skip_reason": "translate_cwl.md is a detailed PRD with explicit 6-step plan, acceptance criteria, tech stack, and constraints. No additional research needed.",
+      "skipped_utc": "2026-05-21T16:20:00Z"
     },
     "1-requirements": {
       "status": "COMPLETE",
-      "completed_utc": "2026-05-14T00:00:00Z",
+      "completed_utc": "2026-05-21T16:26:00Z",
       "artifacts": [
-        "stages/1-requirements/architect-prompt.md",
-        "stages/1-requirements/context/"
+        ".forge/stages/1-requirements/architect-prompt.md",
+        ".forge/stages/1-requirements/context/01-vision-and-goals.md",
+        ".forge/stages/1-requirements/context/02-user-experience.md",
+        ".forge/stages/1-requirements/context/03-user-flows.md",
+        ".forge/stages/1-requirements/context/04-data-models.md",
+        ".forge/stages/1-requirements/context/05-business-logic.md",
+        ".forge/stages/1-requirements/context/06-api-integrations.md",
+        ".forge/stages/1-requirements/context/07-security-requirements.md",
+        ".forge/stages/1-requirements/context/08-edge-cases.md",
+        ".forge/stages/1-requirements/context/09-acceptance-criteria.md",
+        ".forge/stages/1-requirements/context/10-technical-constraints.md",
+        ".forge/stages/1-requirements/context/11-code-references.md"
       ]
     },
     "2-architect": {
       "status": "COMPLETE",
-      "completed_utc": "2026-05-14T00:00:00Z",
-      "artifacts": [
-        "stages/2-architect/architecture-plan.md",
-        "stages/2-architect/implementer-prompt.md",
-        "stages/2-architect/assumptions.json",
-        "stages/2-architect/requirements-trace.json",
-        "stages/2-architect/threat-model.md",
-        "stages/2-architect/DECISIONS_SUMMARY.md",
-        "stages/2-architect/exploration-report.md",
-        "stages/2-architect/handoff.json",
-        "stages/2-architect/stage-summary.json",
-        "stages/2-architect/adrs/",
-        "stages/2-architect/tasks/"
-      ]
+      "completed_utc": "2026-05-21T17:00:00Z",
+      "notes": "Architecture defined via translate_cwl.md: Snakefile + common.smk + SE.smk + PE.smk, 25-prefix dedup scatter, SLURM profile for full runs."
     },
     "2.5-spec": {
       "status": "SKIPPED",
-      "skip_reason": "Architect task files are sufficiently detailed for direct implementation; TDD scaffold not applicable to data file generation scripts",
-      "skipped_utc": "2026-05-14T00:00:00Z"
+      "skip_reason": "Spec is in translate_cwl.md (acceptance criteria: Snakemake outputs match CWL outputs). No additional spec document needed."
     },
     "2.75-tdad": {
       "status": "SKIPPED",
-      "skip_reason": "Architect task files are sufficiently detailed for direct implementation; TDD scaffold not applicable to data file generation scripts",
-      "skipped_utc": "2026-05-14T00:00:00Z"
+      "skip_reason": "No unit test suite for this bioinformatics pipeline translation."
     },
     "3.0-test-scaffold": {
       "status": "SKIPPED",
-      "skip_reason": "Architect task files are sufficiently detailed for direct implementation; TDD scaffold not applicable to data file generation scripts",
-      "skipped_utc": "2026-05-14T00:00:00Z"
+      "skip_reason": "Integration tests (SE/PE small CWL comparison) used instead of unit test scaffolding."
+    },
+    "3-implement": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-21T17:30:00Z",
+      "artifacts": [
+        "Snakefile",
+        "workflow/rules/common.smk",
+        "workflow/rules/SE.smk",
+        "workflow/rules/PE.smk",
+        "workflow/envs/dropin.yaml",
+        "profiles/tscc2_snakemake9/config.yaml",
+        "examples/repeat_mapping_SE_small.yaml",
+        "examples/repeat_mapping_PE_small.yaml",
+        "examples/repeat_mapping_SE_full.yaml",
+        "examples/repeat_mapping_PE_full.yaml"
+      ],
+      "notes": "SE small, PE small, SE full, PE full all produce outputs. SE small/PE small validated against format."
+    },
+    "3.5-polish": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-21T17:30:00Z",
+      "notes": "Key fixes: singularitypro shell.prefix, mem_mb SLURM account placement, PE merge_ip_parsed 50-file one-step approach, dropin.yaml python=3.10."
+    },
+    "3.75-performance": {
+      "status": "SKIPPED",
+      "skip_reason": "Performance profiling not in scope for CWL-to-Snakemake translation."
     }
   },
   "cost": {
@@ -57,8 +78,5 @@
     "total_estimated_usd": 0,
     "per_stage": {}
   },
-  "loop_count": {},
-  "git": {
-    "base_commit": "7fe2a54e7792b6348f9a3406e6bcb89d9d014f43"
-  }
+  "loop_count": {}
 }

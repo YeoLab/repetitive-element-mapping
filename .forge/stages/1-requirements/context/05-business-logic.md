@@ -1,98 +1,116 @@
-# Business Logic
+# 05 - Business Logic
 
-## Step 1: generate_parsed_ucsc_tableformat.py
+## Step 1: map_repetitive_elements
 
-### Rules
-- Read input GTF; skip lines starting with `#`
-- Process only rows where column 3 (feature) == `"transcript"` to build the table row
-- Process only rows where feature == `"exon"` to count and collect exon coordinates
-- Group exons by transcript_id; sort by start position
-- Coordinates in GTF are 1-based inclusive → convert to 0-based half-open (subtract 1 from start only)
-- `exonStarts` and `exonEnds` are comma-delimited lists with a trailing comma (matches hg38 reference format)
-- `cdsStart` / `cdsEnd`: derive from UTR/CDS features if available; fall back to txStart/txEnd for non-coding transcripts
-- Output sorted by `#ENSG` (gene_id) then by `name` (transcript_id) — verify exact sort from hg38 reference
+**Script:** `parse_bowtie2_output_realtime_includemultifamily_PE.pl` (PE) or `_SE.pl` (SE)
+**Located at:** `bin/perl/`
+**What it does:** Internally spawns bowtie2 in streaming mode, then parses alignments in real-time to assign reads to repeat families. Best-scoring assignment per read pair is kept.
 
-### Validation Requirement
-Run against `gencode.v33.chr_patch_hapl_scaff.annotation.gtf` → output must match existing `gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat` with 100% line-for-line identity (this is the ground truth, not the 99% threshold).
+**bowtie2 flags used:** `-q --sensitive -a -p 3 --no-mixed --reorder`
 
----
+**Positional arguments:**
+- arg1: read1 fastq.gz
+- arg2 (PE only): read2 fastq.gz
+- arg3 (SE: arg2): bowtie2 db path (directory + prefix joined)
+- arg4 (SE: arg3): output file name (`<r1_nameroot>.Rep.sam`)
+- arg5 (SE: arg4): fileListFile1
 
-## Step 2: generate_bowtie2_index.py
+**rRNA special handling:** RNA28S, RNA18S, RNA5-8S are assigned to RNA45S precursor family (`rRNA_extra_hash`).
 
-### Sequence Assembly Logic
-1. Extract Gencode transcript sequences:
-   - Parse parsed_ucsc_tableformat for all transcript IDs, chrom, strand, exon coordinates
-   - Use pybedtools getfasta with the assembly FASTA to extract per-transcript sequence
-   - Name FASTA headers by transcript_id (e.g. `>ENST00000383925.1`)
-2. Extract repeat element sequences:
-   - From repeatmasker TSV: extract unique element positions per gene_id
-   - From simplerepeats TSV: extract positions per transcript_id
-   - Use pybedtools getfasta to extract sequences; name headers by element name
-3. Extract tRNA sequences (if trna TSV provided):
-   - From trna TSV: extract positions per transcript_id
-   - Use pybedtools getfasta
-4. Include rRNA sequences (RefSeq NR_ entries):
-   - The NR_ sequences in hg38 are named with suffixes: NR_046235.3-18S, NR_046235.3-28S, NR_046235.3-45S
-   - These correspond to the rRNA_extra_hash in the Perl parse scripts (RNA18S, RNA28S, RNA45S)
-5. Append custom FASTA sequences (e.g. NR_046233.2.fasta) verbatim
+**Multi-family reads:** If a read maps to multiple families equally, family column contains pipe-separated names (e.g., `AluJb|AluSx`).
 
-### Bowtie2 Index Build
-- Concatenate all FASTA sequences into a single `.fa` file
-- Run `bowtie2-build` on the concatenated FASTA
-- Output index prefix must match the `.fa` filename base (without `.fa`)
+**Resource requirements (CWL):** 8 cores, 16 GB RAM
 
-### Missing ID Handling
-- Count IDs that fail pybedtools getfasta retrieval
-- If missing > 1% of total: write `missing_ids_report.txt`, log WARNING, continue
-- If missing ≤ 1%: log count, continue silently
+## Step 2: splitbam
 
----
+**Script:** `split_bam_to_subfiles_SEorPE.pl`
+**Positional arguments:**
+- arg1: SAM/BAM file path
+- arg2: `PE` or `SE` (uppercase)
 
-## Step 3: generate_unique_genomic_elements.py
+**Output:** 25 `.tmp` files in the current working directory, each named by UMI 2-nt prefix (e.g., `AA.tmp`). Files contain reads whose UMI starts with that prefix.
 
-### Element Inclusion Logic
-1. **repeatmasker entries**: chrom, start-1, end, gene_id, score, strand → then add ±500 bp proximal pairs
-2. **trna entries** (optional): same extraction from trna TSV
-3. **simplerepeats entries**: chrom, start-1, end, transcript_id, score, strand → then add proximal pairs
-4. **parsed_ucsc_tableformat entries**: chrom, txStart, txEnd, name, 0, "-" (strand always "-") → proximal pairs
-5. **gff3 entries** (optional): extract Name attribute, chrom, start-1, end, ., strand → proximal pairs
+**UMI location:**
+- SE: after `_` in read name (e.g., `...5587_CGCCTTGCCG` → UMI starts with `CG`)
+- PE: before `:` in read name (e.g., `AGAAA:SN1001:...` → UMI starts with `AG`)
 
-### Proximal Flanking Rule (500 bp)
-For element at `[s, e)` on chromosome:
-- Upstream proximal: `[max(0, s-500), s)` named `{element_id}-proximal`
-- Downstream proximal: `[e, e+500)` named `{element_id}-proximal`
+**Resource requirements:** Not specified in CWL (uses defaults).
 
-### Output Sort
-The BED output must be sorted — verify sort order from hg38 reference before applying to mouse.
+## Step 3: deduplicate (scattered x25)
 
----
+**Script:** `duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl`
+**Located at:** `bin/perl/` (softlinked from full name to `duplicate_removal.pl`)
+**Resource requirements (CWL):** 32 GB RAM
 
-## Step 4: generate_master_filelist.py
+**Positional arguments:**
+1. repFamilySam: `<prefix>.rep.tmp`
+2. rmRepSam: `<prefix>.rmrep.tmp`
+3. se_or_pe: `PE` or `SE`
+4. gencodeGTF
+5. gencodeTableBrowser
+6. repMaskBedFile
+7. fileList1
 
-### Row Construction Logic
-The 5-column format:
-1. `sequence_id`: ENST transcript IDs (from parsed_ucsc_tableformat), repeat names (from repeatmasker gene_id), tRNA names, miRNA IDs (from gff3 Name attribute), NR_ custom entries
-2. `gene_id`: ENSG for Gencode entries; same as sequence_id for non-Gencode entries
-3. `short_name`: gene name for Gencode (from GTF gene_name attribute); element name for repeats
-4. `family`: repeat class/family (from repeatmasker); "tRNA" for tRNA entries; "miRNA" for miRNA; "rRNA" for rRNA
-5. `genelist_label`: `genelists.{FAMILY}` — must match the labeling convention used in existing hg38 file
+**Conflict resolution logic:** A read mapping to both unique genome and repeat element is assigned to the unique genome only if the genome alignment score exceeds the repeat score by more than `2 * 2 * 6 = 24` units. Otherwise repeat assignment is kept.
 
-### Ordering
-Must produce rows in same order as hg38 reference (verify grouping order: first Gencode transcripts, then repeat elements, then tRNAs, etc.). Exact order determines compatibility with Perl scripts.
+**Perl version sensitivity:** Non-deterministic hash iteration in Perl ≥5.18 can cause different tie-breaking results. Must use Perl 5.10.1 (system perl on TSCC). The script partially mitigates this by sorting hash keys in critical loops.
 
----
+**Output file naming:** The script writes output files to the current working directory, using input filenames as prefixes. Exact glob patterns:
+- `*combined_w_uniquemap.rmDup.sam`
+- `*combined_w_uniquemap.prermDup.sam`
+- `*.parsed_v2.20201210.txt`
+- `*.done`
 
-## Step 5: Perl Script Compatibility
+## Step 4: concatenate
 
-### Scripts to Check
-1. `bin/perl/parse_bowtie2_output_realtime_includemultifamily_SE.pl` — reads MASTER_FILELIST via `ARGV[3]`; the hardcoded hg38 path is commented out; active code accepts any path via argument → **no modification needed**
-2. `bin/perl/parse_bowtie2_output_realtime_includemultifamily_PE.pl` — same pattern → **no modification needed**
-3. `bin/perl/duplicate_removal_inline_paired...pl` — check for any hardcoded assembly-specific paths or chromosome name assumptions
-4. `bin/perl/split_bam_to_subfiles_SEorPE.pl` — comment mentions hg38 but actual logic appears assembly-agnostic
-5. `bin/perl/RepElement_pipeline_1dataset.pl` — has `my $species = "hg38"` hardcoded on line 4; this is an **older orchestration script**, not called by CWL or Snakemake dropin — assess whether modification is needed based on usage trace
+**Command:** `cat <file1> <file2> ... > <output>`
 
-### Modification Threshold
-Modify only if a hardcoded value causes incorrect behavior when mm10/mm39 references are provided as CLI arguments. Commented-out code is not a blocker.
+For rmDup: concatenate all 25 `*combined_w_uniquemap.rmDup.sam` files into `<dataset>.<barcode>.rmDup.sam`
+For preRmDup: concatenate all 25 `*combined_w_uniquemap.prermDup.sam` files into `<dataset>.<barcode>.preRmDup.sam`
 
-### Chromosome Naming
-Mouse assemblies use `chr1`-`chrX` format identical to hg38 conventions in Gencode annotations → no chromosome naming conflicts expected.
+In PE pipeline: for final IP rmDup output, concatenate files from BOTH barcode1 AND barcode2.
+
+## Step 5: gzip
+
+**Command:** `gzip -c <file> > <file>.gz`
+
+Applied to concatenated rmDup.sam and preRmDup.sam.
+
+## Step 6: combine_parsed
+
+**Script:** `merge_multiple_parsed_files.simplified_20191022.pl`
+**Positional arguments:**
+- arg1: output filename
+- arg2+: all input .parsed files
+
+**Important:** In CWL this uses `InitialWorkDirRequirement` to stage input files into the working directory. In Snakemake, ensure the script is run from a directory where it can read all input files (or use absolute paths).
+
+## Step 7: calculate_fold_change
+
+**Script:** `calculate_fold_change_from_parsed_files.py`
+**Located at:** `bin/python/calculate_fold_change_from_parsed_files.py`
+**Arguments:**
+- `--ip_parsed <file>`
+- `--input_parsed <file>`
+- `--out_file_nopipes <file>`
+- `--out_file_withpipes <file>`
+
+**Output logic:** Rows with `|` in family column go to `.withpipes.tsv`; rows without go to `.nopipes.tsv`. Both files also exist as `.withpipes.tsv` (all rows).
+
+## Scatter Logic
+
+The 25 UMI prefix scatter is required because deduplication for the full dataset may exceed 32 GB if run on all reads at once. CWL handles this with `scatter`; Snakemake uses wildcards over the `PREFIXES` list.
+
+**Per the PRD:** Run the full (non-downsampled) dataset through deduplication to profile memory. If ≤32GB, remove scatter (1 rule processes all prefixes sequentially or via a loop inside the rule). If >32GB, keep scatter.
+
+## UMI Prefix List
+
+```python
+PREFIXES = [
+    "AA","AC","AG","AT","AN",
+    "CA","CC","CG","CT","CN",
+    "GA","GC","GG","GT","GN",
+    "TA","TC","TG","TT","TN",
+    "NA","NC","NG","NT","NN"
+]
+```

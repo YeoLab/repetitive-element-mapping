@@ -28,8 +28,8 @@
     "codemap": true,
     "graphify": true,
     "aidesigner": false,
-    "forge_tooling": false,
-    "beads": false
+    "forge_tooling": true,
+    "beads": true
   },
   "code_graph": {
     "provider": "serena",

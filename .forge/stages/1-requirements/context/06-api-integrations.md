@@ -1,53 +1,55 @@
-# API Integrations
+# 06 - API Integrations
 
-## External Tools Required
+## External Tools
 
-### Bowtie2
-- **Version:** ≥2.5 (available via `workflow/envs/dropin.yaml` conda env; also available via `module load ecliprepmap/1.0.0`)
-- **Usage:** `bowtie2-build <fasta> <prefix>` to generate the index
-- **Called by:** `generate_bowtie2_index.py` (new script)
-- **No network access required**
-
-### pybedtools
-- **Version:** compatible with Python 3.x (already in dropin.yaml env)
-- **Usage:** `pybedtools.BedTool.sequence(fi=fasta, s=True)` for strand-aware FASTA extraction
-- **Called by:** `generate_bowtie2_index.py` (for getfasta) and `generate_unique_genomic_elements.py` (for coordinate operations)
-- **Depends on:** bedtools binary in PATH
+### bowtie2
+- Called internally by `parse_bowtie2_output_realtime_includemultifamily_PE/SE.pl`
+- Not invoked directly in Snakemake rules (the Perl script handles the subprocess)
+- Must be available in PATH: `module load bowtie2/2.2.6` or via conda env
+- Version used in CWL context: bowtie2 ≥2.5 (per CLAUDE.md dropin env), but historical CWL runs used 2.2.6
 
 ### samtools
-- **Version:** ≥1.17 (already in dropin.yaml)
-- **Usage:** Only if BAM manipulation is needed (not expected for reference generation)
+- Used by `split_bam_to_subfiles_SEorPE.pl` to read BAM files
+- Must be in PATH: samtools ≥1.17 (per CLAUDE.md dropin env)
 
-## Module Environment
+### Perl scripts (in bin/perl/)
 
-The `ecliprepmap/1.0.0` module provides the correct PATH for Perl, Python, and Bowtie2 on TSCC:
+| Script | Invocation |
+|--------|-----------|
+| `parse_bowtie2_output_realtime_includemultifamily_PE.pl` | Positional args: r1, r2, bowtie2_db_path, output, fileListFile1 |
+| `parse_bowtie2_output_realtime_includemultifamily_SE.pl` | Positional args: r1, bowtie2_db_path, output, fileListFile1 |
+| `split_bam_to_subfiles_SEorPE.pl` | Positional args: sam/bam, SE_or_PE |
+| `duplicate_removal_inline_paired...pl` (softlinked as `duplicate_removal.pl`) | Positional args: repFamilySam, rmRepSam, SE_or_PE, gencodeGTF, gencodeTableBrowser, repMaskBedFile, fileList1 |
+| `merge_multiple_parsed_files.simplified_20191022.pl` | Positional args: output_file, input_files... |
+
+All Perl scripts must be invoked with:
 ```bash
-module load ecliprepmap/1.0.0
+/tscc/projects/ps-yeolab4/software/perl/5.10.1/bin/perl <script_path> <args>
 ```
 
-The dropin conda environment (`workflow/envs/dropin.yaml`) can also be used:
+### Python scripts (in bin/python/)
+
+| Script | Invocation |
+|--------|-----------|
+| `calculate_fold_change_from_parsed_files.py` | `--ip_parsed`, `--input_parsed`, `--out_file_nopipes`, `--out_file_withpipes` |
+
+Python script must be invoked with the ecliprepmap conda environment python:
 ```bash
-conda activate <dropin-env>
+/tscc/projects/ps-yeolab4/software/miniconda_tscc2/envs/ecliprepmap-0.1.0/bin/python
 ```
+OR via the Snakemake conda env that includes compatible numpy/pandas.
 
-## No External API Calls
+## Conda Environment
 
-This task does not require network access. All source files are pre-downloaded:
-- Gencode GTFs: already in `examples/inputs/{assembly}/downloaded/`
-- RepeatMasker/SimpleRepeats/tRNA TSVs: already downloaded
-- miRNA GFF3s: already downloaded
-- NR_046233.2 custom FASTA: already provided in mm10/mm39 downloaded directories
+The existing `workflow/envs/dropin.yaml` (referenced in CLAUDE.md) specifies:
+- Python 3.11
+- bowtie2 ≥2.5
+- samtools ≥1.17
+- numpy
+- pandas
 
-**No calls to UCSC, Ensembl, NCBI, or miRBase APIs are needed.**
+Note: The original CWL used bowtie2/2.2.6 via `module load`. The Snakemake workflow should use the conda env for portability, but may need to confirm version compatibility with the Perl scripts.
 
-## File Format Dependencies
+## No Network Integrations
 
-### pybedtools getfasta
-- Input: BED3+ file with coordinates, reference FASTA (must be indexed with `.fai`)
-- Output: FASTA sequences keyed by `chrom:start-end` or custom name
-- Requires: `samtools faidx` or `bedtools faidx` pre-run on the reference FASTA
-
-### bowtie2-build
-- Input: FASTA file
-- Output: 6-file index (`.1.bt2`, `.2.bt2`, `.3.bt2`, `.4.bt2`, `.rev.1.bt2`, `.rev.2.bt2`)
-- Runtime estimate: ~10-30 minutes for a reference of this size
+This is a batch HPC pipeline. No web services, APIs, or databases are accessed at runtime.

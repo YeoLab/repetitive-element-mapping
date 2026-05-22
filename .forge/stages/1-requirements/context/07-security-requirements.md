@@ -1,32 +1,23 @@
-# Security Requirements
+# 07 - Security Requirements
 
-## Scope
+## N/A — HPC Batch Pipeline
 
-This is a bioinformatics reference data generation task running on a secure HPC cluster (TSCC). There is no network-facing component, no authentication layer, and no user data handling. Security concerns are minimal and focus on data integrity and execution environment.
+This pipeline runs as a batch job on a SLURM HPC cluster. It is not a web service, does not expose any network interfaces, and does not handle user credentials or sensitive personal data.
 
-## Data Integrity
+## File Permissions
 
-- **No data modification outside write scope:** Scripts may only write to `examples/inputs/mm10/` and `examples/inputs/mm39/`. The hg38 reference files must not be overwritten (they serve as ground truth).
-- **Reproducibility:** Scripts must be deterministic given the same inputs. Sort order in output files must be stable.
-- **Verification gate:** hg38 reproduction must pass ≥99% similarity before mm10/mm39 outputs are trusted.
+- Input files are read-only (user owns them)
+- Output files are written to user-specified directories
+- No setuid, no privileged operations
+- Snakemake lock files (`.snakemake/`) are in the working directory
 
-## Access Control
+## Secrets / Credentials
 
-- Running on TSCC under account `bay001` / group `yeo-group`
-- Source files are read-only group files; scripts run with standard user permissions
-- No sudo or privileged operations required
+- No API keys, passwords, or tokens are used
+- All file paths in config YAML — no hardcoded secrets in Snakefile or rules
+- Commit: do not include paths to private/restricted data in example YAMLs committed to git; use placeholder paths or paths within the repository
 
-## Dependency Trust
+## Data Sensitivity
 
-- Python packages used (pybedtools, pandas, numpy) are sourced from conda/pip with pinned versions in `workflow/envs/dropin.yaml`
-- Perl scripts are in-repo and reviewed
-- `module load ecliprepmap/1.0.0` loads a trusted internal module
-
-## N/A Items
-
-The following are not applicable to this task:
-- Authentication / authorization
-- Encryption at rest or in transit
-- PII / sensitive data handling
-- API keys or secrets management
-- Input sanitization (all inputs are controlled bioinformatics files from trusted sources)
+- eCLIP sequencing data is research data, not PHI/PII
+- No special data handling requirements

@@ -1,74 +1,53 @@
-# Edge Cases
+# 08 - Edge Cases
 
-## Edge Case 1: mm39 Missing tRNA and miRNA GFF3
+## EC-01: Empty UMI prefix bin
 
-**Situation:** `mm39/downloaded/` has no `mm39.trna.tsv.gz` and no `mm39.gff3`.
+**Scenario:** A `.tmp` file for a given prefix (e.g., `NN.tmp`) contains no reads.
+**CWL behavior:** The deduplicate script receives an empty file and produces empty output files (including an empty `.parsed_v2` file).
+**Snakemake requirement:** The rule must still create all output files (including empty ones) to satisfy Snakemake's output expectations. The concatenate and combine steps must handle empty inputs gracefully.
 
-**Expected behavior:**
-- `generate_unique_genomic_elements.py`: when `--trna` is absent, log WARNING and skip tRNA entries entirely. When `--gff3` is absent, log WARNING and skip miRNA proximal entries. Do not raise an exception; produce a valid (though smaller) BED file.
-- `generate_master_filelist.py`: when tRNA and miRNA inputs are absent, produce TSV without those entry categories.
-- The pipeline must still run correctly on a MASTER_FILELIST and UniqueGenomicElements that lack tRNA/miRNA entries — these element categories will simply have zero reads mapping to them.
+## EC-02: Perl version sensitivity
 
-## Edge Case 2: Missing IDs During FASTA Extraction
+**Scenario:** Using Perl ≥5.18 introduces non-deterministic hash iteration, causing different tie-breaking in deduplication.
+**Requirement:** Always invoke Perl scripts with `/tscc/projects/ps-yeolab4/software/perl/5.10.1/bin/perl`. Do not use the system default `perl` command (which may point to a newer version).
+**Verification:** Check `perl --version` shows 5.10.1 in the environment used by the rule.
 
-**Situation:** Some transcript IDs in the GTF annotation cannot be extracted from the genome FASTA (e.g., due to chromosome naming mismatch, scaffold-only entries, or alternate loci).
+## EC-03: BAM reads not in FASTQ
 
-**Expected behavior:**
-- Count missing IDs after pybedtools getfasta attempt
-- If missing ≤ 1% of total: log count to stderr, continue without reporting file
-- If missing > 1% of total: write `missing_ids_report.txt` in output directory, log WARNING, continue without those IDs
-- Never silently drop entries without any logging
+**Scenario:** The rmRep BAM contains read names that do not appear in the FASTQ. This is an upstream data preparation error.
+**Requirement:** Document that this is a user error; add a validation step or warning. The pipeline should fail with a clear error message if the BAM contains reads not in the FASTQ.
 
-## Edge Case 3: GTF in .gz Format
+## EC-04: Missing barcode2 in PE mode
 
-**Situation:** mm10 and mm39 GTFs are gzipped (`gencode.VM23.annotation.gtf.gz`, `gencode.VM38.annotation.gtf.gz`); hg38 GTF is a symlink to an uncompressed file.
+**Scenario:** User sets `se_or_pe: PE` but omits barcode2 fields in config.
+**Requirement:** Snakefile validates config at startup and raises a descriptive error before any rules run.
 
-**Expected behavior:** `generate_parsed_ucsc_tableformat.py` must accept both `.gtf` and `.gtf.gz` inputs, detecting compression from the file extension.
+## EC-05: PE fields present in SE mode
 
-## Edge Case 4: Duplicate Element Names in RepeatMasker/SimpleRepeats
+**Scenario:** User sets `se_or_pe: SE` but includes barcode2 fields.
+**Requirement:** Snakefile raises a validation error.
 
-**Situation:** Multiple genomic intervals may share the same `gene_id` in the RepeatMasker TSV (e.g., many AluY loci all named "AluY").
+## EC-06: split_bam_to_subfiles_SEorPE.pl writes .tmp files to cwd
 
-**Expected behavior for bowtie2 index:** Each unique locus gets its own FASTA entry. Deduplicate by (chrom, start, end, name) to avoid redundant sequences. Name disambiguation strategy: `AluY`, `AluY_dup1`, `AluY_dup2`, etc. — or whatever strategy reproduces the hg38 reference header format exactly.
+**Scenario:** The Perl script writes output .tmp files to the current working directory (not the directory of the input file).
+**Requirement:** Each Snakemake rule invocation for splitbam must use `params.cwd` or `shadow:` to ensure the .tmp files land in the correct location and do not collide between concurrent barcode runs.
 
-**Expected behavior for MASTER_FILELIST:** Each unique sequence_id appears only once. If repeat elements appear once per family (not per locus), confirm this against hg38 reference.
+## EC-07: merge_multiple_parsed_files.pl requires files in cwd
 
-## Edge Case 5: NR_046233.2 rRNA Custom FASTA
+**Scenario:** The Perl script (combine_parsed) may expect input files in the current working directory due to CWL `InitialWorkDirRequirement`.
+**Requirement:** Either run the script from the output directory (using `shell: "cd {params.dir} && ..."`) or pass absolute paths. Verify which mode the script uses.
 
-**Situation:** mm10 and mm39 include `NR_046233.2.fasta` as a custom sequence (mouse rRNA). This corresponds to the rRNA_extra_hash entries in the Perl parse scripts.
+## EC-08: Bowtie2 version differences
 
-**Expected behavior:** `generate_bowtie2_index.py` must accept `--custom-fasta NR_046233.2.fasta` and append these sequences with headers matching the naming convention used for rRNA entries in the MASTER_FILELIST (e.g., `NR_046233.2-18S`, `NR_046233.2-28S`, `NR_046233.2-45S`).
+**Scenario:** CWL originally used bowtie2/2.2.6 via module load; conda env may install a newer version.
+**Requirement:** Test that outputs match between versions. If they differ, pin bowtie2 to 2.2.6 in the conda env.
 
-**Validation:** The MASTER_FILELIST for mm10/mm39 must include NR_046233.2 entries with the correct family labels (`rRNA` or equivalent).
+## EC-09: Very large datasets
 
-## Edge Case 6: Coordinate System Differences Between GTF and BED
+**Scenario:** Full (non-downsampled) PE datasets may produce deduplication jobs exceeding 32GB.
+**Requirement:** Profile memory usage on full dataset before deciding whether to keep or remove scatter. If scatter is kept, each SLURM job is independently submitted and can be monitored.
 
-**Situation:** GTF uses 1-based inclusive coordinates; BED uses 0-based half-open.
+## EC-10: .tmp file naming collisions
 
-**Expected behavior:** All scripts must convert GTF coordinates to 0-based internally:
-- `start_0based = gtf_start - 1`
-- `end_0based = gtf_end` (no change)
-
-Off-by-one errors here would break the 99% similarity threshold against hg38.
-
-## Edge Case 7: Perl Script RepElement_pipeline_1dataset.pl
-
-**Situation:** Line 4 has `my $species = "hg38"` hardcoded. Lines 95-96 branch on `$species eq "hg38"` to set bowtie_db path.
-
-**Assessment:** This script is a standalone job orchestrator that hard-codes paths. It is NOT called by the CWL workflow or Snakemake dropin; it exists in `bin/perl/` as a legacy convenience script. The CWL and Snakemake paths pass all reference file paths via YAML/config arguments. Modifying this script is NOT required unless the user explicitly runs it directly.
-
-**Expected behavior:** Document the hardcoded species in NOTES. Do not modify unless the user requests standalone RepElement_pipeline_1dataset.pl support for mm10/mm39.
-
-## Edge Case 8: Mouse Genome FASTA Availability
-
-**Situation:** `mm10/downloaded/` and `mm39/downloaded/` do not currently contain genome FASTA files (only hg38 has `hg38.fasta` as a symlink). The genome FASTA is needed for pybedtools getfasta to extract transcript sequences.
-
-**Expected behavior:** The `generate_bowtie2_index.py` script requires `--fasta` as a mandatory argument. The script must verify the FASTA exists and is readable before proceeding. If the mouse genome FASTA is not yet present, the script must fail with a clear error: "Genome FASTA not found at {path}. Please provide a reference genome FASTA for {assembly}."
-
-**Resolution:** The architect must determine whether sourcing the mouse genome FASTA is in-scope, or whether the user will provide it. The architect-prompt captures this as a critical open gap.
-
-## Edge Case 9: Simple Repeat Naming Disambiguation
-
-**Situation:** The hg38 simplerepeats TSV has `gene_id "trf"` for all entries, with `transcript_id "trf"`, `"trf_dup1"`, `"trf_dup2"`, etc. for disambiguation.
-
-**Expected behavior:** The script must use `transcript_id` (not `gene_id`) from simplerepeats when naming simple repeat entries, to match the hg38 convention.
+**Scenario:** Both splitbam_repsam and splitbam_rmrepbam produce files named `AA.tmp`, `AC.tmp`, etc. If they run in the same directory, they will overwrite each other.
+**Requirement:** Architect must design separate working directories (e.g., `<barcode>/rep/` and `<barcode>/rmrep/`) or use distinct naming (e.g., `AA.rep.tmp` and `AA.rmrep.tmp`).

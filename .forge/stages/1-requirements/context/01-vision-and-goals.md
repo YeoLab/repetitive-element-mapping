@@ -1,33 +1,26 @@
-# Vision and Goals
+# 01 - Vision and Goals
 
-## Project Vision
+## Project Purpose
 
-Extend the eCLIP repetitive element mapping pipeline (ecliprepmap) to support two additional mouse genome assemblies: mm10 (GRCm38) and mm39 (GRCm39). The pipeline currently ships with reference data only for hg38 (GRCh38). This work produces scripts that reproducibly generate all four required reference files for any supported assembly.
+The eCLIP repetitive element mapping pipeline (ecliprepmap) identifies which repetitive genomic elements (transposons, repeats, rRNA, etc.) are bound by RNA-binding proteins, using enhanced CLIP (eCLIP) sequencing data.
 
-## Primary Goal
+The existing pipeline is implemented in CWL (Common Workflow Language) and runs via `cwltool` or the `eCLIP_repelement_PE/SE` launchers on TSCC. This feature translates the CWL workflows to Snakemake so the pipeline can run natively on SLURM via the `snakemake9` conda environment, removing the CWL runtime dependency and enabling better integration with existing Snakemake-based eCLIP infrastructure.
 
-Generate the following four reference artifacts for mm10 and mm39 such that they are structurally and format-identical to the existing hg38 references:
+## Goals
 
-1. `gencode.{version}.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat` — tab-separated transcript table derived from a Gencode GTF
-2. `bowtie2_index/` — Bowtie2 index built from a curated multi-source FASTA
-3. `UniqueGenomicElements.{assembly}.bed` — 6-column BED of repeat/tRNA/miRNA regions plus 500 bp proximal flanks
-4. `MASTER_FILELIST.{date}.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv` — 5-column TSV mapping sequence IDs to repeat families
+1. **Exact output fidelity**: Snakemake outputs must match CWL outputs for `.nopipes.tsv` and `.withpipes.tsv` files (the primary scientific results). Minor differences due to random tie-breaking in Perl hash iteration are acceptable.
 
-## Secondary Goal
+2. **Single Snakefile with SE/PE dispatch**: One Snakefile handles both single-end and paired-end datasets, dispatching to appropriate rules based on `se_or_pe` config parameter.
 
-Produce reusable Python scripts (one per reference type) that accept assembly-generic inputs so that future assemblies can be added with minimal effort.
+3. **Testable with downsampled data**: Small downsampled datasets enable fast iteration and CI-style validation without requiring full dataset runtimes.
 
-## Out of Scope
+4. **SLURM-native execution**: All rules run as SLURM jobs via the existing `profiles/tscc2_snakemake9/` profile (partition gold, account csd792).
 
-- Changes to the CWL or Snakemake pipeline execution logic
-- Changes to Perl scripts except where hardcoded values prevent acceptance of new assemblies
-- Adding new pipeline features (new output formats, new metrics, etc.)
-- Reference generation for assemblies other than mm10 and mm39
+5. **Drop-in replacement**: After validation, unused CWL files and Perl scripts are removed; README is updated with Snakemake usage instructions.
 
-## Success Criteria
+## Definition of Done
 
-1. All four reference files generated for mm10 and mm39.
-2. All four hg38 reference files faithfully reproduced by the new scripts with ≥99% similarity to existing hg38 references.
-3. Format of generated files is identical to hg38 references (same column count, same header lines, same sort order).
-4. Perl scripts accept mm10/mm39 references without modification, or any required modifications are minimal and documented.
-5. Pipeline dry-run (`snakemake -n`) completes without error when pointed at mm10/mm39 references.
+- Snakemake workflow runs end-to-end on both downsampled and full SE/PE datasets
+- Outputs match CWL reference outputs in test-provenance/
+- README updated with clear usage instructions for both dataset sizes
+- All changes committed and pushed to git
