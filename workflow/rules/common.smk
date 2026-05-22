@@ -46,10 +46,11 @@ rule splitbam_rep:
     params:
         outdir      = lambda wc: os.path.abspath(f"{wc.outdir}/{wc.sample}/split_rep"),
         rep_sam_abs = lambda wc, input: os.path.abspath(input.rep_sam),
-        perl        = PERL,
-        script      = os.path.join(workflow.basedir, "bin/perl/split_bam_to_subfiles_SEorPE.pl"),
+        script      = os.path.join(workflow.basedir, "workflow/scripts/split_bam_to_subfiles.py"),
         se_or_pe    = SE_OR_PE,
         rename      = " && ".join(f"mv {p}.rep.sam.tmp {p}.rep.tmp" for p in PREFIXES),
+    conda:
+        "../envs/dropin.yaml"
     resources:
         mem_mb  = lambda wc, attempt: attempt * 8000,
         runtime = 120,
@@ -60,7 +61,7 @@ rule splitbam_rep:
         rm -rf {params.outdir}
         mkdir -p {params.outdir}
         ( cd {params.outdir}
-          {params.perl} {params.script} {params.rep_sam_abs} {params.se_or_pe}
+          python {params.script} {params.rep_sam_abs} {params.se_or_pe}
           {params.rename}
         ) > {log} 2>&1
         """
@@ -79,10 +80,11 @@ rule splitbam_rmrep:
     params:
         outdir        = lambda wc: os.path.abspath(f"{wc.outdir}/{wc.sample}/split_rmrep"),
         rmrep_sam_abs = lambda wc, input: os.path.abspath(input.rmrep_sam),
-        perl          = PERL,
-        script        = os.path.join(workflow.basedir, "bin/perl/split_bam_to_subfiles_SEorPE.pl"),
+        script        = os.path.join(workflow.basedir, "workflow/scripts/split_bam_to_subfiles.py"),
         se_or_pe      = SE_OR_PE,
         rename        = " && ".join(f"mv {p}.rmrep.sam.tmp {p}.rmrep.tmp" for p in PREFIXES),
+    conda:
+        "../envs/dropin.yaml"
     resources:
         mem_mb  = lambda wc, attempt: attempt * 8000,
         runtime = 120,
@@ -93,7 +95,7 @@ rule splitbam_rmrep:
         rm -rf {params.outdir}
         mkdir -p {params.outdir}
         ( cd {params.outdir}
-          {params.perl} {params.script} {params.rmrep_sam_abs} {params.se_or_pe}
+          python {params.script} {params.rmrep_sam_abs} {params.se_or_pe}
           {params.rename}
         ) > {log} 2>&1
         """
@@ -131,10 +133,10 @@ rule dedup:
         table_abs      = lambda wc, input: os.path.abspath(input.table_browser),
         repbed_abs     = lambda wc, input: os.path.abspath(input.rep_bed),
         filelist_abs   = lambda wc, input: os.path.abspath(input.file_list),
-        perl           = PERL,
-        script         = os.path.join(workflow.basedir,
-                             "bin/perl/duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl"),
+        script         = os.path.join(workflow.basedir, "workflow/scripts/deduplicate.py"),
         se_or_pe       = SE_OR_PE,
+    conda:
+        "../envs/dropin.yaml"
     resources:
         mem_mb  = lambda wc, attempt: attempt * 32000,
         runtime = 480,
@@ -145,7 +147,7 @@ rule dedup:
         """
         mkdir -p {params.dedup_dir}
         ( cd {params.dedup_dir}
-          {params.perl} {params.script} \
+          python {params.script} \
             {params.rep_tmp_abs} \
             {params.rmrep_tmp_abs} \
             {params.se_or_pe} \
@@ -252,11 +254,11 @@ rule combine_parsed_per_sample:
     output:
         "{outdir}/{sample}/{dataset}.{sample}.parsed",
     params:
-        perl        = PERL,
-        script      = os.path.join(workflow.basedir,
-                          "bin/perl/merge_multiple_parsed_files.simplified_20191022.pl"),
+        script      = os.path.join(workflow.basedir, "workflow/scripts/merge_parsed_files.py"),
         out_abs     = lambda wc, output: os.path.abspath(output[0]),
         inputs_abs  = lambda wc, input: " ".join(os.path.abspath(f) for f in input),
+    conda:
+        "../envs/dropin.yaml"
     resources:
         mem_mb  = lambda wc, attempt: attempt * 4000,
         runtime = 30,
@@ -265,7 +267,7 @@ rule combine_parsed_per_sample:
     shell:
         """
         mkdir -p $(dirname {output})
-        {params.perl} {params.script} \
+        python {params.script} \
             {params.out_abs} \
             {params.inputs_abs} \
             > {log} 2>&1

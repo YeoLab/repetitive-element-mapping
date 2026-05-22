@@ -16,9 +16,8 @@ rule map_rep_pe:
         rep_sam  = "{outdir}/{sample}/mapped/rep.sam",
     params:
         db_path  = config["reference"]["bowtie2_db"] + "/" + config["reference"]["bowtie2_prefix"],
-        perl     = PERL,
         script   = os.path.join(workflow.basedir,
-                       "bin/perl/parse_bowtie2_output_realtime_includemultifamily_PE.pl"),
+                       "workflow/scripts/map_repetitive_elements_pe.py"),
         out_abs  = lambda wc, output: os.path.abspath(output.rep_sam),
     conda:
         "../envs/dropin.yaml"
@@ -31,7 +30,7 @@ rule map_rep_pe:
     shell:
         """
         mkdir -p $(dirname {output.rep_sam})
-        {params.perl} {params.script} \
+        python {params.script} \
             {input.r1} \
             {input.r2} \
             {params.db_path} \
@@ -65,10 +64,10 @@ rule merge_ip_parsed:
             outdir=OUTPUT_DIR, dataset=DATASET,
         )[0],
     params:
-        perl    = PERL,
-        script  = os.path.join(workflow.basedir,
-                      "bin/perl/merge_multiple_parsed_files.simplified_20191022.pl"),
+        script  = os.path.join(workflow.basedir, "workflow/scripts/merge_parsed_files.py"),
         out_abs = lambda wc, output: os.path.abspath(output.combined),
+    conda:
+        "../envs/dropin.yaml"
     resources:
         mem_mb  = lambda wc, attempt: attempt * 4000,
         runtime = 60,
@@ -77,7 +76,7 @@ rule merge_ip_parsed:
     shell:
         """
         mkdir -p $(dirname {output.combined})
-        {params.perl} {params.script} \
+        python {params.script} \
             {params.out_abs} \
             {input.bc1} \
             {input.bc2} \
