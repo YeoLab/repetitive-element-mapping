@@ -95,7 +95,11 @@ def main():
             if r1sam_flag == 77 or r1sam_flag == 141:
                 continue
 
-            # Determine fragment strand; also swap R1/R2 for certain flag values
+            # Determine fragment strand.
+            # For flags 147/163/403/419, swap tmp arrays so tmp_r1 refers to
+            # the actual R1 read (for UMI extraction).  Do NOT swap the raw
+            # string variables r1/r2: the Perl reference writes lines in their
+            # original file order, so we must do the same to stay compatible.
             if r1sam_flag in (99, 355):
                 frag_strand = "-"
             elif r1sam_flag in (83, 339):
@@ -103,11 +107,9 @@ def main():
             elif r1sam_flag in (147, 403):
                 frag_strand = "-"
                 tmp_r1, tmp_r2 = tmp_r2, tmp_r1
-                r1, r2 = r2, r1
             elif r1sam_flag in (163, 419):
                 frag_strand = "+"
                 tmp_r1, tmp_r2 = tmp_r2, tmp_r1
-                r1, r2 = r2, r1
             else:
                 # Unknown flag — skip
                 continue
