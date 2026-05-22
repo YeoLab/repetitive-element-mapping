@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "pipeline_id": "forge-eb57e627",
   "created_utc": "2026-05-21T16:16:22Z",
-  "updated_utc": "2026-05-22T00:00:00Z",
-  "current_stage": "6-security",
+  "updated_utc": "2026-05-22T01:00:00Z",
+  "current_stage": "7-docs",
   "stages": {
     "0-research": {
       "status": "SKIPPED",
@@ -85,6 +85,16 @@
         "workflow/rules/PE.smk"
       ],
       "notes": "5 Perl scripts translated to Python. PE bug fixed: split_bam_to_subfiles.py r1/r2 swap removed for flags 147/163/403/419."
+    },
+    "6-security": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-22T01:00:00Z",
+      "artifacts": [
+        ".forge/stages/6-security/security-report.md",
+        ".forge/stages/6-security/stage-summary.json"
+      ],
+      "gate_result": "PASS_WITH_NOTES",
+      "notes": "15 low bandit findings, 0 medium/high. No injection, no shell=True. 3 minor FD resource issues documented."
     },
     "5-qa": {
       "status": "COMPLETE",
