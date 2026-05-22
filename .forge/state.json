@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "pipeline_id": "forge-eb57e627",
   "created_utc": "2026-05-21T16:16:22Z",
-  "updated_utc": "2026-05-21T17:30:00Z",
-  "current_stage": "5-qa",
+  "updated_utc": "2026-05-22T00:00:00Z",
+  "current_stage": "6-security",
   "stages": {
     "0-research": {
       "status": "SKIPPED",
@@ -70,6 +70,32 @@
     "3.75-performance": {
       "status": "SKIPPED",
       "skip_reason": "Performance profiling not in scope for CWL-to-Snakemake translation."
+    },
+    "3-implement-perl2py": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-22T00:00:00Z",
+      "artifacts": [
+        "workflow/scripts/split_bam_to_subfiles.py",
+        "workflow/scripts/merge_parsed_files.py",
+        "workflow/scripts/map_repetitive_elements_se.py",
+        "workflow/scripts/map_repetitive_elements_pe.py",
+        "workflow/scripts/deduplicate.py",
+        "workflow/rules/common.smk",
+        "workflow/rules/SE.smk",
+        "workflow/rules/PE.smk"
+      ],
+      "notes": "5 Perl scripts translated to Python. PE bug fixed: split_bam_to_subfiles.py r1/r2 swap removed for flags 147/163/403/419."
+    },
+    "5-qa": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-22T00:00:00Z",
+      "artifacts": [
+        ".forge/stages/5-qa/stage-summary.json",
+        ".forge/stages/5-qa/summary.md",
+        "results/se_small/seCLIP_small.nopipes.tsv",
+        "results/pe_small/peCLIP_small.nopipes.tsv"
+      ],
+      "notes": "SE small (62 rows) and PE small (76 rows) nopipes.tsv verified. Two PE bugs found and fixed. SE dedup byte-identical to Perl on 5 prefix bins. Full dataset run pending."
     }
   },
   "cost": {

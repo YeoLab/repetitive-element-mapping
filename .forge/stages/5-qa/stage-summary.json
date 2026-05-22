@@ -1,0 +1,61 @@
+{
+  "stage_id": "5-qa",
+  "completed_utc": "2026-05-22T00:00:00Z",
+  "artifacts_produced": [
+    {
+      "path": "results/se_small/seCLIP_small.nopipes.tsv",
+      "sha256": "se_small_nopipes",
+      "description": "SE small nopipes output: 62 rows, format matches CWL reference header"
+    },
+    {
+      "path": "results/se_small/seCLIP_small.withpipes.tsv",
+      "sha256": "se_small_withpipes",
+      "description": "SE small withpipes output: 75 rows"
+    },
+    {
+      "path": "results/pe_small/peCLIP_small.nopipes.tsv",
+      "sha256": "pe_small_nopipes",
+      "description": "PE small nopipes output: 76 rows, no RG:Z:foo contamination"
+    },
+    {
+      "path": "results/pe_small/peCLIP_small.withpipes.tsv",
+      "sha256": "pe_small_withpipes",
+      "description": "PE small withpipes output: 91 rows"
+    },
+    {
+      "path": "workflow/scripts/split_bam_to_subfiles.py",
+      "sha256": "split_bam_patched",
+      "description": "PATCHED: removed r1/r2 swap for flags 147/163/403/419 (PE pairing bug fix)"
+    }
+  ],
+  "key_decisions": [
+    {
+      "dr_id": "DR-QA-001",
+      "summary": "PE bug: split_bam_to_subfiles.py was swapping r1/r2 strings for flags 147/163/403/419; Perl only swaps UMI arrays, not written lines"
+    },
+    {
+      "dr_id": "DR-QA-002",
+      "summary": "SE dedup verified byte-identical to Perl on 5 prefix bins (AA, AC, TT, NN, GG)"
+    },
+    {
+      "dr_id": "DR-QA-003",
+      "summary": "Output headers match CWL reference exactly: element/IP_read_num/IP_clip_rpr/Input_read_num/Input_clip_rpr/Fold_enrichment/Information_content"
+    },
+    {
+      "dr_id": "DR-QA-004",
+      "summary": "Full dataset run (Step 5 of translate_perl.md) deferred: requires SLURM job submission"
+    }
+  ],
+  "open_issues": [
+    {
+      "bead_id": null,
+      "summary": "Full dataset validation (non-downsampled SE/PE) against CWL reference outputs not yet run — needs SLURM"
+    }
+  ],
+  "resumption_context": "Perl-to-Python translation QA PASSED on SE small (62 rows nopipes) and PE small (76 rows nopipes). Two bugs found and fixed: (1) empty rep.sam from stale bowtie2-not-found run — fixed by deleting stale results; (2) RG:Z:foo contamination in PE nopipes.tsv caused by incorrect r1/r2 string swap in split_bam_to_subfiles.py for flags 147/163/403/419 — fixed in commit d44ca22. SE dedup was byte-identical to Perl on 5 prefix bins. Scripts: workflow/scripts/{split_bam_to_subfiles,merge_parsed_files,map_repetitive_elements_se,map_repetitive_elements_pe,deduplicate}.py. Rules updated: common.smk, SE.smk, PE.smk. Remaining: full dataset run on SLURM, forge 6-security, forge 7-docs.",
+  "next_stage_must_read": [
+    ".forge/stages/5-qa/summary.md",
+    "workflow/scripts/deduplicate.py",
+    "workflow/scripts/split_bam_to_subfiles.py"
+  ]
+}
