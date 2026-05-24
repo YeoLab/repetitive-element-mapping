@@ -114,5 +114,8 @@
     "total_estimated_usd": 0,
     "per_stage": {}
   },
-  "loop_count": {}
+  "loop_count": {},
+  "git": {
+    "base_commit": "922db0727069362670b655c460bad2f37b25e3eb"
+  }
 }
