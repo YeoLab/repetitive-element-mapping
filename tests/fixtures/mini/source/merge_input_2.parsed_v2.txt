@@ -1,0 +1,8 @@
+#READINFO	All reads:	200	PCR duplicates removed:	40	Usable Remaining:	160	Usable from genomic mapping:	60	Usable from family mapping:	100
+#READINFO	UsableReads	160
+#READINFO	GenomicReads	60	0.375
+#READINFO	RepFamilyReads	100	0.625
+TOTAL	RNA18S	40	250000
+TOTAL	RNA28S	60	375000
+ELEMENT	RNA18S	25	156250	RNA18S||ENST1	GENE1
+ELEMENT	RNA28S	35	218750	RNA28S||ENST2	GENE2

@@ -48,3 +48,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Generates repeat-mapped rmDup and preRmDup SAM-like files mapping reads to repeat element families.
 - README detailing methods and output explanations
 
+
+## codex/python-conversion
+- removed legacy NOTES file; branch instructions now centralized in README.md

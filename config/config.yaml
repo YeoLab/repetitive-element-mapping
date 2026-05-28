@@ -1,0 +1,50 @@
+# CWL-compatible input names for SE pipeline wiring
+# Fill these with real dataset paths for production runs.
+dataset: seCLIP_example
+barcode1r1FastqGz: ""
+barcode1rmRepBam: ""
+barcode1Inputr1FastqGz: ""
+barcode1InputrmRepBam: ""
+
+bowtie2_db: ""
+bowtie2_prefix: ""
+fileListFile1: ""
+gencodeGTF: ""
+gencodeTableBrowser: ""
+repMaskBEDFile: ""
+
+prefixes:
+  - AA
+  - AC
+  - AG
+  - AT
+  - AN
+  - CA
+  - CC
+  - CG
+  - CT
+  - CN
+  - GA
+  - GC
+  - GG
+  - GT
+  - GN
+  - TA
+  - TC
+  - TG
+  - TT
+  - TN
+  - NA
+  - NC
+  - NG
+  - NT
+  - NN
+se_or_pe: SE
+
+# Mini validation fixture configuration (used by currently implemented rules)
+mini_validation:
+  source_sam_gz: tests/fixtures/mini/source/ip.preRmDup.sam.mini.gz
+  split_manifest: tests/fixtures/mini/expected/split.expected.manifest.tsv
+  merge_input_1: tests/fixtures/mini/source/merge_input_1.parsed_v2.txt
+  merge_input_2: tests/fixtures/mini/source/merge_input_2.parsed_v2.txt
+  merge_expected: tests/fixtures/mini/expected/merged.expected.parsed
