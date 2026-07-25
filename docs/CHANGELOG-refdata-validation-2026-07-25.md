@@ -13,14 +13,11 @@
 
 ## 1. Validation policy
 
-Reference files use a fixed, tool-specific row order that is not worth reproducing
-byte-for-byte, and the consumers read them order-independently. Decision (2026-07-25):
+> **Content-equivalence = PASS — for `parsed_ucsc_tableformat` ONLY.** A sorted-content MD5
+> match satisfies the "faithful reproduction" AC for that file, because its consumer reads
+> it order-independently. **This policy does NOT generalize to the other three files.**
 
-> **Content-equivalence = PASS.** A sorted-content MD5 match (plus an order-independent
-> consumer) satisfies the "faithful reproduction" acceptance criteria; exact row order is
-> not required.
-
-Verified order-independence of the parsed-table consumer:
+Verified order-independence of the parsed-table consumer (rows keyed by transcript id):
 
 ```perl
 # bin/perl/duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl
@@ -34,13 +31,33 @@ sub read_gencode {
 }
 ```
 
+**MASTER_FILELIST order IS behaviorally significant** and must be reproduced (or validated
+behaviorally), NOT treated as order-independent. `read_in_filelists` assigns a per-line
+priority in file order, and that priority breaks ties between equal-score mappings:
+
+```perl
+# bin/perl/parse_bowtie2_output_realtime_includemultifamily_SE.pl:463
+sub read_in_filelists {
+    my $priority_n = 0;
+    for my $line (<F>) {                                   # file order == priority order
+        my ($allenst,$allensg,$gid,$type_label,$typefile) = split(/\t/,$line);
+        ...
+        $convert_enst2type{$enst} = $type_label.":".$priority_n;   # priority encoded per enst
+        $priority_n++;
+    }
+}
+```
+
+Order-dependence of the remaining two files (`bowtie2_index` FASTA, `UniqueGenomicElements`
+BED) has not been assumed either way; validate content, not sorted content, for those.
+
 ## 2. Results summary
 
 | Task | Generator | Count/line check | Content check | Verdict |
 |---|---|---|---|---|
 | T-03 | `generate_parsed_ucsc_tableformat.py` | 249,044 = 249,044 | sorted-MD5 identical | **PASS** |
 | T-05 | `generate_bowtie2_index.py` | 26,353 vs 7,606 (0.29) | wrong headers + wrong source | **FAIL** |
-| T-07 | `generate_unique_genomic_elements.py` | 6,988,833 vs 5,618,483 (0.80) | wrong column semantics | **FAIL** |
+| T-07 | `generate_unique_genomic_elements.py` | 6,988,833 vs 5,618,483 (0.80) | over-selection (all 249,043 Gencode vs curated 4,670); schema OK | **FAIL** |
 | T-09 | `generate_master_filelist.py` | 26,252 vs 26,422 (0.99) | biotype vs repeat-family labels | **FAIL (content)** |
 
 Per-task logs: `.forge/stages/2-architect/notes/T-0{3,5,7,9}-*.log`.
@@ -76,20 +93,27 @@ Cause: the script does `pybedtools.getfasta` on **every genomic repeat instance*
 of using **one consensus sequence per repeat family**. Wrong unit (instance vs family) and
 wrong header format. See §3–§4.
 
-### T-07 — UniqueGenomicElements: FAIL
+### T-07 — UniqueGenomicElements: FAIL (over-selection, NOT schema)
 
 ```bash
 wc -l <generated>.bed   # 6,988,833
 wc -l <reference>.bed   # 5,618,483   ratio 0.80
-
-# generated row (WRONG): ENST id in name col, '-' in score col
-GL000009.2  56139   58376   ENST00000618686.1  -     -
-# reference row:          repeat-family name + numeric score
-chr1        67108753 67109046 L1P5              1892  +
 ```
 
-Per spec, Gencode-derived entries should carry `-` as the name (not the ENST id), and the
-file is dominated by all 249,043 Gencode transcripts (24% over-count).
+**Correction (2026-07-25 review):** an earlier draft claimed the BED *schema* was wrong
+(that Gencode rows should carry `-` as the name). That was an analysis error — it compared a
+generated Gencode row against an unrelated RepeatMasker reference row. The reference BED
+**does** contain Gencode rows in the generator's exact format:
+
+```bash
+awk -F'\t' '$4 ~ /^ENST/' <reference>.bed | wc -l    # 4,670 rows
+# e.g.  chr6  159785593 159785733  ENST00000384183.1  -  -   (col4=ENST, col5='-', col6=strand)
+```
+
+matching `generate_unique_genomic_elements.py:72`. The **schema is correct.** The real
+defect is **selection**: the generator emits all **249,043** Gencode transcripts, whereas
+the reference includes only a curated **4,670**. Fix = restrict the Gencode contribution to
+the curated transcript subset; do not change the column layout.
 
 ### T-09 — MASTER_FILELIST: FAIL (content)
 
@@ -213,9 +237,16 @@ Full plan: `.forge/stages/2-architect/notes/FIX-PLAN-bowtie2-index.md`. Summary:
   add `--species {human,mouse}` to pick the ref set. Strip the `::coords` suffix from
   Gencode headers.
 - Family selection: species-primary refs ~wholesale ∪ genome-present families with a
-  consensus. Converge on hg38 to ≥99% family-header overlap, then regenerate mm10/mm39.
-- **Knock-on:** the same family set feeds the T-09 fix (repeat-family labels instead of
-  Gencode biotypes). T-07 is a separate (coordinate-based) fix.
+  consensus. Current union coverage is 97.96% — an **alias-resolution pass is required** to
+  reach the ≥99% gate before implementation is accepted.
+- **Validate at the sequence level**, not just headers (per-header normalized sequence hash
+  + no-duplicate-header check); headers alone can match while sequences differ.
+- **T-09 (MASTER_FILELIST)** needs more than the repeat family set: explicit Gencode
+  column derivation (`col3=gene_name`, `col4=family` by stripping the copy-number suffix
+  e.g. `RNU6-2→RNU6`, `col5=genelists.{family}`), a repeat family→class map
+  (`ALUY→Alu→SINE`), **and row-order preservation** (order sets mapping priority — see §1).
+- **T-07 (UniqueGenomicElements)**: schema is correct; fix is **selection only** — restrict
+  the Gencode contribution from 249,043 transcripts to the curated 4,670 subset.
 
 ## 6. Environment notes (tools needed to run the generators)
 
