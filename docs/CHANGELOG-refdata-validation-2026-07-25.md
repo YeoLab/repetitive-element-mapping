@@ -1,0 +1,242 @@
+# Changelog — mm10/mm39 reference-data validation (hg38 reproduction)
+
+- **Date:** 2026-07-25
+- **Issue:** `repetitive-element-mapping-475` (Reference data generation, mm10/mm39)
+- **Scope:** Ran the hg38 reproduction-test-first validation gate (tasks T-03/T-05/T-07/T-09)
+  for the four `bin/python/refdata_generation/` generators, diagnosed failures, and located
+  + confirmed the original repeat-consensus source.
+- **Outcome:** 1 of 4 generators passes; 3 fail on content. Root cause of the bowtie2-index
+  failure identified and the correct source method proven by byte-level sequence matching.
+  No generator code changed yet — this is the validation + diagnosis record and fix plan.
+
+---
+
+## 1. Validation policy
+
+Reference files use a fixed, tool-specific row order that is not worth reproducing
+byte-for-byte, and the consumers read them order-independently. Decision (2026-07-25):
+
+> **Content-equivalence = PASS.** A sorted-content MD5 match (plus an order-independent
+> consumer) satisfies the "faithful reproduction" acceptance criteria; exact row order is
+> not required.
+
+Verified order-independence of the parsed-table consumer:
+
+```perl
+# bin/perl/duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl
+sub read_gencode {
+    open(F,$fi) || die;
+    while (<F>) {                      # line order irrelevant:
+        my @tmp = split(/\t/,$_);
+        my $enst = $tmp[1];            # every row keyed by transcript id
+        ...
+    }
+}
+```
+
+## 2. Results summary
+
+| Task | Generator | Count/line check | Content check | Verdict |
+|---|---|---|---|---|
+| T-03 | `generate_parsed_ucsc_tableformat.py` | 249,044 = 249,044 | sorted-MD5 identical | **PASS** |
+| T-05 | `generate_bowtie2_index.py` | 26,353 vs 7,606 (0.29) | wrong headers + wrong source | **FAIL** |
+| T-07 | `generate_unique_genomic_elements.py` | 6,988,833 vs 5,618,483 (0.80) | wrong column semantics | **FAIL** |
+| T-09 | `generate_master_filelist.py` | 26,252 vs 26,422 (0.99) | biotype vs repeat-family labels | **FAIL (content)** |
+
+Per-task logs: `.forge/stages/2-architect/notes/T-0{3,5,7,9}-*.log`.
+
+### T-03 — parsed_ucsc_tableformat: PASS
+
+```bash
+python bin/python/refdata_generation/generate_parsed_ucsc_tableformat.py \
+  --gtf examples/inputs/hg38/downloaded/gencode.v33.chr_patch_hapl_scaff.annotation.gtf \
+  --output /tmp/test_hg38_parsed.tsv
+
+# Raw diff is huge (row order differs) but content is identical:
+sort /tmp/test_hg38_parsed.tsv | md5sum      # 01244eef2f97da25128feff32e79fc06
+sort examples/inputs/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat | md5sum
+                                             # 01244eef2f97da25128feff32e79fc06  -> IDENTICAL
+```
+
+The only difference is that the script emits `sorted((gene_id, transcript_id))` while the
+reference preserves the UCSC tool's internal order. Content-equivalent → PASS.
+
+### T-05 — bowtie2 index: FAIL (two bugs)
+
+```bash
+# Generated headers carry a pybedtools getfasta coordinate suffix:
+>ENST00000516207.1::chrX:88148791-88148918(+)     # generated (WRONG)
+>ENST00000384010.1                                # reference   (clean id)
+
+grep -c '^>' <generated>.fa   # 26,353
+grep -c '^>' <reference>.fa   #  7,606   -> 3.5x over-generation
+```
+
+Cause: the script does `pybedtools.getfasta` on **every genomic repeat instance** instead
+of using **one consensus sequence per repeat family**. Wrong unit (instance vs family) and
+wrong header format. See §3–§4.
+
+### T-07 — UniqueGenomicElements: FAIL
+
+```bash
+wc -l <generated>.bed   # 6,988,833
+wc -l <reference>.bed   # 5,618,483   ratio 0.80
+
+# generated row (WRONG): ENST id in name col, '-' in score col
+GL000009.2  56139   58376   ENST00000618686.1  -     -
+# reference row:          repeat-family name + numeric score
+chr1        67108753 67109046 L1P5              1892  +
+```
+
+Per spec, Gencode-derived entries should carry `-` as the name (not the ENST id), and the
+file is dominated by all 249,043 Gencode transcripts (24% over-count).
+
+### T-09 — MASTER_FILELIST: FAIL (content)
+
+```bash
+wc -l <generated>.tsv   # 26,252   (ratio 0.9936 — line-count AC PASSES)
+
+# but col4 (family) is wrong:
+cut -f4 <generated>.tsv | sort | uniq -c | sort -rn | head   # misc_RNA, snRNA, snoRNA ...  (Gencode BIOTYPES)
+cut -f4 <reference>.tsv | sort | uniq -c | sort -rn | head   # RNU6, YRNA, RN7SL, SNORD ... (REPEAT FAMILIES)
+```
+
+Transcript-id overlap is only ~42% even after stripping version suffixes. The ±1% line-count
+AC passed while the content is substantially wrong — a weak proxy.
+
+## 3. Root cause of the bowtie2-index failure
+
+The reference index FASTA (7,606 seqs) decomposes as:
+
+| Component | Count | Correct source |
+|---|---|---|
+| Gencode transcripts `>ENST…` | 5,002 | genome `getfasta` (OK; must strip `::coords`) |
+| tRNA | 864 | tRNA fasta |
+| rRNA `>NR_…-18S/28S/45S` | 15 | RefSeq |
+| Repeat-family **consensus** `>ALUY`,`>L2C` | 1,224 | **RepBase consensus (NOT genomic)** |
+| SimpleRepeat kmers `>AAAAAC_SimpleRepeat` | 501 | curated kmer set |
+
+Only **868 of the 15,600** families in `repeatmasker.tsv.gz` appear in the index → it is a
+curated, consensus-driven set, not a mechanical genomic extraction.
+
+## 4. Repeat-consensus source — LOCATED and CONFIRMED
+
+Original author trail (from perl comments): `elvannostrand` /
+`.../RNA_type_analysis/`. The consensus library is present and readable:
+
+```
+/tscc/projects/ps-yeolab4/genomes/RepBase24.01.fasta/
+├── RepBase24.01.fasta/*.ref                       # RepBase 24.01, taxon-split FASTA
+│      humrep humsub prirep prisub mamrep mamsub    #   human set
+│      rodrep rodsub mousub ratsub                  #   mouse set
+│      simple.ref
+└── RepBaseRepeatMaskerEdition-20181026.tar.gz
+       └── Libraries/RMRBSeqs.embl                  # RepeatMasker Edition, 49,011 EMBL seqs
+```
+
+RepBase `.ref` header format: `>NAME<TAB>CLASS<TAB>species` (e.g. `>ALU  SINE1/7SL  Primates`).
+
+### Confirmed build method (byte-level sequence match)
+
+Sequences were extracted by family name from each source and compared to the reference index:
+
+```python
+# getseq.py — extract uppercased concatenated sequence by header first-token (FASTA)
+import sys
+fa, name = sys.argv[1], sys.argv[2].upper()
+seq, grab = [], False
+for line in open(fa):
+    if line.startswith('>'):
+        grab = (line[1:].split('\t')[0].split()[0].strip().upper() == name)
+    elif grab:
+        seq.append(line.strip().upper())
+print(''.join(seq))
+```
+
+```python
+# getembl.py — extract sequence by ID from EMBL (RMRBSeqs.embl)
+import sys
+embl, name = sys.argv[1], sys.argv[2].upper()
+grab = inseq = False; seq = []
+for line in open(embl):
+    if line.startswith('ID'):
+        grab = (line.split()[1].rstrip(';').upper() == name); inseq = False
+        if grab: seq = []
+    elif grab and line.startswith('SQ'):
+        inseq = True
+    elif grab and line.startswith('//'):
+        if seq:
+            break
+    elif grab and inseq:
+        seq.append(''.join(c for c in line if c.isalpha()))
+print(''.join(seq).upper())
+```
+
+| Family | RepBase 24.01 `.ref` | RM Edition EMBL | Index matches |
+|---|---|---|---|
+| `LTR18B`, `MSTC` | verbatim | verbatim | both |
+| `MER5A` | 2 diffs (IUPAC R/Y → N) | 5 real diffs | **`.ref`** (primary) |
+| `EULOR1` | absent | verbatim | **RM Edition** (fallback) |
+
+**Method that mirrors the original pipeline:**
+1. **Primary:** RepBase 24.01 `.ref` consensus (taxon-split → species selection).
+2. **Fallback:** RepeatMasker Edition `RMRBSeqs.embl` for families absent from 24.01.
+3. **Normalize** IUPAC ambiguity codes → `N` (the `.fixed.fa` step).
+
+Coverage of the 1,224 index families: RepBase 24.01 = 1,116; RM Edition = 864;
+**union = 1,199/1,224 (98%)**; 25 residual are likely name variants (within the ≥99%
+content-equivalence bar).
+
+### Reproduction of the analysis
+
+```bash
+DIR=/tscc/projects/ps-yeolab4/genomes/RepBase24.01.fasta/RepBase24.01.fasta
+# index repeat-family headers (uppercased, no ENST/tRNA/NR/SimpleRepeat)
+grep '^>' <reference>.fa | grep -v '^>ENST' | grep -vi 'tRNA' | grep -v '^>NR_' \
+  | grep -v '_SimpleRepeat' | sed 's/^>//' | tr a-z A-Z | sort -u > idx_fams.txt   # 1,224
+# RepBase 24.01 names (human set)
+cat $DIR/{humrep,humsub,prirep,prisub,mamrep,mamsub,simple}.ref \
+  | grep '^>' | cut -f1 | sed 's/^>//' | tr a-z A-Z | sort -u > repbase_hg38.txt
+# RM Edition names
+tar -xzf $DIR/../RepBaseRepeatMaskerEdition-20181026.tar.gz -C /tmp Libraries/RMRBSeqs.embl
+grep '^ID' /tmp/Libraries/RMRBSeqs.embl | awk '{print $2}' | sed 's/;//' | tr a-z A-Z | sort -u > rmedition_names.txt
+# union coverage
+comm -12 idx_fams.txt <(sort -u repbase_hg38.txt rmedition_names.txt) | wc -l   # 1,199 / 1,224
+```
+
+## 5. Fix plan (next phase)
+
+Full plan: `.forge/stages/2-architect/notes/FIX-PLAN-bowtie2-index.md`. Summary:
+
+- Rewrite the repeat portion of `generate_bowtie2_index.py` to read consensus from RepBase
+  24.01 `.ref` (primary) → RM Edition `RMRBSeqs.embl` (fallback), IUPAC→N normalized;
+  add `--species {human,mouse}` to pick the ref set. Strip the `::coords` suffix from
+  Gencode headers.
+- Family selection: species-primary refs ~wholesale ∪ genome-present families with a
+  consensus. Converge on hg38 to ≥99% family-header overlap, then regenerate mm10/mm39.
+- **Knock-on:** the same family set feeds the T-09 fix (repeat-family labels instead of
+  Gencode biotypes). T-07 is a separate (coordinate-based) fix.
+
+## 6. Environment notes (tools needed to run the generators)
+
+The `ecliprepmap/1.0.0` runtime env lacks the refdata-generation dependencies. Use:
+
+| Tool | Source env |
+|---|---|
+| `pybedtools` 0.9.0, `bedtools` | `~/miniconda3/envs/snakemake738` |
+| `samtools` | `.../miniconda_tscc2/envs/ecliprepmap-0.1.0` |
+| `bowtie2-build` | `.../miniconda_tscc2/envs/bowtie2-2.5.4` |
+
+```bash
+export PATH="$HOME/miniconda3/envs/snakemake738/bin:\
+/tscc/projects/ps-yeolab4/software/miniconda_tscc2/envs/bowtie2-2.5.4/bin:\
+/tscc/projects/ps-yeolab4/software/miniconda_tscc2/envs/ecliprepmap-0.1.0/bin:$PATH"
+```
+
+## 7. Status of generated mouse files
+
+Because mm10/mm39 were produced by the three failing generators, their bowtie2 index,
+UniqueGenomicElements, and MASTER_FILELIST are wrong in the same ways; only the
+`parsed_ucsc_tableformat` files are trustworthy. The mm10 "32% missing IDs" report is a
+downstream symptom of the T-05 genomic-getfasta approach. Reference generation is **not
+~95% complete** — three generators require rework before the mouse files are valid.

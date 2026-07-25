@@ -1,0 +1,9 @@
+# T-09 hg38 MASTER_FILELIST reproduction — 2026-07-25
+RESULT: FAIL (content) — line count passes but content diverges
+- Generated: 26,252 lines ; Reference: 26,422 ; ratio 0.9936 (line-count AC passes).
+- 5 columns ok; .list sibling identical (AC-T09-2/4 ok).
+- CONTENT FAIL:
+  * col4 (family) uses Gencode BIOTYPES (misc_RNA, snRNA, snoRNA, rRNA_pseudogene)
+    where reference uses REPEAT-FAMILY names (RNU6, YRNA, RN7SL, RNA5S, SNORD, SNORA, ERV1).
+  * col1 transcript-id overlap only 11,108 of ~26k even after stripping version suffix (~42%).
+  => line-count AC (±1%) is a weak proxy; it passed while content is substantially wrong.

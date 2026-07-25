@@ -1,0 +1,10 @@
+# T-07 hg38 UniqueGenomicElements reproduction — 2026-07-25
+RESULT: FAIL
+- Generated: 6,988,833 lines ; Reference: 5,618,483 ; ratio 0.8039 (need >=0.99).
+- Format is 6-col BED, no negative starts (AC-T07-2/4 ok), but CONTENT/column semantics wrong:
+  generated row: "GL000009.2  56139 58376  ENST00000618686.1  -  -"
+  reference row: "chr1  67108753 67109046  L1P5  1892  +"
+  -> generated puts ENST id in name col (col4) with '-' score (col5);
+     reference uses repeat-family name (col4) + numeric score (col5).
+  -> per spec, Gencode-derived entries should have name '-', not the ENST id.
+- Over-generation likely from emitting all 249,043 gencode transcripts as rows.

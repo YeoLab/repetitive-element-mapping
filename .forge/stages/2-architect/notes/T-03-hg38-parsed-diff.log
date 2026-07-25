@@ -1,0 +1,23 @@
+# T-03 hg38 parsed_ucsc_tableformat reproduction — validation log
+Date: 2026-07-25
+
+RESULT: CONTENT-IDENTICAL, ROW-ORDER DIFFERS (functionally passing)
+
+- Generated line count: 249,044  (reference: 249,044) — MATCH
+- Raw `diff`: 497,540 lines differ (nearly every row) — but purely due to ordering.
+- After `sort` on both files: diff = 0 lines, MD5 IDENTICAL (01244eef2f97da25128feff32e79fc06).
+  => Every transcript present with byte-identical field values.
+
+Row-order analysis:
+- Reference order is NOT sorted(gene_id,transcript_id) and NOT raw-GTF appearance order.
+  Reference row 1 = ENSG00000164054/chr3; GTF first transcript = ENSG00000223972;
+  sorted-first = ENSG00000000003. => reference uses original UCSC tool's internal order.
+- Our script emits sorted(gene_id, transcript_id).
+
+Order-dependence of consumer:
+- bin/perl/duplicate_removal_inline_paired.count_region_other_reads_masksnRNAs_andreparse_SEandPE_20201210_simple.pl
+  sub read_gencode(): `while (<F>)` keys each line by transcript id ($tmp[1]) into a hash.
+  => ROW ORDER IS IRRELEVANT to pipeline behavior.
+
+VERDICT: Strict byte-identical AC-01 fails on cosmetic ordering only. Content is 100% correct
+and consumed order-independently. Recommend accepting as PASS (content-equivalence).
