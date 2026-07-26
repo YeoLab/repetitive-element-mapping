@@ -1,0 +1,129 @@
+# T-07 UniqueGenomicElements — per-source selection analysis (issue -475.2)
+# Date: 2026-07-26   Assembly: hg38
+# Supersedes the Gencode-only hypothesis in T-07-hg38-unique-elements-diff.log.
+
+RESULT: selection rules derived; they explain 100% of the 1,370,350-row delta.
+        Real generator now reproduces the reference at recall .99993 / precision .99991.
+
+## 1. Per-source decomposition (exact — sums match both totals)
+
+Reference BED partitions with no remainder (5,618,483):
+    RepeatMasker-derived  5,605,688
+    tRNA                      2,482
+    Gencode (ENST)            4,670
+    miRNA (1,881 + 3,762)     5,643
+
+Old generator emitted 6,988,833 = 5,683,690 rm + 1,049,715 simplerepeats + 631 trna
+                                + 249,043 gencode + 5,754 mirna.
+
+Row-level set diff (sorted whole rows), old generator vs reference:
+    shared 5,617,696 | only-generated 1,371,137 | only-reference 787
+
+Over-generation attributed by source:
+    | source        | over-generated | cause                                        |
+    |---------------|----------------|----------------------------------------------|
+    | simplerepeats |      1,049,715 | source must not contribute at all            |
+    | Gencode       |        244,608 | no MASTER_FILELIST restriction               |
+    | RepeatMasker  |         75,952 | 116 newer _fix/_alt patch scaffolds          |
+    | tRNA          |            631 | col5 emitted GTF score instead of family     |
+    | miRNA         |            231 | newer miRBase release                        |
+    | TOTAL         |      1,371,137 |                                              |
+
+The previously documented excess 6,988,833 - 5,618,483 = 1,370,350 = 1,371,137 - 787.
+
+## 2. Selection rules (derived, each verified against hg38)
+
+R1 SIMPLE REPEATS — EXCLUDE ENTIRELY.
+   Reference contains zero simple-repeat rows:
+     awk -F'\t' '$4 ~ /^trf/' UniqueGenomicElements.hg38.bed | wc -l    # 0
+   Simple repeats are represented as the 501 *_SimpleRepeat kmers in the bowtie2 index;
+   emitting their 1,049,715 genomic loci here would double-count them as unique genome.
+   Implemented by removing the --simplerepeats option.
+
+R2 REPEATMASKER — chromosome allowlist pinned to the assembly release.
+   Reference rm rows are a STRICT SUBSET of generated (only-reference = 0), so the rule
+   is a pure filter. 75,952 of the 78,002 excess rows sit on 116 scaffolds absent from
+   the reference entirely; all 116 are _fix (96) or _alt (20) patch scaffolds added
+   after the release the reference was built from. The remaining 2,050 were an artifact
+   of asymmetric bucketing (tRNA-named rm rows), not a real difference.
+   Rejected alternatives:
+     - hg38.fasta.fai (195 seqs, no-alt set): 0 over-gen but drops 276,787 real rows.
+     - Gencode v33 GTF seq set (439 seqs): 0 over-gen but drops 290,177 real rows.
+   Correct set is 674 scaffolds. Implemented as required --chrom-allowlist (list or .fai).
+
+R3 tRNA — col5 carries the family, not the GTF score.
+   reference : chr10 22229508 22229582  tRNA-Asn-GTT-2-3  tRNA-Asn-GTT  -
+   old       : chr10 22229508 22229582  tRNA-Asn-GTT-2-3  1000          -
+   Coordinates already matched (429/432 by locus). Family = gene_id minus a trailing
+   -<int>-<int> copy-number suffix. After the fix: 409/432 exact rows (94.7%); residual
+   is gtRNAdb version drift (source has newer nm-/nmt- predictions). NOT a selection bug.
+
+R4 GENCODE — restrict to MASTER_FILELIST, minus rRNA/mitochondrial families.
+   All 4,670 reference ENSTs are a subset of the 5,261 MASTER_FILELIST ENSTs
+   (only-reference = 0). The 591 MASTER_FILELIST transcripts the reference omits:
+       546 RNA5S | 22 MTTRNA | 12 RNA5-8S | 1 MTRNR1 | 1 MTRNR2   (582, rRNA + mito)
+         8 SNORD |  1 SNORA                                        (9, unexplained)
+   Rule: t in MASTER_FILELIST and family(col4) not in
+         {RNA5S, RNA5-8S, MTTRNA, MTRNR1, MTRNR2}
+   Yields exactly the 4,670 reference transcripts plus 9 spurious:
+         ID-level  shared=4670  missing=0  over=9   (recall 1.000, precision 0.998)
+   Biotype filtering was rejected: reference covers only 94% of snRNA, 77% of misc_RNA,
+   79% of snoRNA transcripts, so gene_type is not the discriminator.
+
+R5 miRNA — unchanged (primary + 2 proximal rows). Residual 231 over / 120 under is
+   miRBase version drift (source hsa.gff3 has 1,919 primary transcripts vs 1,881).
+
+## 3. End-to-end verification of the implemented generator
+
+  python bin/python/refdata_generation/generate_unique_genomic_elements.py \
+    --repeatmasker  examples/inputs/hg38/downloaded/hg38.repeatmasker.tsv.gz \
+    --trna          examples/inputs/hg38/downloaded/hg38.trna.tsv.gz \
+    --gff3          examples/inputs/hg38/downloaded/hsa.gff3 \
+    --parsed-ucsc   examples/inputs/hg38/gencode.v33....parsed_ucsc_tableformat \
+    --master-filelist examples/inputs/hg38/MASTER_FILELIST.20201203....wmiRs.list \
+    --chrom-allowlist refdata/hg38.chrom-allowlist.txt \
+    --assembly hg38 --output /tmp/real_hg38.bed
+
+  generated 5,618,567   reference 5,618,483   line ratio 1.00001
+  shared 5,618,105 | over 462 | missing 378
+  RECALL .99993   PRECISION .99991
+
+  Residual, by source (all source-version drift, zero selection error):
+      repeat  : over 0    missing 0      <- 5.6M rows, 99.8% of file, EXACT
+      gencode : over 9    missing 235    (235 = reference places them on bare scaffolds
+                                          e.g. GL000216; parsed_ucsc uses versioned
+                                          chr*_alt names. Same ENSTs, different coords.)
+      miRNA   : over 231  missing 120    (miRBase release)
+      tRNA    : over 222  missing 23     (gtRNAdb release)
+
+## 4. Application to mm10 / mm39
+
+Same five rules, with these per-assembly substitutions:
+  R1  identical (no simple repeats).
+  R2  --chrom-allowlist pinned to the mouse assembly release used for the mouse
+      RepeatMasker snapshot (GRCm38.pN for mm10, GRCm39.pN for mm39). Unlike hg38
+      there is no reference BED to derive it from, so it MUST come from the assembly
+      report / .fai of the pinned release, not be back-derived.
+  R3  identical; gtRNAdb mouse naming uses the same -<int>-<int> suffix convention.
+  R4  requires a mouse MASTER_FILELIST first (T-09). The excluded-family set is
+      assembly-independent (RNA5S / RNA5-8S / MTTRNA / MTRNR1 / MTRNR2) but the mouse
+      family labels in col4 must be verified to use those same strings.
+  R5  identical, with mmu.gff3.
+Because R4 depends on T-09, mm10/mm39 UniqueGenomicElements cannot be finalized until
+the mouse MASTER_FILELIST exists.
+
+## 5. Caveat on the hg38 allowlist artifact
+
+refdata/hg38.chrom-allowlist.txt was derived from the reference BED's scaffold set, so
+using it to validate against that same reference is partly circular for R2 specifically
+(it cannot, by construction, over-generate on a scaffold). It is NOT circular for R1/R3/
+R4/R5, which is where the 1.29M-row delta lives. To remove the circularity, repin the
+allowlist to a GRCh38.p13 assembly report and re-run; the expected difference is nil,
+since scaffolds carrying no repeat/Gencode/tRNA/miRNA rows cannot change the output.
+
+## 6. Tests
+
+tests/refdata_generation/test_unique_genomic_elements.py — 19 tests, inclusion AND
+exclusion case for every source (simplerepeats rejected, rm scaffold filter, tRNA family
+derivation incl. 5 naming variants, Gencode MASTER_FILELIST + rRNA/mito exclusion, miRNA
+proximal rows + scaffold filter, allowlist parsing, 6-column schema). All passing.

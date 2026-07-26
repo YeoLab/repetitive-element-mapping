@@ -55,9 +55,33 @@ Coverage of the 1,224 hg38 index families:
   residual** families (CR1L, DEUSINE, E1/2/3, UCON*, L7/L23/L28…) must be resolved first.
 - **Required before implementation: an alias-resolution pass.** The residuals are candidate
   name variants; resolve via (a) suffix/case normalization (`DEUSINE`↔`DEUSINE1`), (b) the
-  RepBase↔RepeatMasker name-mapping tables in the RM Edition `Libraries/`, (c) genomic
-  `getfasta` of a representative instance for any family present in `repeatmasker.tsv.gz`
-  but in neither library. Re-measure coverage after aliasing; only then is ≥99% claimable.
+  RepBase↔RepeatMasker name-mapping tables in the RM Edition `Libraries/`. Re-measure
+  coverage after aliasing; only then is ≥99% claimable.
+
+### 4a. Consensus-source policy (no genomic fallback)
+
+A repeat-family sequence in this index is a **family consensus**. A genomic instance is not
+a consensus — substituting one reintroduces exactly the source error that caused T-05, and
+mouse has no gold reference that would catch it. Therefore:
+
+- **Permitted sources, in priority order, and nothing else:**
+  1. RepBase 24.01 `.ref` consensus (species-selected taxon files).
+  2. RepeatMasker Edition `Libraries/RMRBSeqs.embl` consensus.
+  3. An explicit, recorded alias into (1) or (2).
+- **`getfasta` of a representative RepeatMasker instance is prohibited** as a source for any
+  repeat-family sequence. (It remains the correct method for the *Gencode transcript*
+  portion of the FASTA, which is genomic by definition.)
+- **Every emitted repeat family must carry provenance.** The generator writes a sidecar TSV
+  `<output>.provenance.tsv` with `family, source ∈ {repbase24.01, rm_edition}, source_file,
+  resolved_identifier, alias_of_or_'-'`. A family with no provenance row is a build error.
+- **Unresolved families cannot pass silently.** A family selected by §4b but absent from
+  both libraries after aliasing is written to `<output>.unresolved.txt` and **omitted** from
+  the FASTA. The generator exits non-zero unless the caller passes
+  `--allow-unresolved <n>` acknowledging a count, and the coverage gate is computed over the
+  *selected* set — so omissions lower coverage rather than being hidden by a smaller
+  denominator.
+- **Mouse uses the identical policy.** No hg38-only leniency: mm10/mm39 emit the same
+  provenance sidecar and the same non-zero exit on unacknowledged unresolved families.
 
 ## 4b. Family-SELECTION rule (which families to include)
 
@@ -78,20 +102,34 @@ then apply with mouse ref-set to mm10/mm39.
 Header-level checks are necessary but **not sufficient** — the MER5A example proves two
 FASTAs can share a header yet differ in sequence. Validate at the **sequence** level:
 
-1. Header count within 99% of 7,606, and **no duplicate headers** (`grep '^>' | sort | uniq -d`
-   must be empty).
-2. Family-header set overlap ≥99% vs reference (`comm -12` on sorted headers).
-3. **Per-header sequence match**: for each shared header, compare a normalized sequence
-   hash (uppercase, IUPAC→N applied to both) — require ≥99% of shared headers to hash-match
-   the reference sequence. Report the non-matching headers, not just a count.
+Checks 1–3 are implemented by `bin/python/refdata_generation/validate_fasta_equivalence.py`
+(tests: `tests/refdata_generation/test_validate_fasta_equivalence.py`). Do **not** use an
+ad-hoc AWK one-liner: the obvious sketch substitutes `[RYMKSWBDHV]` *before* uppercasing, so
+lowercase ambiguity codes (`rymk`) survive as `RYMK` instead of `NNNN` and soft-masked
+records mis-compare. The validator uppercases first, then maps every non-ACGT byte to `N`.
+
+1. **No duplicate headers** — the validator raises and exits 2 on any repeated header.
+2. **Header set overlap** — reports `shared`, `missing` (in reference, not in new) and
+   `extra`; `--max-missing` gates the missing count (default 0).
+3. **Per-header sequence match** — SHA-256 of each canonicalized record is compared, and
+   `--min-match` gates `matching/shared` (default 0.99). Non-matching headers are listed,
+   not just counted. Records are streamed, so memory is O(headers), not O(sequence).
 4. `bowtie2-inspect --summary` exit 0.
 5. Clean header format (no `::coords` suffix) across ALL headers, not a spot-check.
 
 ```bash
-# sequence-level overlap sketch
-norm() { awk '/^>/{if(h)print h"\t"s; h=$0; s=""; next}{gsub(/[RYMKSWBDHV]/,"N",$0); s=s toupper($0)} END{print h"\t"s}' "$1"; }
-join -j1 <(norm new.fa|sort) <(norm ref.fa|sort) | awk '$2==$3{ok++} END{print ok" seq-identical"}'
+python bin/python/refdata_generation/validate_fasta_equivalence.py \
+  new.fa examples/inputs/hg38/bowtie2_index/MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat.fa \
+  --min-match 0.99 --max-missing 0
+# new=7606 reference=7606 shared=7606
+# missing=0 extra=0
+# matching=7606 mismatching=0 match_fraction=1.00000 (threshold 0.99)
+# PASS
 ```
+
+Confirmed on real data: the reference index has 7,606 unique headers (no duplicates), and
+the MER5A `.ref`-vs-index IUPAC-only difference is correctly absorbed as a match, while a
+genuine single-base difference is reported as `mismatching`.
 
 Then regenerate mm10/mm39 with `--species mouse` and re-run checks 1–5.
 

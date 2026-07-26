@@ -9,17 +9,61 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from bin.python.refdata_generation._shared import open_maybe_gz, parse_gtf_attributes, setup_logger
 
 
+# Families excluded from the unique-genome track: multi-copy rRNA and mitochondrial
+# transcripts. Reads over these must be assigned to their repeat family, not to a
+# "unique" genomic locus (cf. the RNA45S rRNA_extra_hash handling in
+# parse_bowtie2_output_realtime_includemultifamily_{PE,SE}.pl). Derived from the hg38
+# reference: these 5 families account for 582 of the 591 MASTER_FILELIST transcripts
+# that the reference BED omits.
+GENCODE_EXCLUDED_FAMILIES = frozenset({'RNA5S', 'RNA5-8S', 'MTTRNA', 'MTRNR1', 'MTRNR2'})
+
+# Trailing gtRNAdb copy-number suffix, e.g. tRNA-Asn-GTT-2-3 -> tRNA-Asn-GTT
+TRNA_COPY_SUFFIX = re.compile(r'-[0-9]+-[0-9]+$')
+
+
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--repeatmasker', required=True)
-    p.add_argument('--simplerepeats')
     p.add_argument('--trna')
     p.add_argument('--gff3')
     p.add_argument('--parsed-ucsc')
+    p.add_argument('--master-filelist', required=True,
+                   help='MASTER_FILELIST TSV; restricts the Gencode contribution to its '
+                        'curated transcripts (col1=ENST, col4=family)')
+    p.add_argument('--chrom-allowlist', required=True,
+                   help='One scaffold name per line (or a .fai). Rows on any other '
+                        'scaffold are dropped. Pin to the assembly patch release the '
+                        'reference was built from (hg38 reference = GRCh38.p13).')
     p.add_argument('--assembly', required=True)
     p.add_argument('--output', required=True)
     p.add_argument('--flank', type=int, default=500)
     return p.parse_args()
+
+
+def read_chrom_allowlist(path):
+    """Read scaffold names from a plain list or a .fai (first whitespace field)."""
+    names = set()
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            names.add(line.split()[0])
+    return names
+
+
+def read_gencode_allowed_transcripts(path):
+    """Transcript ids from MASTER_FILELIST whose family is not rRNA/mitochondrial."""
+    allowed = set()
+    with open(path) as fh:
+        for line in fh:
+            parts = line.rstrip('\n').split('\t')
+            if len(parts) < 4 or not parts[0].startswith('ENST'):
+                continue
+            if parts[3] in GENCODE_EXCLUDED_FAMILIES:
+                continue
+            allowed.add(parts[0])
+    return allowed
 
 
 def parse_gtf_bed_rows(path, name_field='gene_id'):
@@ -43,6 +87,16 @@ def parse_gtf_bed_rows(path, name_field='gene_id'):
             except (ValueError, OverflowError):
                 score_val = '0'
             yield (chrom, start0, end0, name, score_val, strand)
+
+
+def parse_trna_bed_rows(path):
+    """Yield tRNA rows as (chrom, start0, end0, gene_id, family, strand).
+
+    Column 5 carries the tRNA family (gene_id minus its copy-number suffix), not the
+    GTF score -- the hg38 reference uses e.g. 'tRNA-Asn-GTT-2-3' / 'tRNA-Asn-GTT'.
+    """
+    for chrom, start0, end0, name, _score, strand in parse_gtf_bed_rows(path, name_field='gene_id'):
+        yield (chrom, start0, end0, name, TRNA_COPY_SUFFIX.sub('', name), strand)
 
 
 def parse_gff3_mirna(path):
@@ -86,37 +140,39 @@ def main():
     args = parse_args()
     log = setup_logger('generate_unique_genomic_elements')
 
+    allowed_chroms = read_chrom_allowlist(args.chrom_allowlist)
+    log.info(f'Chromosome allowlist: {len(allowed_chroms)} scaffolds')
+    allowed_transcripts = read_gencode_allowed_transcripts(args.master_filelist)
+    log.info(f'Gencode allowlist: {len(allowed_transcripts)} curated transcripts '
+             f'(families {sorted(GENCODE_EXCLUDED_FAMILIES)} excluded)')
+
     rows = []
 
-    # RepeatMasker (required) — all instances, gene_id
+    # RepeatMasker (required) — all instances, gene_id.
+    # Simple repeats are deliberately NOT a source here: the hg38 reference BED contains
+    # zero simple-repeat rows. They are represented as SimpleRepeat kmers in the bowtie2
+    # index instead, so emitting them would double-count 1.05M loci as "unique genome".
     log.info('Reading RepeatMasker...')
     rm_rows = list(parse_gtf_bed_rows(args.repeatmasker, name_field='gene_id'))
     log.info(f'  {len(rm_rows)} RepeatMasker entries')
     rows.extend(rm_rows)
 
-    # Simple repeats (optional) — all instances, transcript_id (Edge Case 9)
-    if args.simplerepeats:
-        log.info('Reading simple repeats...')
-        sr_rows = list(parse_gtf_bed_rows(args.simplerepeats, name_field='transcript_id'))
-        log.info(f'  {len(sr_rows)} simple repeat entries')
-        rows.extend(sr_rows)
-    else:
-        log.warning(f'--simplerepeats not provided; simple repeat entries omitted from {args.assembly} UniqueGenomicElements')
-
-    # tRNA (optional) — all instances, gene_id
+    # tRNA (optional) — gene_id in col4, family in col5
     if args.trna:
         log.info('Reading tRNA...')
-        trna_rows = list(parse_gtf_bed_rows(args.trna, name_field='gene_id'))
+        trna_rows = list(parse_trna_bed_rows(args.trna))
         log.info(f'  {len(trna_rows)} tRNA entries')
         rows.extend(trna_rows)
     else:
         log.warning(f'--trna not provided; tRNA entries omitted from {args.assembly} UniqueGenomicElements')
 
-    # Gencode transcripts (optional) — transcript_id, score="-", actual strand
+    # Gencode transcripts (optional) — transcript_id, score="-", actual strand;
+    # restricted to the MASTER_FILELIST curated set
     if args.parsed_ucsc:
         log.info('Reading Gencode from parsed_ucsc...')
-        gc_rows = list(parse_parsed_ucsc(args.parsed_ucsc))
-        log.info(f'  {len(gc_rows)} Gencode transcript entries')
+        gc_all = list(parse_parsed_ucsc(args.parsed_ucsc))
+        gc_rows = [r for r in gc_all if r[3] in allowed_transcripts]
+        log.info(f'  {len(gc_rows)} Gencode transcript entries kept of {len(gc_all)}')
         rows.extend(gc_rows)
     else:
         log.warning(f'--parsed-ucsc not provided; Gencode entries omitted from {args.assembly} UniqueGenomicElements')
@@ -135,6 +191,11 @@ def main():
         log.info(f'  {mirna_count} miRNA entries ({mirna_count * 2} proximal rows added)')
     else:
         log.warning(f'--gff3 not provided; miRNA entries omitted from {args.assembly} UniqueGenomicElements')
+
+    # Drop scaffolds absent from the pinned assembly release (newer _fix/_alt patches)
+    before = len(rows)
+    rows = [r for r in rows if r[0] in allowed_chroms]
+    log.info(f'Chromosome allowlist dropped {before - len(rows)} of {before} rows')
 
     # Sort by (chrom, start, end, name) — lexicographic
     log.info(f'Sorting {len(rows)} total rows...')

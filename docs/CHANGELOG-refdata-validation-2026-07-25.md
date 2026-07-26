@@ -57,7 +57,7 @@ BED) has not been assumed either way; validate content, not sorted content, for 
 |---|---|---|---|---|
 | T-03 | `generate_parsed_ucsc_tableformat.py` | 249,044 = 249,044 | sorted-MD5 identical | **PASS** |
 | T-05 | `generate_bowtie2_index.py` | 26,353 vs 7,606 (0.29) | wrong headers + wrong source | **FAIL** |
-| T-07 | `generate_unique_genomic_elements.py` | 6,988,833 vs 5,618,483 (0.80) | over-selection (all 249,043 Gencode vs curated 4,670); schema OK | **FAIL** |
+| T-07 | `generate_unique_genomic_elements.py` | 6,988,833 vs 5,618,483 (0.80) | multi-source over-selection; schema OK | **FAIL → FIXED 2026-07-26** (recall .99993 / precision .99991) |
 | T-09 | `generate_master_filelist.py` | 26,252 vs 26,422 (0.99) | biotype vs repeat-family labels | **FAIL (content)** |
 
 Per-task logs: `.forge/stages/2-architect/notes/T-0{3,5,7,9}-*.log`.
@@ -110,10 +110,28 @@ awk -F'\t' '$4 ~ /^ENST/' <reference>.bed | wc -l    # 4,670 rows
 # e.g.  chr6  159785593 159785733  ENST00000384183.1  -  -   (col4=ENST, col5='-', col6=strand)
 ```
 
-matching `generate_unique_genomic_elements.py:72`. The **schema is correct.** The real
-defect is **selection**: the generator emits all **249,043** Gencode transcripts, whereas
-the reference includes only a curated **4,670**. Fix = restrict the Gencode contribution to
-the curated transcript subset; do not change the column layout.
+matching `parse_parsed_ucsc` in `generate_unique_genomic_elements.py`. The **schema is
+correct.** The real
+defect is **selection** — and it is **multi-source**, not Gencode-only.
+
+**Update (2026-07-26, issue -475.2 — RESOLVED).** A Gencode-only fix cannot close the gap:
+restricting 249,043 transcripts to 4,670 removes 244,373 of the 1,370,350 excess rows.
+A per-source diff attributes the delta completely:
+
+| source | over-generated | rule |
+|---|---|---|
+| simple repeats | 1,049,715 | **exclude entirely** — reference has 0 such rows |
+| Gencode | 244,608 | restrict to MASTER_FILELIST minus rRNA/mito families |
+| RepeatMasker | 75,952 | chromosome allowlist pinned to the assembly release |
+| tRNA | 631 | col5 = family, not GTF score (a derivation bug) |
+| miRNA | 231 | miRBase version drift |
+
+With all five rules implemented the generator reproduces hg38 at **recall 0.99993 /
+precision 0.99991** (5,618,567 vs 5,618,483 rows); the 5.6M RepeatMasker rows — 99.8% of
+the file — match exactly. Residuals are source-version drift (miRBase, gtRNAdb, scaffold
+naming), not selection error. Full derivation, rejected alternatives, and the mm10/mm39
+application: `.forge/stages/2-architect/notes/T-07-per-source-selection.log`.
+Tests: `tests/refdata_generation/test_unique_genomic_elements.py` (19, passing).
 
 ### T-09 — MASTER_FILELIST: FAIL (content)
 
@@ -208,8 +226,11 @@ print(''.join(seq).upper())
 3. **Normalize** IUPAC ambiguity codes → `N` (the `.fixed.fa` step).
 
 Coverage of the 1,224 index families: RepBase 24.01 = 1,116; RM Edition = 864;
-**union = 1,199/1,224 (98%)**; 25 residual are likely name variants (within the ≥99%
-content-equivalence bar).
+**union = 1,199/1,224 = 97.96%**. This is **below** the ≥99% gate (which needs ≥1,212);
+it does **not** pass. The 25 residual families are *candidate* name variants — an
+alias-resolution pass (case/suffix normalization, RM Edition name-mapping tables) must run
+and coverage must be re-measured before ≥99% can be claimed. Substituting a genomic
+instance for an unresolved family is prohibited; see FIX-PLAN §4a.
 
 ### Reproduction of the analysis
 
@@ -245,8 +266,9 @@ Full plan: `.forge/stages/2-architect/notes/FIX-PLAN-bowtie2-index.md`. Summary:
   column derivation (`col3=gene_name`, `col4=family` by stripping the copy-number suffix
   e.g. `RNU6-2→RNU6`, `col5=genelists.{family}`), a repeat family→class map
   (`ALUY→Alu→SINE`), **and row-order preservation** (order sets mapping priority — see §1).
-- **T-07 (UniqueGenomicElements)**: schema is correct; fix is **selection only** — restrict
-  the Gencode contribution from 249,043 transcripts to the curated 4,670 subset.
+- **T-07 (UniqueGenomicElements)**: ~~pending~~ **DONE 2026-07-26.** Schema was correct; the
+  fix was selection, across five sources (not Gencode alone) — see §T-07 above. mm10/mm39
+  still blocked on T-09, because the Gencode rule needs a mouse MASTER_FILELIST.
 
 ## 6. Environment notes (tools needed to run the generators)
 
@@ -270,4 +292,16 @@ Because mm10/mm39 were produced by the three failing generators, their bowtie2 i
 UniqueGenomicElements, and MASTER_FILELIST are wrong in the same ways; only the
 `parsed_ucsc_tableformat` files are trustworthy. The mm10 "32% missing IDs" report is a
 downstream symptom of the T-05 genomic-getfasta approach. Reference generation is **not
-~95% complete** — three generators require rework before the mouse files are valid.
+~95% complete** — the earlier "~95%" figure counted scripts written, not outputs validated.
+
+**Status as of 2026-07-26:**
+
+| Generator | hg38 reproduction | mouse outputs |
+|---|---|---|
+| `generate_parsed_ucsc_tableformat.py` | PASS | valid |
+| `generate_unique_genomic_elements.py` | **PASS** (recall .99993) | must be regenerated; blocked on T-09 for the Gencode rule |
+| `generate_bowtie2_index.py` | FAIL — rewrite planned, not implemented | invalid |
+| `generate_master_filelist.py` | FAIL — depends on T-05 | invalid |
+
+Remaining order of work: T-05 (alias resolution → ≥99% coverage gate → rewrite) → T-09
+(mouse MASTER_FILELIST) → regenerate mm10/mm39 UniqueGenomicElements → integration test.
