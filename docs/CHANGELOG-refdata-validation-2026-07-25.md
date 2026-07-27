@@ -226,11 +226,30 @@ print(''.join(seq).upper())
 3. **Normalize** IUPAC ambiguity codes → `N` (the `.fixed.fa` step).
 
 Coverage of the 1,224 index families: RepBase 24.01 = 1,116; RM Edition = 864;
-**union = 1,199/1,224 = 97.96%**. This is **below** the ≥99% gate (which needs ≥1,212);
-it does **not** pass. The 25 residual families are *candidate* name variants — an
-alias-resolution pass (case/suffix normalization, RM Edition name-mapping tables) must run
-and coverage must be re-measured before ≥99% can be claimed. Substituting a genomic
-instance for an unresolved family is prohibited; see FIX-PLAN §4a.
+**union = 1,199/1,224 = 97.96%** — below the ≥99% gate.
+
+**Superseded (2026-07-27).** The two-library reconstruction above is no longer the plan.
+The 25 "missing" families were never absent from RepBase — only from the *human ref-set
+file selection* (18 are in `pseudo.ref`, 6 in `vrtrep.ref`, 1 in `invrep.ref`; adding those
+three files takes RepBase 24.01 alone to 1,221/1,224 and the union to 1,224/1,224).
+
+The actual source is simpler and exact:
+
+```
+/tscc/projects/ps-yeolab4/genomes/RepBase18.05.fasta/species_specific/
+    homo_sapiens_repbase_fixed_v2.fasta       1,356 records
+    mus_musculus_repbase_u1_fixed_v2.fastq    1,194 records  (FASTA content)
+```
+
+One file covers **1,224/1,224 = 100%** of the hg38 index repeat families, verified by both
+`<FAMILY>_` header prefix and canonical sequence digest (700 byte-exact; the other 524 match
+after IUPAC→N — precisely the `.fixed.fa` step). The `_fixed_v2` naming and Dec-2017 date fit
+the 2020-12-03 index build, and a mouse counterpart exists.
+
+This removes the second library, the EMBL parser, the alias-resolution pass, and the ≥99%
+coverage gate — the repeat portion is an exact reproduction, not a thresholded one. Full
+derivation, including the family-selection rule (1,356 → 1,224, exact): FIX-PLAN §2–§4b.
+Substituting a genomic instance for an unresolved family remains prohibited (FIX-PLAN §4a).
 
 ### Reproduction of the analysis
 
