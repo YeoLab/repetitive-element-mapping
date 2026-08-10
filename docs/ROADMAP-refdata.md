@@ -36,7 +36,7 @@ so far ran to completion and produced plausible numbers.
 
 | Phase | Status | Evidence |
 |---|---|---|
-| 0 | **PASS** on SE, after fixing an output-corrupting defect | Read counts reproduce the CWL reference exactly; residual 1e-12 (`475.23`). PE and a fresh v0.1.0 baseline outstanding (`475.24`–`475.27`) |
+| 0 | **PASS on SE and PE.** Three defects found and closed | Read counts reproduce the CWL references exactly (SE 182/182, PE 169/169); residual ≤1.6e-11 (`475.16`, `475.23`, `475.29` all closed) |
 | 1 | Blocker fixed, full SE rerun reproduces the reference | Zero repeat-family reads traced to bowtie2 missing from PATH + a swallowed exit code; fixed (`475.16`) |
 | 2 | Partial | Knowledge exists as defect narratives in `.forge/stages/2-architect/notes/`, not as a schema (`475.18`) |
 | 3 | Essentially done, unrecorded | RepBase 18.05 source confirmed at 100% coverage; needs a source manifest (`475.19`) |
@@ -120,6 +120,8 @@ output-corrupting defect. It is now its own phase, ahead of phase 1.
 
 ### Result: the conversion is sound, after three fixes
 
+**Validated on both SE and PE.** All three defects are closed; the full suite is 45 tests.
+
 Validated against a **fresh CWL 1.0.0 run** of the same dataset (`INV_B`), generated
 2026-08-10 on the same machine — not against the 2020 artifact of unrecorded provenance in
 `test-provenance/`. Baseline committed under `tests/cwl_baseline/ecliprepmap-1.0.0-SE/`.
@@ -133,6 +135,28 @@ Validated against a **fresh CWL 1.0.0 run** of the same dataset (`INV_B`), gener
 
 The `.parsed` files agree too: all four `#READINFO` totals and every `TOTAL` read count
 identical (22,576,144 all / 17,691,900 usable / 8,214,042 genomic / 9,477,858 rep-family).
+
+PE, against the `test-provenance` PE reference: **169 / 169 elements, read counts exactly
+identical, max relative deviation 2.0e-13.**
+
+### The three defects, and what each one teaches
+
+| Issue | Defect | Symptom it presented as | Reached the TSVs? |
+|---|---|---|---|
+| `475.16` | bowtie2 exit code discarded | `RepFamilyReads 0` — looked like bad reference data | Yes — everything zero |
+| `475.23` | RPR truncated to 5 decimals | `inf` fold enrichment — looked like division by zero | Yes — 21% of rows |
+| `475.29` | usable fraction as `usable/usable` | a plausible `1.0` | **No** |
+
+The third is the instructive one. It produced a value nothing would flag, never reached the
+TSVs at all (fold enrichment derives from the `TOTAL` rows), and survived every output
+comparison. It was caught only by diffing `.parsed` **headers** against a CWL run — which is
+why `tests/cwl_baseline/` keeps the `.parsed` `#READINFO` header alongside the TSVs, and why
+`475.27` should compare both.
+
+`475.30` records the same unchecked-pipe defect as `475.16` still present in the Perl mappers.
+It is deliberately unpatched: the CWL resolves the script from `PATH` to the installed module
+copy, not this repo's, so patching here would change nothing while perturbing the reference
+implementation that equivalence testing depends on.
 
 Read counts — the quantity the pipeline actually measures — reproduce the CWL reference
 exactly. The residual ~1e-12 is floating-point noise from the two paths reaching the derived
