@@ -128,17 +128,17 @@ def main():
         if usable > 0:
             out.write(
                 f"#READINFO\tUsableReads\t{usable}\t"
-                f"{usable / usable:.5f}\n"
+                f"{usable / usable}\n"
             )
             genomic = read_sums.get("genomic", 0)
             repfamily = read_sums.get("repfamily", 0)
             out.write(
                 f"#READINFO\tGenomicReads\t{genomic}\t"
-                f"{genomic / usable:.5f}\n"
+                f"{genomic / usable}\n"
             )
             out.write(
                 f"#READINFO\tRepFamilyReads\t{repfamily}\t"
-                f"{repfamily / usable:.5f}\n"
+                f"{repfamily / usable}\n"
             )
         else:
             out.write(f"#READINFO\tUsableReads\t0\t0.0\n")
@@ -149,7 +149,7 @@ def main():
         total = read_sums.get("total", {})
         for element in sorted(total, key=lambda k: -total[k]):
             rpm = total[element] / usable if usable > 0 else 0
-            out.write(f"TOTAL\t{element}\t{total[element]}\t{rpm:.5f}\n")
+            out.write(f"TOTAL\t{element}\t{total[element]}\t{rpm}\n")
 
         # ELEMENT lines sorted by readnum descending
         element_dict = read_sums.get("element", {})
@@ -158,7 +158,7 @@ def main():
             rpm = el["readnum"] / usable if usable > 0 else 0
             out.write(
                 f"ELEMENT\t{el['ensg_primary']}\t{el['readnum']}\t"
-                f"{rpm:.5f}\t{enst_all}\t{el['ensg_all']}\n"
+                f"{rpm}\t{enst_all}\t{el['ensg_all']}\n"
             )
 
 
