@@ -3,9 +3,15 @@
 
 Read counts are integers produced by deterministic counting and must match
 exactly. The derived float columns (clip_rpr, Fold_enrichment,
-Information_content) are compared with a relative tolerance, because the CWL and
-Snakemake paths reach them through different arithmetic and differ at the
-~1e-15 level.
+Information_content) are compared with a relative tolerance.
+
+That tolerance exists for one specific reason: Perl stringifies rpr with 15
+significant digits when writing .parsed, while Python writes full float64. Both
+implementations then evaluate ip * log2(ip / input) exactly. Near
+log2(ratio) ~ 0 that formula amplifies the input truncation -- measured ~7x --
+so Information_content on small values drifts furthest. Observed maxima against
+a fresh CWL 1.0.0 run: 4.6e-12 (nopipes), 1.6e-11 (withpipes). The default 1e-9
+sits above that and well below anything biologically meaningful.
 
 Row ORDER is not compared. Elements with equal read counts are ordered by hash
 iteration in the Perl implementation, so tie order is not reproducible across
@@ -125,7 +131,7 @@ def main():
     p.add_argument("reference")
     p.add_argument("--tol", type=float, default=1e-9,
                    help="relative tolerance for derived float columns "
-                        "(default 1e-9; CWL-vs-Snakemake noise is ~1e-15)")
+                        "(default 1e-9; measured CWL-vs-Snakemake maximum is 1.6e-11)")
     p.add_argument("--show", type=int, default=5,
                    help="how many examples to print per problem class")
     args = p.parse_args()
