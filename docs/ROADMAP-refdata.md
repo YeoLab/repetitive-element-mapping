@@ -11,10 +11,11 @@ has **no reference outputs to validate against**, so mouse correctness cannot be
 directly. It can only be inherited — from a chain of evidence built on human, where reference
 outputs *do* exist.
 
-That chain is six phases. Every phase exists to make the next one interpretable:
+That chain is seven phases. Every phase exists to make the next one interpretable:
 
 | # | Phase | Why the next phase needs it |
 |---|---|---|
+| 0 | Verify the Snakemake pipeline is equivalent to the CWL/Perl one | Everything downstream assumes the engine computes the same thing; it was never tested |
 | 1 | Run the pipeline on stock hg38 refdata, reproduce the reference outputs | Establishes that the *pipeline* is correct, so later discrepancies can be blamed on refdata |
 | 2 | Document the structure of the four hg38 artifacts | You cannot regenerate a file whose schema and invariants are unstated |
 | 3 | Identify the upstream sources that can regenerate each artifact | Names what regeneration is even made of |
@@ -26,11 +27,17 @@ The failure mode this structure guards against: regenerate mouse refdata, get pl
 output, and have no way to know it is wrong. Phase 5 is the load-bearing step — it is the last
 moment a generator bug meets a known-correct answer.
 
+Phase 0 was added on 2026-08-10 after the first end-to-end comparison of the two engines found
+a defect that silently corrupted 21% of the output rows. The lesson generalizes: **a translated
+pipeline needs equivalence testing against the original, not smoke testing.** Both defects found
+so far ran to completion and produced plausible numbers.
+
 ## Current status
 
 | Phase | Status | Evidence |
 |---|---|---|
-| 1 | Blocker fixed, rerun in progress | Zero repeat-family reads traced to bowtie2 missing from PATH + a swallowed exit code; fixed (`475.16`) |
+| 0 | **PASS** on SE, after fixing an output-corrupting defect | Read counts reproduce the CWL reference exactly; residual 1e-12 (`475.23`). PE and a fresh v0.1.0 baseline outstanding (`475.24`–`475.27`) |
+| 1 | Blocker fixed, full SE rerun reproduces the reference | Zero repeat-family reads traced to bowtie2 missing from PATH + a swallowed exit code; fixed (`475.16`) |
 | 2 | Partial | Knowledge exists as defect narratives in `.forge/stages/2-architect/notes/`, not as a schema (`475.18`) |
 | 3 | Essentially done, unrecorded | RepBase 18.05 source confirmed at 100% coverage; needs a source manifest (`475.19`) |
 | 4 | Partial | Curated constants known but not enumerated as a class (`475.20`) |
@@ -104,6 +111,76 @@ fail against the pre-fix code and pass after.
 which inputs, which reference data, which tool versions, or which command produced them. That
 `EXAMPLE_SE` corresponds to `INV_B` is inferred from matching read counts above — not documented.
 Until that is pinned down, "reproduce the reference" is not a well-defined target (`475.17`).
+
+## Phase 0 — is the Snakemake pipeline equivalent to the CWL one?
+
+Every phase below assumes the Snakemake implementation computes what the CWL/Perl one
+computed. That assumption was never tested end to end, and testing it found a second
+output-corrupting defect. It is now its own phase, ahead of phase 1.
+
+### Result: the conversion is sound, after one fix
+
+Comparing the `se_full` Snakemake run against the `ecliprepmap-1.0.0` SE reference with
+`bin/python/compare_pipeline_outputs.py`:
+
+| | `.nopipes.tsv` | `.withpipes.tsv` |
+|---|---|---|
+| Elements | 182 / 182 shared | 1,915 / 1,915 shared |
+| Read counts | **exactly identical** | **exactly identical** |
+| Max relative deviation (derived floats) | 9.5e-13 | 2.7e-12 |
+| Verdict | **PASS** | **PASS** |
+
+Read counts — the quantity the pipeline actually measures — reproduce the CWL reference
+exactly. The residual ~1e-12 is floating-point noise from the two paths reaching the derived
+columns by different arithmetic.
+
+Row **order** is deliberately not compared. Elements with equal read counts are emitted in
+Perl hash-iteration order, which is not reproducible across implementations (and, post-5.18,
+not reproducible across *runs*). Ordering among ties carries no information.
+
+### The defect this uncovered (`475.23`, P0)
+
+`merge_parsed_files.py` wrote the RPR column and the `#READINFO` fractions with `:.5f`; the
+Perl original writes a bare double. `calculate_fold_change_from_parsed_files.py` reads
+`clip_rpr` straight out of that column, so the truncation landed in the pipeline's primary
+output.
+
+On `se_full` this was **data corruption, not a rounding nicety**:
+
+- **39 of 182 elements (21%)** had `Input_clip_rpr` truncated to exactly `0.0`
+- a zero denominator makes `Fold_enrichment` and `Information_content` `inf`
+- where `IP_clip_rpr` also truncated to zero, `0/0` left the cells **empty**
+- 86 destroyed cells; 636 float columns wrong by up to **37%** relative
+- `5S-Deu-L2` fold enrichment: `1.4999` vs the correct `1.9228`
+- `antisense_Crypton`: `12  0.0  5.0  0.0  <empty>  <empty>` vs
+  `12  6.78e-07  5.0  2.82e-07  2.404  8.58e-07`
+
+Fixed by removing the format specs. Three regression tests in
+`tests/workflow_scripts/test_merge_parsed_files_precision.py` fail against the pre-fix code.
+
+### Why this keeps happening
+
+Both defects found so far — the swallowed bowtie2 exit code (`475.16`) and this truncation —
+share a shape: **the pipeline kept running and produced plausible output**. Neither raised an
+error; both were found only by comparing numbers against a reference. A translated pipeline
+needs equivalence testing, not smoke testing, and `475.26` audits the remaining scripts for
+the same two classes.
+
+### Remaining phase-0 work
+
+| Issue | Work |
+|---|---|
+| `475.24` | Fresh CWL v0.1.0 baseline run (EV136, hg19) — same-machine, same-day |
+| `475.25` | Snakemake on identical v0.1.0 inputs, compared to that baseline |
+| `475.26` | Audit remaining translated scripts for silent-failure/precision defects |
+| `475.27` | Wire the equivalence comparison into the test suite |
+
+The v0.1.0 example is **not** the repo's hg38 data: it uses EV136, Gencode v19,
+`MASTER_filelist.wrepbaseandtRNA`, mirbase v20 hg19 and `RepeatMask.bed`. Comparing against it
+requires pointing Snakemake at those same hg19 inputs.
+
+Operational note: do not pipe `module load` (`module load x | head`) — the pipeline runs it in
+a subshell and the `PATH` changes are lost.
 
 ## Phase detail
 
