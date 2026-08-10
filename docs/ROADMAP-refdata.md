@@ -118,17 +118,21 @@ Every phase below assumes the Snakemake implementation computes what the CWL/Per
 computed. That assumption was never tested end to end, and testing it found a second
 output-corrupting defect. It is now its own phase, ahead of phase 1.
 
-### Result: the conversion is sound, after one fix
+### Result: the conversion is sound, after three fixes
 
-Comparing the `se_full` Snakemake run against the `ecliprepmap-1.0.0` SE reference with
-`bin/python/compare_pipeline_outputs.py`:
+Validated against a **fresh CWL 1.0.0 run** of the same dataset (`INV_B`), generated
+2026-08-10 on the same machine — not against the 2020 artifact of unrecorded provenance in
+`test-provenance/`. Baseline committed under `tests/cwl_baseline/ecliprepmap-1.0.0-SE/`.
 
 | | `.nopipes.tsv` | `.withpipes.tsv` |
 |---|---|---|
 | Elements | 182 / 182 shared | 1,915 / 1,915 shared |
 | Read counts | **exactly identical** | **exactly identical** |
-| Max relative deviation (derived floats) | 9.5e-13 | 2.7e-12 |
+| Max relative deviation (derived floats) | 4.6e-12 | 1.6e-11 |
 | Verdict | **PASS** | **PASS** |
+
+The `.parsed` files agree too: all four `#READINFO` totals and every `TOTAL` read count
+identical (22,576,144 all / 17,691,900 usable / 8,214,042 genomic / 9,477,858 rep-family).
 
 Read counts — the quantity the pipeline actually measures — reproduce the CWL reference
 exactly. The residual ~1e-12 is floating-point noise from the two paths reaching the derived
