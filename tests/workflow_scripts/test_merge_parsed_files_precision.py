@@ -106,3 +106,33 @@ def test_readinfo_genomic_fraction_not_truncated(tmp_path):
         f"GenomicReads fraction truncated: {fractions['GenomicReads']!r} "
         f"!= {genomic / USABLE!r}"
     )
+
+
+def test_usable_fraction_is_over_all_reads_not_over_itself(tmp_path):
+    """UsableReads fraction is usable/ALL (issue -475.29).
+
+    The Python wrote usable/usable, which is always 1.0, silently destroying the
+    'what fraction of reads survived' QC metric. Perl
+    (merge_multiple_parsed_files.simplified_20191022.pl:45) divides by AllReads.
+    Caught by diffing against a fresh CWL 1.0.0 run: 0.783654640048363 vs 1.0.
+    """
+    all_reads, usable = 22_576_144, 17_691_900
+    src = tmp_path / "AA.parsed"
+    src.write_text(
+        f"#READINFO\tAllReads\t{all_reads}\n"
+        f"#READINFO\tUsableReads\t{usable}\t{usable / all_reads}\n"
+        f"#READINFO\tGenomicReads\t0\t0.0\n"
+        f"#READINFO\tRepFamilyReads\t{usable}\t1.0\n"
+        f"TOTAL\tRNA28S\t5399580\t{5399580 / usable}\n"
+    )
+    merged = run_merge(tmp_path, [src])
+
+    fractions = {
+        parts[1]: parts[3]
+        for parts in (l.split("\t") for l in merged.read_text().splitlines())
+        if parts[0] == "#READINFO" and len(parts) >= 4
+    }
+    assert float(fractions["UsableReads"]) != 1.0, (
+        "UsableReads fraction is 1.0 — computed as usable/usable instead of usable/all"
+    )
+    assert float(fractions["UsableReads"]) == usable / all_reads

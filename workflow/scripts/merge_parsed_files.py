@@ -126,9 +126,12 @@ def main():
     with open(output_fi, "w") as out:
         out.write(f"#READINFO\tAllReads\t{read_sums.get('all', 0)}\n")
         if usable > 0:
+            # Fraction is usable/ALL (what survived), not usable/usable.
+            # merge_multiple_parsed_files.simplified_20191022.pl:45
+            all_reads = read_sums.get("all", 0)
             out.write(
                 f"#READINFO\tUsableReads\t{usable}\t"
-                f"{usable / usable}\n"
+                f"{usable / all_reads if all_reads else 0.0}\n"
             )
             genomic = read_sums.get("genomic", 0)
             repfamily = read_sums.get("repfamily", 0)
