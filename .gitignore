@@ -105,7 +105,9 @@ ENV/
 # pycharm
 .idea/
 
-tests/
+# Test suites are tracked; this entry predates them and silently dropped new
+# test files (the existing ones under tests/ had to be force-added).
+!tests/
 
 .ipynb_checkpoints/
 SOURCEME
