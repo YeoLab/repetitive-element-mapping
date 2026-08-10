@@ -1,0 +1,18 @@
+# Records excluded from the repeat portion of the bowtie2 index FASTA.
+# Source: RepBase 18.05 species_specific/*_fixed_v2 (see FIX-PLAN-bowtie2-index.md §4b).
+# These 10 families are supplied by Gencode/MASTER_FILELIST (RNU1,RNU2,RNU4,RNU5,
+# RNU6,RNU7,RN7SK,RN7SL,YRNA); GGAAT_SAT and NR_046235.1 are one-offs.
+# Match on the FULL header - a prefix match on HY1 would wrongly drop HY1_SINE_*.
+# Derived by diff against the hg38 reference index; yields exactly 1224/1224.
+U1_snRNA_Homo_sapiens
+U2_snRNA_Homo_sapiens
+U4B_snRNA_Homo_sapiens
+U5B1_snRNA_Homo_sapiens
+U6_snRNA_Homo_sapiens
+U7_snRNA_Vertebrata
+7SK_Pseudogene_Homo_sapiens
+7SL_Pseudogene_Homo_sapiens
+HY1_Pseudogene_Homo_sapiens
+HY3_Pseudogene_Homo_sapiens
+GGAAT_SAT_Homo_sapiens
+NR_046235.1

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "stages": {
+    "0-research": {"prerequisites": [], "category": "core"},
+    "0.5-wireframe": {"prerequisites": ["0-research"], "optional": true, "category": "content"},
+    "0.75-design": {"prerequisites": ["0.5-wireframe"], "optional": true, "category": "content"},
+    "1-requirements": {"prerequisites": ["0-research"], "category": "core"},
+    "2-architect": {"prerequisites": ["1-requirements"], "category": "core"},
+    "2.5-spec": {"prerequisites": ["2-architect"], "category": "quality"},
+    "2.5-content": {"prerequisites": ["2.5-spec"], "optional": true, "category": "content"},
+    "2.75-tdad": {"prerequisites": ["2.5-spec"], "optional": true, "category": "quality"},
+    "3.0-test-scaffold": {"prerequisites": ["2.5-spec"], "category": "quality"},
+    "3-implement": {"prerequisites": ["3.0-test-scaffold"], "category": "core"},
+    "3.25-migrate": {"prerequisites": ["3-implement"], "optional": true, "category": "build"},
+    "3.5-polish": {"prerequisites": ["3-implement"], "category": "quality"},
+    "3.75-performance": {"prerequisites": ["3.5-polish"], "optional": true, "category": "validate"},
+    "3.9-i18n": {"prerequisites": ["3.5-polish"], "optional": true, "category": "validate"},
+    "4-review": {"prerequisites": ["3.5-polish"], "max_loops": 3, "category": "core"},
+    "4.5-revision": {"prerequisites": ["4-review"], "optional": true, "conditional": true, "category": "ops"},
+    "5-qa": {"prerequisites": ["4-review"], "max_loops": 2, "category": "core"},
+    "5.25-mutation": {"prerequisites": ["5-qa"], "optional": true, "category": "validate"},
+    "5.5-accessibility": {"prerequisites": ["5-qa"], "optional": true, "category": "quality"},
+    "6-security": {"prerequisites": ["5-qa"], "max_loops": 2, "category": "core"},
+    "6.25-contract": {"prerequisites": ["6-security"], "optional": true, "category": "validate"},
+    "6.5-resilience": {"prerequisites": ["6-security"], "optional": true, "category": "validate"},
+    "6.75-compliance": {"prerequisites": ["6-security"], "optional": true, "category": "validate"},
+    "7-docs": {"prerequisites": ["6-security"], "category": "core"},
+    "7.5-observability": {"prerequisites": ["7-docs"], "optional": true, "category": "ship"},
+    "8-release": {"prerequisites": ["7-docs"], "category": "core"},
+    "8.25-feature-flags": {"prerequisites": ["8-release"], "optional": true, "category": "ops"},
+    "8.5-verify": {"prerequisites": ["8-release"], "optional": true, "category": "ops"}
+  }
+}

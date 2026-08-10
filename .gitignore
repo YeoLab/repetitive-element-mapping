@@ -109,3 +109,32 @@ tests/
 
 .ipynb_checkpoints/
 SOURCEME
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
+# macOS metadata
+.DS_Store
+._*
+
+# Snakemake / conda working dirs
+.snakemake/
+conda-env/
+examples/.snakemake/
+examples/conda-env/
+
+# Pipeline run outputs (regenerable)
+results/
+cwl_ref_outputs/
+examples/CCT2_rep1/
+
+# Large reference data (downloaded, see docs/ROADMAP-refdata.md)
+examples/inputs/
+examples/example_data_for_repeat_mapping_hg38/
+examples/repeat-family-mapping-grch38/
+
+# Claude Code session state
+.claude/scheduled_tasks.lock
+/claude

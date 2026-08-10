@@ -1,0 +1,19 @@
+dataset: seCLIP_small
+se_or_pe: SE
+output_dir: results/se_small
+
+reference:
+  bowtie2_db: examples/inputs/hg38/bowtie2_index
+  bowtie2_prefix: MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+  file_list: examples/inputs/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv
+  gencode_gtf: /tscc/projects/ps-yeolab4/genomes/hg38/gencode/v33/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+  gencode_table_browser: examples/inputs/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+  rep_mask_bed: examples/inputs/hg38/UniqueGenomicElements.hg38.bed
+
+barcode1:
+  r1: examples/inputs/downsampled/EXAMPLE_SE.IP.umi.r1.ds.fq.gz
+  bam: examples/inputs/downsampled/EXAMPLE_SE.IP.umi.rmRep.ds.bam
+
+input:
+  r1: examples/inputs/downsampled/EXAMPLE_SE.IN.umi.r1.ds.fq.gz
+  bam: examples/inputs/downsampled/EXAMPLE_SE.IN.umi.rmRep.ds.bam

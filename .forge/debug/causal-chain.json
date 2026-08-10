@@ -1,0 +1,68 @@
+{
+  "symptom": "CWL ecliprepmap v0.1.0 (eCLIP_repelement_SE_singleNode) emits 0 repetitive element reads for all 4 samples (CCT2_rep1, CCT2_rep2, CCT5_rep1, CCT5_rep2). The step_map_repetitive_elements produces empty Rep.sam files (0 bytes, sha1=da39a3ee5e6b4b0d3255bfef95601890afd80709). Downstream steps (splitbam, dedup, combine) process empty input and produce zero-count .nopipes.tsv outputs with '#READINFO RepFamilyReads 0 0'.",
+  "root_cause": "TRANSIENT FAILURE: bowtie2 exited with no stdout output (no SAM headers, no alignments) during the actual CWL run on 2026-05-21. This caused Perl's while(<BOWTIE>) pipe loop to return EOF immediately, leaving Rep.sam at 0 bytes. The precise cause of bowtie2's silent failure cannot be determined post-hoc because (1) the cwltool_interm directory (and the critical *.Rep.sam.bowtieout file containing bowtie2's stderr) was deleted by cwltool after the run, and (2) the bug is NOT reproducible under identical conditions today.",
+  "causal_chain": [
+    {
+      "layer": "infrastructure",
+      "component": "bowtie2 subprocess launched by parse_bowtie2_output_realtime_includemultifamily_SE.pl",
+      "evidence": "Rep.sam is exactly 0 bytes (not even SAM headers). bowtie2 produces zero stdout only when it fails to open the index (e.g. 'Could not locate a Bowtie index'). The *.bowtieout file would contain the error message but was deleted with cwltool_interm/.tmp/ after the run. 'Could not collect memory usage, job ended before monitoring began' confirms job completed in <100ms.",
+      "relationship": "causes"
+    },
+    {
+      "layer": "pipeline",
+      "component": "parse_bowtie2_output_realtime_includemultifamily_SE.pl lines 79-374",
+      "evidence": "open(BOWTIE, '-|', 'stdbuf -oL bowtie2 ... 2> $bowtie_out') — when bowtie2 produces no stdout, while(<BOWTIE>) is a no-op. Perl script exits with code 0 (no error checking on pipe return value). Rep.sam remains 0 bytes. The script DID run through line 77 (confirmed by 'command stdbuf -oL bowtie2...' in log).",
+      "relationship": "causes"
+    },
+    {
+      "layer": "pipeline",
+      "component": "downstream steps: step_splitbam_repsam, step_deduplicate, step_combine_parsed",
+      "evidence": "All 25 split .tmp files from the empty Rep.sam are empty. All dedup jobs complete immediately with empty output. The final .parsed file shows '#READINFO RepFamilyReads 0 0'.",
+      "relationship": "caused_by"
+    }
+  ],
+  "trigger": "Unknown transient condition on 2026-05-21 that prevented bowtie2 from opening the bowtie2 index. The bowtie2 index was accessed via a double-symlink chain: /tmp/<stagedir>/bowtie_reference -> /tscc/lustre/.../inputs/bowtie_reference -> /tscc/projects/ps-yeolab4/.../bowtie_reference/. This chain works correctly in manual reproduction tests today.",
+  "plausible_causes_of_transient_failure": [
+    "NFS mount issue: /tscc/projects/ps-yeolab4 (device 3fh/63d, 132.249.108.177:/ps-data/yeolab4) was temporarily inaccessible or returned I/O errors at the time bowtie2 tried to open the index files via the symlink chain",
+    "OOM (out-of-memory) condition: the node was under memory pressure and bowtie2 was killed before printing any output (though no signal was logged by cwltool)",
+    "Filesystem timeout: Lustre or NFS timeout during index file open by bowtie2, resulting in immediate failure",
+    "Race condition with other jobs: unlikely since CLIP and INPUT samples ran sequentially (not in parallel)"
+  ],
+  "what_ruled_out": [
+    "Wrong reference files: bowtie2 works fine with these references (62.62% alignment in manual tests)",
+    "Wrong FASTQ files: valid reads, bowtie2 aligns them correctly",
+    "Missing fileListFile1: correct TSV used as arg 4",
+    "Docker/container issues: --no-container mode, no Docker used",
+    "PATH issues: PATH is preserved by cwltool's CommandLineJob._required_env()",
+    "cwltool cache stale data: fresh run confirmed by 'Output of job will be cached in...' log message",
+    "Perl version issues: conda perl 5.32.1 used (not Singularity wrapper)",
+    "stdbuf missing: /usr/bin/stdbuf confirmed present",
+    "Double-slash in bowtie2 -x path: Linux resolves // as /, works correctly",
+    "Symlink chain across filesystems: tested and works correctly today",
+    "file_list_file wrong content: sha1=9e1a564c444d0f9383ba597dc086e7979c2fe1bf matches expected",
+    "bowtie2 binary missing: found at /tscc/projects/ps-yeolab4/software/miniconda_tscc2/envs/bowtie2-2.2.6/bin/bowtie2"
+  ],
+  "affected_files": [
+    "/tscc/nfs/home/bay001/projects/steven_judith_20230314/temporary_data/hg19/hg19/repeat_analysis/CCT2_rep1/results/",
+    "/tscc/nfs/home/bay001/projects/steven_judith_20230314/temporary_data/hg19/hg19/repeat_analysis/CCT2_rep2/results/",
+    "/tscc/nfs/home/bay001/projects/steven_judith_20230314/temporary_data/hg19/hg19/repeat_analysis/CCT5_rep1/results/",
+    "/tscc/nfs/home/bay001/projects/steven_judith_20230314/temporary_data/hg19/hg19/repeat_analysis/CCT5_rep2/results/"
+  ],
+  "fix_applied": null,
+  "fix_hypothesis": "Re-run the CWL pipeline. The issue is transient and does not reproduce under current conditions. The pipelines should succeed on a fresh run. To improve debuggability for future occurrences: preserve the .tmp/ directory after a run (temporarily remove the cleanup in the launcher) or add explicit error checking in parse_bowtie2_output_realtime_includemultifamily_SE.pl for an empty Rep.sam after bowtie2 completes.",
+  "iterations_used": 1,
+  "confidence": "MEDIUM (root cause = transient failure confirmed; specific mechanism = unknown due to deleted bowtieout file)",
+  "timestamp": "2026-05-24T00:00:00Z",
+  "bug_classification": {
+    "type": "transient infrastructure failure",
+    "layer": "infrastructure (NFS/filesystem/OOM)",
+    "severity": "high (all 4 samples affected, results are incorrect zeros)"
+  },
+  "key_log_evidence": {
+    "file": "/tscc/nfs/home/bay001/projects/steven_judith_20230314/temporary_data/hg19/hg19/repeat_analysis/CCT2_rep1/REPELEMENTMAPPING_CCT2_rep1_LOG.txt",
+    "line_1090": "command stdbuf -oL bowtie2 -q --sensitive -a -p 8 --no-mixed --reorder -x /tmp/_zd_x1u5/stgf49f478e-dfc1-46b4-a414-9636aabe888d/bowtie_reference//MASTER_filelist.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat -U /tmp/_zd_x1u5/stgea23d79b-c32f-4dd6-a414-0631e839355e/hg19.CCT2_CLIP1_CLIP.umi.r1.fqTrTr.sorted.fq.gz 2> hg19.CCT2_CLIP1_CLIP.umi.r1.fqTrTr.sorted.fq.Rep.sam.bowtieout",
+    "line_1091": "Could not collect memory usage, job ended before monitoring began.",
+    "line_1092": "completed success",
+    "line_1100_1101": "checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709, size: 0"
+  }
+}

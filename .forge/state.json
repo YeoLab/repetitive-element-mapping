@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0.0",
+  "pipeline_id": "forge-eb57e627",
+  "created_utc": "2026-05-21T16:16:22Z",
+  "updated_utc": "2026-05-22T01:00:00Z",
+  "current_stage": "7-docs",
+  "stages": {
+    "0-research": {
+      "status": "SKIPPED",
+      "skip_reason": "translate_cwl.md is a detailed PRD with explicit 6-step plan, acceptance criteria, tech stack, and constraints. No additional research needed.",
+      "skipped_utc": "2026-05-21T16:20:00Z"
+    },
+    "1-requirements": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-21T16:26:00Z",
+      "artifacts": [
+        ".forge/stages/1-requirements/architect-prompt.md",
+        ".forge/stages/1-requirements/context/01-vision-and-goals.md",
+        ".forge/stages/1-requirements/context/02-user-experience.md",
+        ".forge/stages/1-requirements/context/03-user-flows.md",
+        ".forge/stages/1-requirements/context/04-data-models.md",
+        ".forge/stages/1-requirements/context/05-business-logic.md",
+        ".forge/stages/1-requirements/context/06-api-integrations.md",
+        ".forge/stages/1-requirements/context/07-security-requirements.md",
+        ".forge/stages/1-requirements/context/08-edge-cases.md",
+        ".forge/stages/1-requirements/context/09-acceptance-criteria.md",
+        ".forge/stages/1-requirements/context/10-technical-constraints.md",
+        ".forge/stages/1-requirements/context/11-code-references.md"
+      ]
+    },
+    "2-architect": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-21T17:00:00Z",
+      "notes": "Architecture defined via translate_cwl.md: Snakefile + common.smk + SE.smk + PE.smk, 25-prefix dedup scatter, SLURM profile for full runs."
+    },
+    "2.5-spec": {
+      "status": "SKIPPED",
+      "skip_reason": "Spec is in translate_cwl.md (acceptance criteria: Snakemake outputs match CWL outputs). No additional spec document needed."
+    },
+    "2.75-tdad": {
+      "status": "SKIPPED",
+      "skip_reason": "No unit test suite for this bioinformatics pipeline translation."
+    },
+    "3.0-test-scaffold": {
+      "status": "SKIPPED",
+      "skip_reason": "Integration tests (SE/PE small CWL comparison) used instead of unit test scaffolding."
+    },
+    "3-implement": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-21T17:30:00Z",
+      "artifacts": [
+        "Snakefile",
+        "workflow/rules/common.smk",
+        "workflow/rules/SE.smk",
+        "workflow/rules/PE.smk",
+        "workflow/envs/dropin.yaml",
+        "profiles/tscc2_snakemake9/config.yaml",
+        "examples/repeat_mapping_SE_small.yaml",
+        "examples/repeat_mapping_PE_small.yaml",
+        "examples/repeat_mapping_SE_full.yaml",
+        "examples/repeat_mapping_PE_full.yaml"
+      ],
+      "notes": "SE small, PE small, SE full, PE full all produce outputs. SE small/PE small validated against format."
+    },
+    "3.5-polish": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-21T17:30:00Z",
+      "notes": "Key fixes: singularitypro shell.prefix, mem_mb SLURM account placement, PE merge_ip_parsed 50-file one-step approach, dropin.yaml python=3.10."
+    },
+    "3.75-performance": {
+      "status": "SKIPPED",
+      "skip_reason": "Performance profiling not in scope for CWL-to-Snakemake translation."
+    },
+    "3-implement-perl2py": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-22T00:00:00Z",
+      "artifacts": [
+        "workflow/scripts/split_bam_to_subfiles.py",
+        "workflow/scripts/merge_parsed_files.py",
+        "workflow/scripts/map_repetitive_elements_se.py",
+        "workflow/scripts/map_repetitive_elements_pe.py",
+        "workflow/scripts/deduplicate.py",
+        "workflow/rules/common.smk",
+        "workflow/rules/SE.smk",
+        "workflow/rules/PE.smk"
+      ],
+      "notes": "5 Perl scripts translated to Python. PE bug fixed: split_bam_to_subfiles.py r1/r2 swap removed for flags 147/163/403/419."
+    },
+    "6-security": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-22T01:00:00Z",
+      "artifacts": [
+        ".forge/stages/6-security/security-report.md",
+        ".forge/stages/6-security/stage-summary.json"
+      ],
+      "gate_result": "PASS_WITH_NOTES",
+      "notes": "15 low bandit findings, 0 medium/high. No injection, no shell=True. 3 minor FD resource issues documented."
+    },
+    "5-qa": {
+      "status": "COMPLETE",
+      "completed_utc": "2026-05-22T00:00:00Z",
+      "artifacts": [
+        ".forge/stages/5-qa/stage-summary.json",
+        ".forge/stages/5-qa/summary.md",
+        "results/se_small/seCLIP_small.nopipes.tsv",
+        "results/pe_small/peCLIP_small.nopipes.tsv"
+      ],
+      "notes": "SE small (62 rows) and PE small (76 rows) nopipes.tsv verified. Two PE bugs found and fixed. SE dedup byte-identical to Perl on 5 prefix bins. Full dataset run pending."
+    }
+  },
+  "cost": {
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "total_estimated_usd": 0,
+    "per_stage": {}
+  },
+  "loop_count": {},
+  "git": {
+    "base_commit": "922db0727069362670b655c460bad2f37b25e3eb"
+  }
+}

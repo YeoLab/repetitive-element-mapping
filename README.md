@@ -27,6 +27,86 @@ hash keys in 0.0.2. See NOTES.
     - ensure that the ```bin/```, ```bin/perl/```, and ```wf/```, and ```cwl/```
     are correctly in your path.
 
+# Snakemake Workflow (TSCC / local)
+
+The Snakemake workflow is an alternative to the CWL launchers for TSCC users. It uses the same
+Perl/Python scripts but manages jobs with Snakemake instead of cwltool.
+
+## Quick start with downsampled test data
+
+The repository includes downsampled example inputs in `examples/inputs/downsampled/` and
+pre-built reference data at `examples/inputs/hg38/` for a quick end-to-end test.
+
+**Step 1 — Activate the environment:**
+```bash
+module load singularitypro    # required: Perl 5.10.1 is a Singularity wrapper
+conda activate snakemake9
+```
+
+**Step 2 — Run the SE small test:**
+```bash
+snakemake \
+  --configfile examples/repeat_mapping_SE_small.yaml \
+  --cores 8 --use-conda --conda-prefix conda-env --rerun-incomplete \
+  --resources mem_mb=32000
+```
+
+**Step 3 — Run the PE small test:**
+```bash
+snakemake \
+  --configfile examples/repeat_mapping_PE_small.yaml \
+  --cores 8 --use-conda --conda-prefix conda-env --rerun-incomplete \
+  --resources mem_mb=32000
+```
+
+Expected outputs land in `results/se_small/` and `results/pe_small/`. The key result files are
+`<dataset>.nopipes.tsv` (unambiguous repeat families) and `<dataset>.withpipes.tsv` (all families).
+
+## Running on full datasets
+
+**Locally** (interactive session with ≥32 GB RAM):
+```bash
+snakemake \
+  --configfile examples/repeat_mapping_SE_full.yaml \
+  --cores 8 --use-conda --conda-prefix conda-env --rerun-incomplete \
+  --resources mem_mb=32000    # serializes dedup to 1 job at a time; remove if >32GB RAM
+```
+
+Use `examples/repeat_mapping_PE_full.yaml` for paired-end data.
+
+**On SLURM** (from a login node — not from within an interactive job):
+```bash
+snakemake \
+  --configfile examples/repeat_mapping_SE_full.yaml \
+  --profile profiles/tscc2_snakemake9
+```
+
+The SLURM profile (`profiles/tscc2_snakemake9/`) submits to partition `gold`, account `csd792`,
+with 32GB memory and 8h wall time per job.
+
+## Config file format
+
+`examples/repeat_mapping_SE_full.yaml`:
+```yaml
+dataset: seCLIP_example
+se_or_pe: SE
+output_dir: results/se_full
+reference:
+  bowtie2_db: /path/to/bowtie2_index_dir
+  bowtie2_prefix: MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+  file_list: /path/to/MASTER_FILELIST...tsv
+  gencode_gtf: /path/to/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+  gencode_table_browser: /path/to/gencode.v33...parsed_ucsc_tableformat
+  rep_mask_bed: /path/to/UniqueGenomicElements.hg38.bed
+barcode1:
+  r1: /path/to/IP.fq.gz
+  bam: /path/to/IP.genome-mapped.bam
+input:
+  r1: /path/to/INPUT.fq.gz
+  bam: /path/to/INPUT.genome-mapped.bam
+```
+For PE, set `se_or_pe: PE`, add `r2:` fields, and include a `barcode2:` section.
+
 # Example data: 
 - [example reference data for GRCh38 (hg38)](https://external-collaborator-data.s3-us-west-1.amazonaws.com/reference-data/repeat-family-mapping-grch38.tar.gz)
 - [example input files from eCLIP for GRCh38 (hg38)](https://external-collaborator-data.s3-us-west-1.amazonaws.com/reference-data/example_data_for_repeat_mapping_hg38.tar.gz)

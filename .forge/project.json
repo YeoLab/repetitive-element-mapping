@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0.0",
+  "project_name": "repetitive-element-mapping",
+  "archetype": "data-pipeline",
+  "project_type": "standard",
+  "stack": {
+    "language": "Python / Perl",
+    "framework": "Snakemake + CWL",
+    "database": "",
+    "orm": "",
+    "ui_library": "",
+    "test_framework": "pytest (se_foundation test workflow)",
+    "package_manager": "conda"
+  },
+  "deploy": {
+    "platform": "SLURM (TSCC)",
+    "command": "snakemake --profile profiles/tscc2_snakemake9",
+    "production_url": "",
+    "staging_url": ""
+  },
+  "verification": {
+    "test_command": "snakemake -s Snakefile --config se_or_pe=SE -n",
+    "lint_command": "",
+    "typecheck_command": "",
+    "build_command": ""
+  },
+  "integrations": {
+    "codemap": true,
+    "graphify": true,
+    "aidesigner": false,
+    "forge_tooling": true,
+    "beads": true
+  },
+  "code_graph": {
+    "provider": "serena",
+    "enabled": true
+  },
+  "compliance": {
+    "eu_ai_act": {
+      "enabled": false,
+      "risk_level": "minimal",
+      "transparency_obligations": false,
+      "human_oversight_required": false,
+      "conformity_assessment_required": false
+    }
+  },
+  "environment": {
+    "environments": ["development", "production"],
+    "parity_checks": {
+      "enabled": false
+    },
+    "iac": {
+      "provider": "",
+      "scaffold_on_init": false
+    },
+    "env_vars": {
+      "required": [],
+      "optional": []
+    }
+  },
+  "i18n": {
+    "enabled": false,
+    "source_locale": "en",
+    "target_locales": [],
+    "release_threshold": 95
+  },
+  "topology": {
+    "parallel_groups": [["5-qa", "6-security"]],
+    "parallel_prereqs": {
+      "5-qa": "4-review",
+      "6-security": "4-review"
+    }
+  },
+  "ci": {
+    "scaffolded": false,
+    "provider": ""
+  },
+  "pipeline": {
+    "mode": "guided",
+    "stages_enabled": [
+      "0-research",
+      "1-requirements",
+      "2-architect",
+      "2.5-spec",
+      "2.75-tdad",
+      "3.0-test-scaffold",
+      "3-implement",
+      "3.5-polish",
+      "3.75-performance",
+      "4-review",
+      "5-qa",
+      "6-security",
+      "6.5-resilience",
+      "7-docs",
+      "7.5-observability",
+      "8-release"
+    ],
+    "cost_limit_usd": 100,
+    "auto_deploy": false
+  }
+}

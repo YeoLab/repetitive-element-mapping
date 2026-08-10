@@ -1,0 +1,210 @@
+{
+  "formula": "forge-pipeline",
+  "description": "Full forge development pipeline with stage dependencies. Pour this to track a complete pipeline run as a structured molecule.",
+  "version": 1,
+  "type": "workflow",
+  "phase": "liquid",
+  "vars": {
+    "project": {
+      "description": "Project name for this pipeline run",
+      "required": true
+    },
+    "archetype": {
+      "description": "Project archetype (fullstack-web, backend-api, cli-tool, etc.)",
+      "default": "fullstack-web"
+    }
+  },
+  "steps": [
+    {
+      "id": "research",
+      "title": "Stage: 0-research ({{project}})",
+      "type": "task",
+      "labels": ["stage:0-research", "pipeline-run"],
+      "description": "Research phase: codebase audit, 500+ discovery questions, PRD, requirements"
+    },
+    {
+      "id": "wireframe",
+      "title": "Stage: 0.5-wireframe ({{project}})",
+      "type": "task",
+      "depends_on": ["research"],
+      "labels": ["stage:0.5-wireframe", "pipeline-run"],
+      "description": "Wireframe generation for UI projects"
+    },
+    {
+      "id": "design",
+      "title": "Stage: 0.75-design ({{project}})",
+      "type": "task",
+      "depends_on": ["wireframe"],
+      "labels": ["stage:0.75-design", "pipeline-run"],
+      "description": "Visual design from wireframes"
+    },
+    {
+      "id": "requirements",
+      "title": "Stage: 1-requirements ({{project}})",
+      "type": "task",
+      "depends_on": ["research"],
+      "labels": ["stage:1-requirements", "pipeline-run"],
+      "description": "Requirements specification and conflict resolution"
+    },
+    {
+      "id": "architect",
+      "title": "Stage: 2-architect ({{project}})",
+      "type": "task",
+      "depends_on": ["requirements"],
+      "labels": ["stage:2-architect", "pipeline-run"],
+      "description": "Architecture plan with 3+ approaches, task decomposition, dependency graph"
+    },
+    {
+      "id": "spec",
+      "title": "Stage: 2.5-spec ({{project}})",
+      "type": "task",
+      "depends_on": ["architect"],
+      "labels": ["stage:2.5-spec", "pipeline-run"],
+      "description": "Specification: SPEC.md (Given/When/Then ACs), PLAN.md (file touchpoints), TASKS.md (atomic work units)"
+    },
+    {
+      "id": "test-scaffold",
+      "title": "Stage: 3.0-test-scaffold ({{project}})",
+      "type": "task",
+      "depends_on": ["spec"],
+      "labels": ["stage:3.0-test-scaffold", "pipeline-run"],
+      "description": "TDD pre-implement: generate failing test stubs for every AC in SPEC.md"
+    },
+    {
+      "id": "implement",
+      "title": "Stage: 3-implement ({{project}})",
+      "type": "task",
+      "depends_on": ["test-scaffold"],
+      "labels": ["stage:3-implement", "pipeline-run"],
+      "description": "Implementation of all architect tasks with AC verification"
+    },
+    {
+      "id": "migrate",
+      "title": "Stage: 3.25-migrate ({{project}})",
+      "type": "task",
+      "depends_on": ["implement"],
+      "labels": ["stage:3.25-migrate", "pipeline-run"],
+      "description": "Database migration validation: safety checks, rollback testing, backward compatibility"
+    },
+    {
+      "id": "polish",
+      "title": "Stage: 3.5-polish ({{project}})",
+      "type": "task",
+      "depends_on": ["implement"],
+      "labels": ["stage:3.5-polish", "pipeline-run"],
+      "description": "Code polish, cleanup, and improvement iterations"
+    },
+    {
+      "id": "performance",
+      "title": "Stage: 3.75-performance ({{project}})",
+      "type": "task",
+      "depends_on": ["polish"],
+      "labels": ["stage:3.75-performance", "pipeline-run"],
+      "description": "Load and performance testing: normal, spike, and soak profiles"
+    },
+    {
+      "id": "i18n",
+      "title": "Stage: 3.9-i18n ({{project}})",
+      "type": "task",
+      "depends_on": ["polish"],
+      "labels": ["stage:3.9-i18n", "pipeline-run"],
+      "description": "Internationalization testing: string audit, pseudolocalization, RTL, catalog health"
+    },
+    {
+      "id": "review",
+      "title": "Stage: 4-review ({{project}})",
+      "type": "task",
+      "depends_on": ["polish"],
+      "labels": ["stage:4-review", "pipeline-run"],
+      "description": "Code review with assumption audit and decision compliance"
+    },
+    {
+      "id": "revision",
+      "title": "Stage: 4.5-revision ({{project}})",
+      "type": "task",
+      "depends_on": ["review"],
+      "labels": ["stage:4.5-revision", "pipeline-run"],
+      "description": "Conditional: revision cycle if review found issues"
+    },
+    {
+      "id": "qa",
+      "title": "Stage: 5-qa ({{project}})",
+      "type": "task",
+      "depends_on": ["review"],
+      "labels": ["stage:5-qa", "pipeline-run"],
+      "description": "QA testing, acceptance criteria verification, defect detection"
+    },
+    {
+      "id": "mutation",
+      "title": "Stage: 5.25-mutation ({{project}})",
+      "type": "task",
+      "depends_on": ["qa"],
+      "labels": ["stage:5.25-mutation", "pipeline-run"],
+      "description": "Mutation testing: validate test suite defect detection"
+    },
+    {
+      "id": "accessibility",
+      "title": "Stage: 5.5-accessibility ({{project}})",
+      "type": "task",
+      "depends_on": ["qa"],
+      "labels": ["stage:5.5-accessibility", "pipeline-run"],
+      "description": "Accessibility audit (WCAG 2.1 AA). Runs in parallel with security."
+    },
+    {
+      "id": "security",
+      "title": "Stage: 6-security ({{project}})",
+      "type": "task",
+      "depends_on": ["qa"],
+      "labels": ["stage:6-security", "pipeline-run"],
+      "description": "Security audit: OWASP Top 10, SAST, dependency audit. Runs in parallel with accessibility."
+    },
+    {
+      "id": "resilience",
+      "title": "Stage: 6.5-resilience ({{project}})",
+      "type": "task",
+      "depends_on": ["security"],
+      "labels": ["stage:6.5-resilience", "pipeline-run"],
+      "description": "Chaos and resilience testing: pipeline self-resilience and application fault injection"
+    },
+    {
+      "id": "compliance",
+      "title": "Stage: 6.75-compliance ({{project}})",
+      "type": "task",
+      "depends_on": ["security"],
+      "labels": ["stage:6.75-compliance", "pipeline-run"],
+      "description": "Regulatory compliance auditing: GDPR, SOC2, HIPAA, EU AI Act"
+    },
+    {
+      "id": "docs",
+      "title": "Stage: 7-docs ({{project}})",
+      "type": "task",
+      "depends_on": ["security"],
+      "labels": ["stage:7-docs", "pipeline-run"],
+      "description": "Documentation generation: API docs, README, architecture guide"
+    },
+    {
+      "id": "observability",
+      "title": "Stage: 7.5-observability ({{project}})",
+      "type": "task",
+      "depends_on": ["docs"],
+      "labels": ["stage:7.5-observability", "pipeline-run"],
+      "description": "Monitoring bootstrap: structured logging, health checks, error tracking, alerting"
+    },
+    {
+      "id": "release",
+      "title": "Stage: 8-release ({{project}})",
+      "type": "task",
+      "depends_on": ["docs"],
+      "labels": ["stage:8-release", "pipeline-run"],
+      "description": "Release: changelog, version bump, deploy"
+    },
+    {
+      "id": "verify",
+      "title": "Stage: 8.5-verify ({{project}})",
+      "type": "task",
+      "depends_on": ["release"],
+      "labels": ["stage:8.5-verify", "pipeline-run"],
+      "description": "Post-release verification: smoke tests, rollback readiness"
+    }
+  ]
+}

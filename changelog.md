@@ -3,6 +3,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
+## [0.2.0] - 2026-05-21 Snakemake workflow
+
+### Added
+- Snakemake workflow (`Snakefile`, `workflow/rules/SE.smk`, `workflow/rules/PE.smk`,
+  `workflow/rules/common.smk`) as an alternative to the CWL launchers
+- Conda environment definition `workflow/envs/dropin.yaml` (python=3.10, bowtie2≥2.5,
+  samtools≥1.17, numpy, pandas)
+- SLURM profile `profiles/tscc2_snakemake9/` for running on TSCC with Snakemake 9
+- Snakemake config examples for SE/PE small (downsampled) and SE/PE full datasets
+- Downsampled example inputs in `examples/inputs/downsampled/`
+
+### Changed
+- README updated with step-by-step Snakemake quickstart instructions
+
+### Removed
+- Unused Perl scripts: `bin/perl/duplicate_removal.pl`, `bin/perl/RepElement_pipeline_1dataset.pl`
+
 ## [0.1.0] - 2020-12-13 last file before GRCh38
 
 

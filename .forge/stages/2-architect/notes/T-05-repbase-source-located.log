@@ -1,0 +1,26 @@
+# T-05 root cause + RepBase source located — 2026-07-25
+
+BLOCKER RESOLVED: The per-family repeat CONSENSUS sequences in the hg38 bowtie2 index
+come from RepBase 24.01, located at (owned by bay001):
+  /tscc/projects/ps-yeolab4/genomes/RepBase24.01.fasta/RepBase24.01.fasta/*.ref
+Header format: ">NAME<TAB>CLASS<TAB>species"  e.g. ">ALU\tSINE1/7SL\tPrimates"
+Taxon-split ref files: humrep/humsub/prirep/prisub/mamrep/mamsub (human);
+  rodrep/rodsub/mousub/ratsub/mamrep/mamsub (rodent/mouse); simple.ref (simple repeats).
+Also present: prebuilt bowtie1 indexes homo_sapiens_repbase_fixed, mus_musculus_repbase
+  under /tscc/projects/ps-yeolab4/genomes/bowtie_index/, + run_make_RepBase18_ebwt.sh.
+
+PROVENANCE CONFIRMED (hg38): 1116 of 1224 index repeat-family headers match RepBase
+  (human+primate+mammal+simple), case-insensitive. Only 868 of those also appear in the
+  genomic hg38.repeatmasker.tsv.gz => the index repeat set is RepBase-consensus-driven,
+  NOT genomic getfasta. This is exactly why generate_bowtie2_index.py (getfasta per genomic
+  instance) is wrong.
+
+MOUSE FEASIBILITY: RepBase 24.01 has ~4,378 mouse-relevant consensus seqs
+  (rodrep 1574 + rodsub 15 + mousub 6 + mamrep 3072 + mamsub 6 + simple 133, uppercased-unique).
+  So mouse consensus sequences ARE available.
+
+OPEN (for the fix): exact family-SELECTION/curation logic. hg38 index has 1,224 repeat
+  families; RepBase human+mammal has 4,000+, so a subset was selected (not all mamrep).
+  Earlier author list referenced in perl: ".../RNA_type_analysis/MASTER_filelist...20190424".
+  Determine selection rule when implementing (candidates: families present in genome
+  repeatmasker, or a predefined curated list).

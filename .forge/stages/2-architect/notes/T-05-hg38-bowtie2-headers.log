@@ -1,0 +1,11 @@
+# T-05 hg38 bowtie2 index reproduction — 2026-07-25
+RESULT: FAIL
+- Generated headers: 26,353 ; Reference: 7,606 ; ratio 0.2886 (need >=0.99).
+- Header FORMAT wrong: generated ">ENST00000516207.1::chrX:88148791-88148918(+)"
+  (pybedtools getfasta coord suffix) vs reference ">ENST00000384010.1" (clean id).
+- ROOT CAUSE: script extracts genomic sequences per repeat/simplerepeat INSTANCE via
+  pybedtools getfasta, instead of using RepBase family CONSENSUS sequences. The hg38 index
+  ("wrepbase") is built from curated RepBase consensus (one per family) + gencode + tRNA +
+  miRNA = 7,606 seqs. Per-instance extraction over-generates ~3.5x and mislabels headers.
+- Env needed to run: pybedtools (snakemake738), bedtools (snakemake738), samtools
+  (ecliprepmap-0.1.0), bowtie2-build (bowtie2-2.5.4).

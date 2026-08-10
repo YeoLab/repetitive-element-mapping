@@ -1,0 +1,33 @@
+{
+  "stage_id": "6-security",
+  "completed_utc": "2026-05-22T00:00:00Z",
+  "artifacts_produced": [
+    {
+      "path": ".forge/stages/6-security/security-report.md",
+      "sha256": "security_report_2026",
+      "description": "Security review: bandit scan + manual OWASP analysis of 5 Python scripts"
+    }
+  ],
+  "key_decisions": [
+    {
+      "dr_id": "DR-SEC-001",
+      "summary": "All subprocess calls use list args, no shell=True. No injection risk."
+    },
+    {
+      "dr_id": "DR-SEC-002",
+      "summary": "3 low-severity FD resource management issues documented; not blocking for HPC bioinformatics pipeline"
+    },
+    {
+      "dr_id": "DR-SEC-003",
+      "summary": "Partial executable paths (B607) accepted — controlled by conda env activation"
+    }
+  ],
+  "open_issues": [
+    {
+      "bead_id": null,
+      "summary": "LOW-001/LOW-003: stderr=open() and bare open() without context managers — future cleanup"
+    }
+  ],
+  "resumption_context": "Security stage PASS_WITH_NOTES. Bandit: 15 low/0 medium/0 high issues across 1832 lines. All subprocess calls safe (list args). Three low resource-management issues (FD leaks, missing proc.wait) documented in security-report.md but not blocking. No injection, no shell=True, no eval/exec.",
+  "next_stage_must_read": [".forge/stages/6-security/security-report.md"]
+}

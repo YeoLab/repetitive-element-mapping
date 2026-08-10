@@ -1,0 +1,46 @@
+#!/usr/bin/env eCLIP_repelement_PE_singleNode
+
+dataset: peCLIP_small
+barcode1r1FastqGz:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_clip.A01.r1.ds.fq.gz
+barcode1r2FastqGz:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_clip.A01.r2.ds.fq.gz
+barcode1rmRepBam:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_clip.A01.rmRep.ds.bam
+barcode2r1FastqGz:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_clip.B06.r1.ds.fq.gz
+barcode2r2FastqGz:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_clip.B06.r2.ds.fq.gz
+barcode2rmRepBam:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_clip.B06.rmRep.ds.bam
+barcode1Inputr1FastqGz:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_input.NIL.r1.ds.fq.gz
+barcode1Inputr2FastqGz:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_input.NIL.r2.ds.fq.gz
+barcode1InputrmRepBam:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/downsampled/EXAMPLE_PE.rep1_input.NIL.rmRep.ds.bam
+bowtie2_db:
+  class: Directory
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/hg38/bowtie2_index/
+bowtie2_prefix: MASTER_FILELIST.20201203.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+fileListFile1:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/hg38/MASTER_FILELIST.20201203.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv
+gencodeGTF:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/hg38/downloaded/gencode.v33.chr_patch_hapl_scaff.annotation.gtf
+gencodeTableBrowser:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/hg38/gencode.v33.chr_patch_hapl_scaff.annotation.gtf.parsed_ucsc_tableformat
+repMaskBEDFile:
+  class: File
+  path: /tscc/nfs/home/bay001/projects/codebase/repetitive-element-mapping/examples/inputs/hg38/UniqueGenomicElements.hg38.bed
