@@ -30,14 +30,14 @@ moment a generator bug meets a known-correct answer.
 
 | Phase | Status | Evidence |
 |---|---|---|
-| 1 | **BLOCKED — not established** | Full-dataset runs assign zero repeat-family reads (`475.16`) |
+| 1 | Blocker fixed, rerun in progress | Zero repeat-family reads traced to bowtie2 missing from PATH + a swallowed exit code; fixed (`475.16`) |
 | 2 | Partial | Knowledge exists as defect narratives in `.forge/stages/2-architect/notes/`, not as a schema (`475.18`) |
 | 3 | Essentially done, unrecorded | RepBase 18.05 source confirmed at 100% coverage; needs a source manifest (`475.19`) |
 | 4 | Partial | Curated constants known but not enumerated as a class (`475.20`) |
 | 5 | Not started | Blocked on phase 1 + both generators (`475.22`) |
 | 6 | 0 of 4 mouse artifacts valid | All mm10/mm39 outputs predate a known fix (`475.6`–`475.15`) |
 
-### Phase 1 is broken, and this was not previously known
+### Phase 1 blocker: zero repeat-family reads on full datasets
 
 Measured 2026-08-10 across the four committed runs in `results/`:
 
@@ -49,12 +49,30 @@ Measured 2026-08-10 across the four committed runs in `results/`:
 | `pe_full` | 3,954,802 | **0 (0)** |
 
 Small datasets assign 56–81% of reads to repeat families. Full datasets assign **exactly zero**,
-in both SE and PE. The repeat-mapping arm — the arm every reference file in this project feeds —
-is dead at scale.
+in both SE and PE.
 
-The reference data is not the cause. `examples/inputs/hg38/bowtie2_index/` is the authentic
+**Root cause, found 2026-08-10 (`475.16`): bowtie2 was not on `PATH` for the full runs.**
+`results/se_full/barcode1/mapped/rep.sam.bowtieout` — 67 bytes, present on disk, not deleted as
+the earlier investigation assumed — reads:
+
+```
+stdbuf: failed to run command 'bowtie2': No such file or directory
+```
+
+Identical in all five full-run samples. The small runs' `.bowtieout` files contain real bowtie2
+alignment summaries. The full runs were simply launched without `--use-conda`. **This is not
+scale-dependent** — dataset size correlated only because the full and small runs were launched
+differently.
+
+The real defect is the *silent* failure. `map_repetitive_elements_{se,pe}.py` called
+`proc.wait()` and discarded the return code, then wrote the `.done` file and exited 0. `stdbuf`
+exits 127; the pipe reader saw an immediate EOF and treated it as a successful zero-alignment
+run, so the empty `rep.sam` flowed through splitbam, dedup and combine untouched. An obvious
+environment problem was thereby converted into a months-long misdiagnosis.
+
+The reference data was never the cause. `examples/inputs/hg38/bowtie2_index/` is the authentic
 downloaded index (7,606 headers, zero `::coords` suffixes) and `repeat_mapping_SE_full.yaml`
-points at it plus the 2020 reference MASTER_FILELIST. The pipeline fails with known-good inputs.
+points at it plus the 2020 reference MASTER_FILELIST.
 
 Comparing `results/se_full/seCLIP_example.nopipes.tsv` to the SE reference:
 
@@ -69,11 +87,15 @@ That last row is doubly informative: it confirms `EXAMPLE_SE` is the same underl
 the reference `INV_B`, **and** that the genomic arm is fine while only the repeat arm fails.
 
 `.forge/debug/causal-chain.json` diagnosed an identical 0-byte-`Rep.sam` symptom on CWL in
-May 2026 as a *transient* bowtie2 failure that "is NOT reproducible under identical conditions
-today." **That conclusion no longer holds.** It reproduces deterministically on full datasets
-under Snakemake. It is scale-dependent, not transient. The prime suspect from that chain still
-stands: bowtie2 dies without stdout, and the pipe reader treats EOF as success with no
-exit-status check — so the pipeline reports `RepFamilyReads 0` instead of failing.
+May 2026 as a *transient* bowtie2 failure whose stderr "was deleted by cwltool after the run."
+Both halves were wrong: the stderr file was on disk the whole time, and the cause was a missing
+binary, not a transient fault. Its one correct call was the mechanism — "Perl script exits with
+code 0 (no error checking on pipe return value)" — which is exactly what was fixed.
+
+**Fixed** on `fix/bowtie2-silent-failure`: `check_bowtie_exit()` in both mappers surfaces
+bowtie2's own stderr and exits non-zero *without* writing `.done`, so downstream rules cannot
+consume an empty `rep.sam` as a valid result. Four regression tests in `tests/workflow_scripts/`
+fail against the pre-fix code and pass after.
 
 ### The reference outputs have no provenance
 
@@ -89,8 +111,8 @@ Until that is pinned down, "reproduce the reference" is not a well-defined targe
 
 Reproduce the reference outputs using the original downloaded hg38 refdata.
 
-- `475.16` **P0** — fix the zero-repeat-reads failure at scale. Capture bowtie2's stderr this time
-  rather than inferring; add an exit-status check so silent death fails loudly.
+- `475.16` **P0** — **fixed.** bowtie2 missing from `PATH`, plus a swallowed exit code that
+  reported the failure as a successful zero-alignment run. Full-dataset rerun pending.
 - `475.17` — reconstruct reference-output provenance; confirm the `EXAMPLE_SE`↔`INV_B` and
   `EXAMPLE_PE`↔`204_01_RBFOX2` correspondence by checksum.
 
