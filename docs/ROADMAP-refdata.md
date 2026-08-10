@@ -139,6 +139,14 @@ identical (22,576,144 all / 17,691,900 usable / 8,214,042 genomic / 9,477,858 re
 PE, against the `test-provenance` PE reference: **169 / 169 elements, read counts exactly
 identical, max relative deviation 2.0e-13.**
 
+**The SE and PE evidence are not equivalent.** The PE reference is `.nopipes.tsv`/`.withpipes.tsv`
+only — those files carry no `#READINFO` lines, and no CWL PE `.parsed` exists anywhere. So PE's
+four header fields have never been compared against the Perl implementation; only SE's have.
+That matters because `475.29` was a defect in one of those fields that never reached the TSVs.
+The PE workflow also has code the SE path lacks (two-barcode merge, PE pairing logic — the
+r1/r2 flag-swap bug in `d44ca22` was PE-only), so a PE-specific defect of that class is not
+hypothetical. Tracked as `475.31`.
+
 ### The three defects, and what each one teaches
 
 | Issue | Defect | Symptom it presented as | Reached the TSVs? |
