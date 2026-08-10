@@ -238,6 +238,26 @@ def process_alignment(
                 rd["master_enst"][ensttype] = mapped_enst_full
 
 
+def check_bowtie_exit(returncode, bowtie_out):
+    """Abort if bowtie2 failed.
+
+    Without this the pipe reader treats an immediate EOF as a successful run
+    with zero alignments, so a missing bowtie2 or an unreadable index yields an
+    empty rep.sam, a '.done' file and exit 0 -- surfacing much later as
+    '#READINFO RepFamilyReads 0 0' instead of an error.
+    """
+    if returncode == 0:
+        return
+    try:
+        with open(bowtie_out) as fh:
+            detail = fh.read().strip()
+    except OSError:
+        detail = "(no stderr captured)"
+    sys.exit(
+        f"bowtie2 failed with exit code {returncode}; see {bowtie_out}\n{detail}"
+    )
+
+
 def main():
     if len(sys.argv) != 5:
         print(
@@ -264,12 +284,13 @@ def main():
     )
     print(f"command {bowtie_cmd}", file=sys.stderr)
 
+    bowtie_err = open(bowtie_out, "w")
     proc = subprocess.Popen(
         ["stdbuf", "-oL", "bowtie2", "-q", "--sensitive", "-a",
          "-p", "3", "--no-mixed", "--reorder",
          "-x", bowtie_db, "-U", fastq_file1],
         stdout=subprocess.PIPE,
-        stderr=open(bowtie_out, "w"),
+        stderr=bowtie_err,
         text=True,
     )
 
@@ -338,7 +359,9 @@ def main():
         # Final flush
         print_output(read_hash, samout, multimapping_hash)
 
-    proc.wait()
+    returncode = proc.wait()
+    bowtie_err.close()
+    check_bowtie_exit(returncode, bowtie_out)
 
     with open(multimapping_out, "w") as mmout:
         for key in multimapping_hash:
