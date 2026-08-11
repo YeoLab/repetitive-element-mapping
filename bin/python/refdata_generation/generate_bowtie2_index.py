@@ -18,16 +18,8 @@ from bin.python.refdata_generation._shared import (
 )
 
 
-# Non-coding RNA transcript types to include from Gencode (verified against hg38 reference)
-DEFAULT_TRANSCRIPT_TYPES = {
-    'snRNA', 'misc_RNA', 'snoRNA', 'rRNA_pseudogene', 'scaRNA',
-    'rRNA', 'Mt_tRNA', 'Mt_rRNA', 'vaultRNA',
-}
-
-
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--gtf', required=True)
     p.add_argument('--parsed-ucsc', required=True)
     p.add_argument('--repeatmasker', required=True,
                    help='Used ONLY for simple repeats. Repeat FAMILIES come from '
@@ -37,6 +29,15 @@ def parse_args():
                    help='RepBase 18.05 species_specific FASTA, e.g. '
                         'homo_sapiens_repbase_fixed_v2.fasta. Source of the '
                         'repeat-family consensus sequences.')
+    p.add_argument('--master-filelist', required=True,
+                   help='MASTER_FILELIST. The Gencode portion of the index is '
+                        'exactly its ENST ids on allowlisted chromosomes -- '
+                        'verified to give 5,002/5,002 on hg38. Transcript TYPE '
+                        'does not select them (the reference includes lncRNA, '
+                        'miRNA and unprocessed_pseudogene entries).')
+    p.add_argument('--chrom-allowlist', required=True,
+                   help='One chromosome per line, pinned to the assembly '
+                        'release, e.g. refdata/hg38.chrom-allowlist.txt.')
     p.add_argument('--simplerepeats', required=True)
     p.add_argument('--fasta', required=True)
     p.add_argument('--trna')
@@ -44,8 +45,6 @@ def parse_args():
     p.add_argument('--custom-fasta', action='append', default=[])
     p.add_argument('--output-dir', required=True)
     p.add_argument('--output-prefix', required=True)
-    p.add_argument('--transcript-types', nargs='*', default=None,
-                   help='Gencode transcript types to include. Default: non-coding RNA types.')
     return p.parse_args()
 
 
@@ -59,22 +58,23 @@ def _simple_repeat_to_fasta_name(gid):
     return inner.upper() + '_SimpleRepeat'
 
 
-def read_gtf_transcript_types(gtf_path):
-    """Return dict: transcript_id → transcript_type from GTF transcript features."""
-    tid_to_type = {}
-    with open_maybe_gz(gtf_path) as fh:
+def read_master_filelist_ensts(path):
+    """Return the set of ENST ids in column 1 of a MASTER_FILELIST."""
+    ensts = set()
+    with open_maybe_gz(path) as fh:
         for line in fh:
-            if line.startswith('#'):
-                continue
-            parts = line.split('\t')
-            if len(parts) < 9 or parts[2] != 'transcript':
-                continue
-            attrs = parse_gtf_attributes(parts[8])
-            tid = attrs.get('transcript_id', '')
-            tt = attrs.get('transcript_type', attrs.get('transcript_biotype', ''))
-            if tid and tt:
-                tid_to_type[tid] = tt
-    return tid_to_type
+            col1 = line.split('\t', 1)[0].strip()
+            if col1.startswith('ENST') or col1.startswith('ENSMUST'):
+                ensts.update(e.strip() for e in col1.split('|') if e.strip())
+    return ensts
+
+
+def read_chrom_allowlist(path):
+    return {
+        line.strip()
+        for line in Path(path).read_text().splitlines()
+        if line.strip() and not line.startswith('#')
+    }
 
 
 def read_parsed_ucsc(path):
@@ -362,16 +362,25 @@ def main():
     out_fa = output_dir / (args.output_prefix + '.fa')
 
     # ── 1. Gencode transcripts ──────────────────────────────────────────
-    transcript_types_filter = set(args.transcript_types) if args.transcript_types is not None else DEFAULT_TRANSCRIPT_TYPES
-    log.info(f'Reading GTF for transcript types (filter: {len(transcript_types_filter)} types)...')
-    tid_to_type = read_gtf_transcript_types(args.gtf)
-    log.info(f'  {len(tid_to_type)} transcripts found in GTF')
+    # Selection is by MASTER_FILELIST membership plus the chromosome allowlist,
+    # NOT by transcript type. A type filter cannot reproduce the reference: the
+    # 706 it over-selected span the same types as the reference, and the
+    # reference itself contains lncRNA, miRNA and unprocessed_pseudogene
+    # entries that no plausible type set would admit. The 259 filelist ids the
+    # reference omits are all on GenBank scaffolds (GL000251.2, KZ208915.1).
+    log.info('Reading MASTER_FILELIST and chromosome allowlist...')
+    filelist_ensts = read_master_filelist_ensts(args.master_filelist)
+    allowed_chroms = read_chrom_allowlist(args.chrom_allowlist)
+    log.info(f'  {len(filelist_ensts)} filelist transcripts, '
+             f'{len(allowed_chroms)} allowed chromosomes')
 
     log.info('Reading parsed_ucsc_tableformat...')
     all_transcripts = read_parsed_ucsc(args.parsed_ucsc)
-    transcripts = {tid: v for tid, v in all_transcripts.items()
-                   if tid_to_type.get(tid, '') in transcript_types_filter}
-    log.info(f'  {len(transcripts)} / {len(all_transcripts)} transcripts after type filter')
+    transcripts = {
+        tid: v for tid, v in all_transcripts.items()
+        if tid in filelist_ensts and v[0] in allowed_chroms
+    }
+    log.info(f'  {len(transcripts)} / {len(all_transcripts)} transcripts selected')
     bed12_str = build_bed12(transcripts)
     log.info('Extracting Gencode transcript sequences (BED12+split)...')
     gencode_fa = strip_coord_suffix(
