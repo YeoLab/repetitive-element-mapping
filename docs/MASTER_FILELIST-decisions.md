@@ -85,15 +85,16 @@ contiguous family runs — one per `genelists.<FAMILY>` source file — and the 
 
 ## 4. Gencode family assignment (`build_gencode_rows`)
 
-The hardest decision in the file, because the original values were curated by hand. Three tiers,
-tried in order, measured on hg38's 5,261 reference rows:
+The hardest decision in the file, because the original values were curated by hand. Four tiers,
+tried in order:
 
-| Tier | Mechanism | Function | Resolved |
-|---|---|---|---|
-| 1 | `--family-override` TSV | `read_family_overrides` | (operator-supplied) |
-| 2 | rmsk small-RNA overlap ≥ 50% | `overlapping_repname` | 3,932 |
-| 3 | `gene_name` pattern rules | `family_from_gene_name` | 831 |
-| — | neither | — | **473 unresolved** |
+| Tier | Mechanism | Function | hg38 | mm10 | mm39 |
+|---|---|---|---|---|---|
+| 1 | `--family-override` TSV | `read_family_overrides` | (operator-supplied) | | |
+| 2 | rmsk small-RNA overlap ≥ 50% | `overlapping_repname` | 4,104 | 1,993 | 1,972 |
+| 3 | `gene_name` pattern rules | `family_from_gene_name` | 755 | 22 | 22 |
+| 4 | Rfam family via RNAcentral | `read_rfam_families` | 298 | 1,075 | 1,337 |
+| — | none of them | — | **559** | 833 | 592 |
 
 **Tier 2 detail.** `refdata/<asm>.rmsk-smallrna.bed.gz` holds rmsk loci whose `repClass` is one of
 `srpRNA, scRNA, snRNA, tRNA, rRNA, RNA`. A transcript takes the `repName` of the feature covering
@@ -109,12 +110,29 @@ subset is 12,753 rows / 125 KB and is all this rule needs.
 `^(RNU\d+)` would swallow `RNU6ATAC`, so the ATAC rules precede it.
 → `test_rnu6atac_is_not_swallowed_by_the_rnu6_rule`
 
-**Decision on the 473 (`475.41`): omit and count, never guess.** Column 4 is the counting label,
+**Tier 4 detail (`475.41`).** Rfam names its families after the box class — `SNORA70`,
+`SNORD56`, `SCARNA20` — which is exactly the distinction the clone-named snoRNA rows are missing.
+`refdata/<asm>.rfam-family.tsv` is built by `build_rfam_family_table.py`, which streams
+RNAcentral's `ensembl.tsv` (transcript → URS) and `rfam.tsv` (URS → Rfam accession) plus Rfam's
+`family.txt.gz` (accession → Rfam ID), then maps the ID through `RFAM_PREFIX_TO_FAMILY`.
+
+Validated against the 365 residue transcripts the 2020 reference does label: **255 predicted, 255
+correct, zero wrong.** Unlike the curated RepBase table this is **not** reference-derived, so it is
+not circular — and it transfers to mouse, where it matters far more: mouse gene symbols barely
+match the human `RNU`/`SNORD` patterns, so tier 3 fires on only 22 rows and tier 4 carries
+1,075 (mm10) and 1,337 (mm39).
+
+Three Rfam IDs are listed as `AMBIGUOUS` and deliberately predict nothing: `snoU2_19` and
+`snoU2-30`, which the reference itself splits between SNORD and SCARNA, and `Vault`, which cannot
+choose between VTRNA1/2/3. `SNORA73` (U17) also splits in the reference, 5 SNORA / 2 RNU105, but
+both RNU105 rows carry gene_name `RNU105C` and are settled at tier 3, so Rfam is never consulted
+for them — which is why tier order is what makes the validation above the right comparison.
+
+**Decision on what tiers 2–4 still miss: omit and count, never guess.** Column 4 is the counting label,
 so a plausible-but-wrong family is worse than an absent row. Filling them with the Gencode biotype
 was rejected — that is precisely the defect T-09 exists to fix. They are logged at build time and
-can be supplied through `--family-override`. Their only Gencode annotation is `gene_type "snoRNA"`
-with a clone-style `gene_name` like `AC020634.1`, so no rule over the GTF can recover them; Rfam
-or snoDB is the likely source.
+can be supplied through `--family-override`. What remains after tier 4 has no Rfam family at all,
+so no source currently to hand can recover it.
 
 **Selection is a side effect of resolution.** A transcript is in the filelist iff it resolves to a
 family. There is no separate type filter — the discredited `DEFAULT_TRANSCRIPT_TYPES` approach
@@ -266,7 +284,7 @@ repeats are emitted verbatim with constant `Simple_repeat` annotation.
 
 | Issue | Residue |
 |---|---|
-| `475.41` | 473 hg38 Gencode rows resolved by neither rmsk nor gene_name (229 SNORA, 92 SNORD, 54 YRNA, …) |
+| `475.41` | **Closed.** Tier 4 (Rfam) cut the hg38 residue 857 → 559 and the mouse residue 1,907 → 833 (mm10) and 1,928 → 592 (mm39). What is left has no Rfam family at all |
 | `475.43` | Mouse `B1`, `B1-DID`, `B2` — the major mouse SINEs. UCSC has no bare `B1`/`B2` repName (instances are `B1_Mus1`, `B2_Mm1a`, …), and prefix matching is the rejected rule above |
 | — | 147 mm10 / 149 mm39 RepBase families unresolved. Every mouse family with a nonzero genomic footprint now resolves; the remainder have zero footprint, `B1`/`B2` excepted |
 | — | 99 hg38 repeat rows differ from the reference through post-2020 RepeatMasker reclassification. Accepted on purpose (rmsk outranks the curated table) |
@@ -277,7 +295,7 @@ Per block, on shared column 1, after every rule above:
 
 | Block | shared | identical on all 5 columns |
 |---|---|---|
-| Gencode | 4,633 | 4,633 |
+| Gencode | 4,890 | 4,890 |
 | rRNA | 15 | 15 |
 | tRNA | 864 | 864 |
 | SimpleRepeat | 501 | 501 |
@@ -286,3 +304,8 @@ Per block, on shared column 1, after every rule above:
 | repeat | 1,718 | 1,619 (99 = RepeatMasker drift) |
 
 Gencode family block order matches the reference exactly.
+
+Building the hg38 index **from the generated filelist** rather than the reference one gives
+`shared=7494, missing=112, extra=267, mismatching=0` — every shared record sequence-identical, so
+the whole divergence is Gencode membership. Tier 4 cut `missing` from 369 to 112. The 267 extra are
+real Gencode small RNAs the 2020 curated lists omitted; `475.22` must account for them separately.

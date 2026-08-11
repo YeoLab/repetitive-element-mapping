@@ -84,6 +84,13 @@ def parse_args():
     p.add_argument('--gff3')
     p.add_argument('--rrna-genbank', action='append', default=[])
     p.add_argument('--rrna-subunit', action='append', default=[], metavar='LABEL=PATH')
+    p.add_argument('--rfam-family',
+                   help='transcript_id -> family table derived from Rfam via '
+                        'RNAcentral, refdata/<asm>.rfam-family.tsv, built by '
+                        'build_rfam_family_table.py. Tier 4 of the Gencode '
+                        'family rule: it resolves the clone-named snoRNAs that '
+                        'neither the rmsk overlap nor gene_name can reach '
+                        '(-475.41). Validated on hg38 at 255/255 correct.')
     p.add_argument('--family-override', action='append', default=[],
                    help='TSV of transcript_id<TAB>family, applied before the '
                         'rmsk and gene_name rules. Repeatable. Intended for the '
@@ -160,6 +167,30 @@ def family_from_gene_name(gene_name):
             return fixed
         return m.group(1).upper() if m.groups() else m.group(0).upper()
     return None
+
+
+def read_rfam_families(path):
+    """Tier 4 of the Gencode family rule: Rfam family via RNAcentral.
+
+    Rfam names families after the box class -- SNORA70, SNORD56, SCARNA20 --
+    which is exactly what the clone-named snoRNA rows are missing. Measured
+    against the 365 residue transcripts the 2020 reference does label: 255
+    predicted, 255 correct, zero wrong.
+
+    Not reference-derived, so unlike the curated RepBase table this one is not
+    circular and transfers to mouse unchanged. See
+    docs/MASTER_FILELIST-decisions.md section 4.
+    """
+    out = {}
+    if not path:
+        return out
+    for line in Path(path).read_text().splitlines():
+        if not line.strip() or line.startswith('#') or line.startswith('transcript_id\t'):
+            continue
+        parts = line.split('\t')
+        if len(parts) >= 2:
+            out[parts[0]] = parts[1]
+    return out
 
 
 def read_family_overrides(paths):
@@ -495,6 +526,7 @@ def build_gencode_rows(args, log):
     loci = read_parsed_ucsc_loci(args.parsed_ucsc)
     allowed = read_chrom_allowlist(args.chrom_allowlist)
     overrides = read_family_overrides(args.family_override)
+    rfam = read_rfam_families(args.rfam_family)
     small_rna = (read_rmsk_small_rna_loci(args.rmsk_smallrna_bed)
                  if args.rmsk_smallrna_bed else {})
 
@@ -517,6 +549,10 @@ def build_gencode_rows(args, log):
                 family = family_from_gene_name(gene_name)
                 if family:
                     stats['gene_name'] += 1
+                else:
+                    family = rfam.get(tid.split('.')[0])
+                    if family:
+                        stats['rfam'] += 1
         if not family:
             # Having no family is the selection filter, not an error: most of
             # the GTF is protein-coding and simply does not belong here. Only a

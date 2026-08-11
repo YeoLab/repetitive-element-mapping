@@ -353,3 +353,99 @@ def test_family_order_file_matches_the_reference_block_order():
         if not seen or seen[-1] != p[3]:
             seen.append(p[3])
     assert read_family_order(FAMILY_ORDER) == seen
+
+
+# ── Rfam tier (-475.41) ──────────────────────────────────────────────────
+
+RFAM_TABLE = REPO / "refdata/hg38.rfam-family.tsv"
+
+sys.path.insert(0, str(REPO / "bin" / "python" / "refdata_generation"))
+
+
+@pytest.mark.parametrize("rfam_id, expected", [
+    ("SNORA70", "SNORA"),
+    ("SNORD56", "SNORD"),
+    ("SCARNA20", "SCARNA"),
+    ("ACA64", "SNORA"),          # the H/ACA box naming convention
+    ("Y_RNA", "YRNA"),
+    ("U6atac", "RNU6ATAC"),
+    ("5_8S_rRNA", "RNA5-8S"),
+    ("Metazoa_SRP", "RN7SL"),
+    ("snoU2_19", None),          # reference splits it SNORD/SCARNA
+    ("snoU2-30", None),
+    ("Vault", None),             # cannot pick VTRNA1 vs VTRNA2 vs VTRNA3
+    ("RNaseP_nuc", None),
+    ("CoTC_ribozyme", None),
+])
+def test_family_from_rfam_id(rfam_id, expected):
+    from build_rfam_family_table import family_from_rfam_id
+    assert family_from_rfam_id(rfam_id) == expected
+
+
+def test_rfam_table_parsing_skips_comments_and_header(tmp_path):
+    from generate_master_filelist import read_rfam_families
+    f = tmp_path / "rfam.tsv"
+    f.write_text("# note\ntranscript_id\tfamily\trfam_id\n"
+                 "ENST00000384275\tSNORA\tSNORA70\n")
+    assert read_rfam_families(f) == {"ENST00000384275": "SNORA"}
+
+
+def test_no_rfam_table_is_not_an_error():
+    from generate_master_filelist import read_rfam_families
+    assert read_rfam_families(None) == {}
+
+
+@pytest.mark.skipif(not RFAM_TABLE.exists(), reason="Rfam table not available")
+def test_shipped_rfam_table_only_emits_known_families():
+    """Every family in the table must exist in the block-order vocabulary."""
+    from generate_master_filelist import read_family_order, read_rfam_families
+    known = set(read_family_order(FAMILY_ORDER))
+    families = set(read_rfam_families(RFAM_TABLE).values())
+    assert families <= known, f"unknown families: {sorted(families - known)}"
+
+
+@pytest.mark.skipif(not RFAM_TABLE.exists(), reason="Rfam table not available")
+@needs_reference
+def test_rfam_predictions_agree_with_the_reference():
+    """The claim that justifies this tier: zero wrong on the rows that reach it.
+
+    Rfam is tier 4, so only transcripts that gene_name fails to resolve ever
+    consult it. Comparing the whole table would measure something the pipeline
+    never does -- SNORA73 (U17) is the case in point: the reference splits it
+    5 SNORA / 2 RNU105, but both RNU105 rows are gene_name RNU105C and are
+    settled at tier 3, so Rfam is never asked.
+    """
+    from generate_master_filelist import family_from_gene_name, read_rfam_families
+    rfam = read_rfam_families(RFAM_TABLE)
+    reference, gene_names = {}, {}
+    for line in REFERENCE.open():
+        p = line.rstrip("\n").split("\t")
+        if p[0].startswith("ENST"):
+            tid = p[0].split(".")[0]
+            reference.setdefault(tid, p[3])
+            gene_names.setdefault(tid, p[2])
+
+    compared = {
+        t: f for t, f in rfam.items()
+        if t in reference and not family_from_gene_name(gene_names[t])
+    }
+    wrong = {t: (f, reference[t]) for t, f in compared.items() if reference[t] != f}
+    assert len(compared) > 200, f"only {len(compared)} rows reach the Rfam tier"
+    assert wrong == {}, f"{len(wrong)} of {len(compared)} disagree: {list(wrong.items())[:5]}"
+
+
+@pytest.mark.skipif(not RFAM_TABLE.exists(), reason="Rfam table not available")
+@needs_reference
+def test_gene_name_outranks_rfam_where_they_disagree():
+    """Pins the tier order that makes the test above the right comparison."""
+    from generate_master_filelist import family_from_gene_name, read_rfam_families
+    rfam = read_rfam_families(RFAM_TABLE)
+    for line in REFERENCE.open():
+        p = line.rstrip("\n").split("\t")
+        if p[0].startswith("ENST") and p[2].startswith("RNU105"):
+            tid = p[0].split(".")[0]
+            if tid in rfam:
+                assert rfam[tid] == "SNORA"                  # Rfam would say this
+                assert family_from_gene_name(p[2]) == "RNU105"  # gene_name wins
+                return
+    pytest.skip("no RNU105 transcript present in both sources")
