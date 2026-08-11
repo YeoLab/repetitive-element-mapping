@@ -1,0 +1,40 @@
+# Order of the per-family Gencode/rRNA blocks in a MASTER_FILELIST, one family per line.
+#
+# Taken from the hg38 reference file, where the Gencode region is 32 contiguous runs --
+# one per genelists.<FAMILY> source list. read_in_filelists assigns priority_n in file
+# order, but the priority comparison in parse_bowtie2_output_... is keyed BY FAMILY
+# (flags{$ensttype}), so this between-family order does not affect any count; it keeps the
+# generated file diffable against the reference. Families absent here are appended in
+# first-seen order.
+RNU1
+RNU2
+RNU4
+RNU4ATAC
+RNU5A
+RNU5B
+RNU5D
+RNU5E
+RNU5F
+RNU6
+RNU6ATAC
+RNU11
+RNU12
+VTRNA1
+VTRNA2
+VTRNA3
+RN7SK
+RN7SL
+RNU105
+RNU7
+YRNA
+SCARNA
+SNORA
+SNORD
+MTRNR1
+MTRNR2
+MTTRNA
+RNA18S
+RNA28S
+RNA45S
+RNA5S
+RNA5-8S

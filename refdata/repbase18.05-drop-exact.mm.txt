@@ -1,0 +1,17 @@
+# Records excluded from the mouse repeat portion (RepBase 18.05
+# species_specific/mus_musculus_repbase_u1_fixed_v2.fastq).
+#
+# MINIMUM list, not the mouse counterpart of the human one. It contains only
+# what is needed to make repbase.select_families resolvable. Three families
+# appear twice, each as a well-formed U<n>_snRNA_Vertebrata record and again as
+# a bare header carrying no CLASS_TAXON fields at all. The bare ones are dropped
+# and the well-formed records kept.
+#
+# The human list additionally drops the snRNA/Pseudogene records that
+# Gencode/MASTER_FILELIST supplies (U1, U2, U4B, U5B1, U6, U7, 7SK, 7SL, HY1,
+# HY3). The mouse equivalents cannot be chosen until a mouse MASTER_FILELIST
+# exists to say which families it supplies -- that is -475.11 (M-5), which
+# should extend this file rather than replace it.
+U14
+U7
+U8

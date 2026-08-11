@@ -305,6 +305,43 @@ is precisely the `.fixed.fa` step).
 EMBL parse. The 97.96% coverage figure that motivated them was an artifact of missing
 `pseudo.ref`/`vrtrep.ref`/`invrep.ref`, not a real library gap.
 
+### MASTER_FILELIST structure (T-09, settled 2026-08-11)
+
+It is a **concatenation of source lists**, not a table. Column 5 names the list each row came
+from. Blocks, in file order:
+
+| Block | hg38 n | Columns |
+|---|---|---|
+| Gencode + rRNA | 5,276 | ENST │ ENSG │ gene_name │ **FAMILY** │ `genelists.FAMILY` |
+| RepBase families | 1,224 | NAME │ FAM │ FAM │ FAM │ **CLASS** |
+| tRNA | 864 | name │ anticodon │ anticodon │ `tRNA` │ source list |
+| SimpleRepeat k-mers | 501 | `AT_SimpleRepeat` │ `Simple_repeat` ×4 |
+| miRNA | 3,765 | `MI0022705` │ `miRNA` ×3 │ mirbase name (+ `-proximal` twin) |
+| rmsk leftovers | 14,220+ | NAME │ FAM │ FAM │ FAM │ CLASS, and `(XXX)N` |
+
+Three rules that are easy to get wrong:
+
+- **Never deduplicate by column 1.** 61 names appear twice with *different* annotations
+  (`DNA1_MAM` is `TcMar` in the RepBase block and `TcMar-Tc1` in the rmsk block).
+- **Repeat class/family are UCSC `repClass`/`repFamily`,** not the RepBase header's class field —
+  `L2B_CR1_Eutheria` is family `L2`, class `LINE`. The `examples/inputs` RepeatMasker GTFs are
+  stripped to `gene_id`, so this needs `refdata/<asm>.rmsk-class-family.tsv.gz`.
+- **Column 4 is behaviorally significant.** `read_in_filelists` reads it as `$type_label`, and
+  `print_output` counts with `$count{$ensttype_join}++`, so col4 *is* the family reads are
+  counted under. Between-family block order and within-family row order are not: the priority
+  comparison is keyed by family (`flags{$ensttype}`), so `priority_n` only chooses which element
+  is named as a family's representative in the SAM output.
+
+**Gencode family assignment**, measured on hg38: rmsk small-RNA overlap ≥50% resolves 3,932 of
+5,261 rows and `repName → family` is effectively a function; gene_name resolves another 831; 473
+resolve to neither and need `--family-override` (`475.41`). The hg38 originals came from a
+per-family `genelists.*` directory that no longer exists — see the commented `read_in_filelists`
+call at `bin/perl/parse_bowtie2_output_realtime_includemultifamily_SE.pl:43`.
+
+Build order is **filelist → index**: the index selects its Gencode portion by filelist
+membership, so `generate_master_filelist.py` takes `--repbase-species-fasta` directly rather than
+the index's provenance sidecar.
+
 ### Phase 4 — gap analysis (`475.20`)
 
 The pivotal phase for mouse feasibility. Known curated residue that falls out of no source file:
@@ -358,10 +395,12 @@ M-10 475.15  package + document              <- M-9
 Three gaps found 2026-08-10 that were in no document or issue:
 
 1. **mm39 is missing two inputs entirely** — no `mm39.trna.tsv.gz`, and no GRCm39-coordinate
-   miRBase gff3 (mm10's `mmu.gff3` is GRCm38). T-07 rules 4 and 5 need both. (The *index* no
-   longer reads the tRNA track at all — it takes the gtRNAdb FASTA — but T-07 still does.)
-2. **No mouse chromosome allowlists** — `refdata/hg38.chrom-allowlist.txt` exists, the generator
-   takes `--chrom-allowlist` as required, mm10/mm39 have none.
+   miRBase gff3 (mm10's `mmu.gff3` is GRCm38). T-07 rules 4 and 5 need both. (Neither the index
+   nor the filelist reads the tRNA track any more — both take the gtRNAdb FASTA — but T-07 still
+   does. The missing gff3 is why the mm39 filelist has no miRNA rows.)
+2. **No mouse chromosome allowlists** — now written as deliberately permissive placeholders
+   (every sequence name in the assembly `.fai`), enough to build a filelist. Narrowing them is
+   still `475.7`.
 3. **No mouse acceptance criteria existed.** Every hg38 criterion is "diff against the reference."
    Mouse has none. `M-8` replaces reference-diff with cross-artifact consistency checks — and its
    acceptance criterion requires those checks to *fail* on the known-bad hg38 outputs before they

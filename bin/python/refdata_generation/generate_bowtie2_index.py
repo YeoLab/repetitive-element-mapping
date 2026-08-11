@@ -29,6 +29,10 @@ def parse_args():
                    help='RepBase 18.05 species_specific FASTA, e.g. '
                         'homo_sapiens_repbase_fixed_v2.fasta. Source of the '
                         'repeat-family consensus sequences.')
+    p.add_argument('--repbase-drop-exact',
+                   help='Override the RepBase drop-exact list. Mouse needs '
+                        'refdata/repbase18.05-drop-exact.mm.txt; the default is '
+                        'the human list.')
     p.add_argument('--master-filelist', required=True,
                    help='MASTER_FILELIST. The Gencode portion of the index is '
                         'exactly its ENST ids on allowlisted chromosomes -- '
@@ -623,7 +627,10 @@ def main():
 
     # ── 2. Repeat families — RepBase consensus, NOT genomic instances ────
     log.info(f'Reading RepBase species FASTA: {args.repbase_species_fasta}')
-    families, unparsed = repbase.select_families(args.repbase_species_fasta)
+    families, unparsed = repbase.select_families(
+        args.repbase_species_fasta,
+        repbase.load_drop_exact(args.repbase_drop_exact)
+        if args.repbase_drop_exact else None)
     log.info(f'  {len(families)} repeat families selected')
     if unparsed:
         log.error(
