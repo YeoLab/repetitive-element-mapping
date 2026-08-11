@@ -70,13 +70,15 @@ def parse_args():
                    help='Override the RepBase drop-exact list. Mouse needs '
                         'refdata/repbase18.05-drop-exact.mm.txt; the default is '
                         'the human list.')
-    p.add_argument('--repbase-class-family',
-                   help='Curated family -> repFamily/repClass table, '
-                        'refdata/hg38.repbase-class-family.tsv. Consulted after '
-                        'the rmsk table. Covers the 354 hg38 families with no '
-                        'genomic instances in the modern rmsk track, and is the '
-                        'cross-species source for mouse -- pass the HUMAN file '
-                        'to a mouse build (-475.42).')
+    p.add_argument('--repbase-class-family', action='append', default=[],
+                   help='Curated family -> repFamily/repClass table, consulted '
+                        'after the rmsk table. Repeatable, and LATER FILES WIN. '
+                        'hg38 passes refdata/hg38.repbase-class-family.tsv, which '
+                        'covers the 354 families with no instances in the modern '
+                        'rmsk track. Mouse passes the human file FIRST -- 215 '
+                        'mouse families inherit from it by exact family name -- '
+                        'then refdata/mm.repbase-class-family.tsv, whose '
+                        'mouse-specific entries override it (-475.42, -475.43).')
     p.add_argument('--family-order', required=True,
                    help='refdata/gencode-family-order.txt.')
     p.add_argument('--chrom-allowlist', required=True)
@@ -377,7 +379,7 @@ def repeat_row(name, class_family, curated_class_family=None):
     return (name, fam, fam, fam, cls)
 
 
-def read_curated_class_family(path):
+def read_curated_class_family(paths):
     """Step 3 of resolve_repeat: the curated RepBase class/family table.
 
     refdata/hg38.repbase-class-family.tsv holds all 1,224 pairs lifted from the
@@ -395,14 +397,13 @@ def read_curated_class_family(path):
     168 shared names carry the identical RepBase class token in both species.
     """
     out = {}
-    if not path:
-        return out
-    for line in Path(path).read_text().splitlines():
-        if not line.strip() or line.startswith('#') or line.startswith('family\t'):
-            continue
-        p = line.split('\t')
-        if len(p) >= 3:
-            out[p[0].upper()] = (p[1], p[2])
+    for path in ([paths] if isinstance(paths, (str, Path)) else (paths or [])):
+        for line in Path(path).read_text().splitlines():
+            if not line.strip() or line.startswith('#') or line.startswith('family\t'):
+                continue
+            p = line.split('\t')
+            if len(p) >= 3:
+                out[p[0].upper()] = (p[1], p[2])   # later files win
     return out
 
 

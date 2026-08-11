@@ -1,0 +1,61 @@
+# Curated RepBase family -> (repFamily, repClass) for MOUSE.
+#
+# WHY (-475.43): B1 and B2 are the major mouse SINEs but UCSC has no bare 'B1' or
+# 'B2' repName -- the instances are B1F, B1_Mus1, B2_Mm1a and so on -- so the
+# RepBase consensus parents resolved to nothing and each became its own counting
+# family. B1's subfamilies alone carry 108 Mb.
+#
+# DERIVATION, and it is NOT the rejected longest-prefix rule of 475.42. That rule
+# went child -> parent (MER21 -> MER2) and was wrong 18 times in 161. This one goes
+# PARENT -> CHILDREN: for an unresolved family X, collect every rmsk repName that
+# EXTENDS X, and adopt their annotation only if all of them agree. Disagreement
+# rejects the entry outright, which is what makes it safe -- on hg38 ground truth
+# the same rule scores 44/47 at min_kids=1 and 28/29 at min_kids=2, so it is used
+# here as EVIDENCE FOR A CURATED TABLE, never as an automatic fallback.
+#
+# Every row below was additionally cross-checked against the family's own RepBase
+# CLASS token (ERV1/ERV2/ERV3 -> LTR, SINE1/7SL -> SINE, L1 -> LINE, ...):
+# 36 rows, ZERO conflicts.
+#
+# Not reference-derived -- mouse has no reference -- so unlike
+# hg38.repbase-class-family.tsv this file is not circular.
+#
+# Columns 4 and 5 are evidence, ignored by the reader: how many rmsk subfamilies
+# agreed, and how many genome bases they cover across mm10+mm39.
+family	repFamily	repClass	n_subfamilies	subfamily_bases
+B1	Alu	SINE	10	108366463
+LX3	L1	LINE	4	44782401
+B2	B2	SINE	3	43096750
+MTE	ERVL-MaLR	LTR	9	34975074
+ORR1A	ERVL-MaLR	LTR	10	30088318
+ORR1B	ERVL-MaLR	LTR	4	23646613
+ORR1D	ERVL-MaLR	LTR	5	21503267
+LX4	L1	LINE	2	18342360
+MTA	ERVL-MaLR	LTR	2	17099396
+RMER19	ERVK	LTR	4	12867887
+MERVL	ERVL	LTR	2	12841903
+URR1	hAT-Charlie	DNA	2	12625210
+ORR1C	ERVL-MaLR	LTR	4	12076003
+MYSERV	ERVK	LTR	4	7928761
+ETNERV	ERVK	LTR	3	7352226
+MMERVK10C	ERVK	LTR	1	5777140
+MERVL_2A	ERVL	LTR	1	5352712
+RMER4	ERVK	LTR	2	4841855
+LTRIS	ERV1	LTR	9	3418948
+RLTR12	ERVK	LTR	10	3324975
+ETNERV2	ERVK	LTR	1	3272264
+RMER20	ERVK	LTR	3	3211763
+MYSERV6	ERVK	LTR	1	3167031
+RLTR13B	ERVK	LTR	4	3053664
+MURERV4	ERVK	LTR	2	3022504
+MMETN	ERVK	LTR	1	2996573
+RODERV21	ERV1	LTR	1	2183024
+ID4_	ID	SINE	1	1792603
+ETNERV3	ERVK	LTR	1	1660080
+MT2C	ERVL	LTR	1	1471407
+IAP-D	ERVK	LTR	1	1327743
+MERVK26	ERVK	LTR	1	1283813
+MURERV4_19	ERVK	LTR	1	1234043
+ERVB4_3-I_MM	ERVK	LTR	1	151977
+IAPA_MM	ERVK	LTR	1	52030
+RNERVK23	ERVK	LTR	1	17391

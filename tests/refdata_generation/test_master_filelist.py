@@ -449,3 +449,56 @@ def test_gene_name_outranks_rfam_where_they_disagree():
                 assert family_from_gene_name(p[2]) == "RNU105"  # gene_name wins
                 return
     pytest.skip("no RNU105 transcript present in both sources")
+
+
+# ── curated MOUSE RepBase table (-475.43) ────────────────────────────────
+
+MM_CURATED = REPO / "refdata/mm.repbase-class-family.tsv"
+
+
+def test_later_curated_table_overrides_an_earlier_one(tmp_path):
+    """Mouse passes the human table first, then its own; species-specific wins."""
+    from generate_master_filelist import read_curated_class_family
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    a = _curated(tmp_path / "a", [("B1", "human", "HUMAN")])
+    b = _curated(tmp_path / "b", [("B1", "Alu", "SINE")])
+    assert read_curated_class_family([a, b])["B1"] == ("Alu", "SINE")
+    assert read_curated_class_family([b, a])["B1"] == ("human", "HUMAN")
+
+
+def test_a_single_path_is_still_accepted(tmp_path):
+    from generate_master_filelist import read_curated_class_family
+    f = _curated(tmp_path, [("ALR1", "centr", "Satellite")])
+    assert read_curated_class_family(f)["ALR1"] == ("centr", "Satellite")
+
+
+@pytest.mark.skipif(not MM_CURATED.exists(), reason="mouse curated table not available")
+def test_mouse_table_resolves_the_major_mouse_sines():
+    """B1 is the mouse Alu-equivalent; UCSC has no bare B1/B2 repName."""
+    from generate_master_filelist import read_curated_class_family
+    mm = read_curated_class_family(MM_CURATED)
+    assert mm["B1"] == ("Alu", "SINE")
+    assert mm["B2"] == ("B2", "SINE")
+
+
+@pytest.mark.skipif(not MM_CURATED.exists(), reason="mouse curated table not available")
+def test_mouse_table_never_encodes_the_unresolved_fallback():
+    """resolve_repeat's fallback is (name, name); such a row would be a no-op.
+
+    family == name alone is fine and expected -- UCSC's repFamily for B2 really
+    is 'B2'. It is family AND class both echoing the name that means nothing was
+    resolved.
+    """
+    from generate_master_filelist import read_curated_class_family
+    mm = read_curated_class_family(MM_CURATED)
+    assert not [k for k, v in mm.items() if v[0] == k and v[1] == k]
+
+
+@pytest.mark.skipif(not MM_CURATED.exists(), reason="mouse curated table not available")
+def test_mouse_table_records_its_evidence():
+    """Columns 4 and 5 carry subfamily count and bases so a row can be audited."""
+    rows = [l.split("\t") for l in MM_CURATED.read_text().splitlines()
+            if l and not l.startswith("#") and not l.startswith("family\t")]
+    assert rows and all(len(r) == 5 for r in rows)
+    assert all(int(r[3]) >= 1 and int(r[4]) > 0 for r in rows)
