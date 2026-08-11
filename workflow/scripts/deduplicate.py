@@ -28,6 +28,7 @@ import sys
 import os
 import re
 import math
+import subprocess
 from collections import defaultdict
 
 GENOME_HASHING_VALUE = 1000
@@ -624,17 +625,41 @@ def read_rep_family_pe(sam_file, read_hash, convert_enst2priorityN):
 # Read unique-genomic (rmrep) SAM files
 # ---------------------------------------------------------------------------
 
+def open_sam_stream(sam_file):
+    """Open a .sam/.tmp directly, or a .bam through samtools.
+
+    Returns (filehandle, process_or_None). The caller must pass the process to
+    close_sam_stream() so a samtools failure is not read as an empty file --
+    the same silent-failure that made a missing bowtie2 look like zero
+    repeat-family reads (issue -475.16).
+    """
+    if sam_file.endswith(".sam") or sam_file.endswith(".tmp"):
+        return open(sam_file), None
+    if sam_file.endswith(".bam"):
+        proc = subprocess.Popen(
+            ["samtools", "view", "-h", sam_file],
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        return proc.stdout, proc
+    raise ValueError(f"couldn't figure out format of {sam_file}")
+
+
+def close_sam_stream(fh, proc, sam_file):
+    """Close the stream and abort if samtools exited non-zero."""
+    fh.close()
+    if proc is not None:
+        returncode = proc.wait()
+        if returncode != 0:
+            sys.exit(
+                f"samtools view failed with exit code {returncode} on {sam_file}"
+            )
+
+
 def read_unique_mapped_se(sam_file, read_hash, peaks, gencode_features,
                           enst2ensg, convert_enst2type, convert_enst2priorityN):
     fi2_count = 0
-    if sam_file.endswith(".sam") or sam_file.endswith(".tmp"):
-        fh = open(sam_file)
-    elif sam_file.endswith(".bam"):
-        import subprocess as sp
-        proc = sp.Popen(["samtools", "view", "-h", sam_file], stdout=sp.PIPE, text=True)
-        fh = proc.stdout
-    else:
-        raise ValueError(f"couldn't figure out format of {sam_file}")
+    fh, proc = open_sam_stream(sam_file)
 
     for r1 in fh:
         r1 = r1.rstrip("\n")
@@ -700,20 +725,13 @@ def read_unique_mapped_se(sam_file, read_hash, peaks, gencode_features,
             "ensttype": all_ensttypes,
         }
 
-    fh.close()
+    close_sam_stream(fh, proc, sam_file)
 
 
 def read_unique_mapped_pe(sam_file, read_hash, peaks, gencode_features,
                           enst2ensg, convert_enst2type, convert_enst2priorityN):
     fi2_count = 0
-    if sam_file.endswith(".sam") or sam_file.endswith(".tmp"):
-        fh = open(sam_file)
-    elif sam_file.endswith(".bam"):
-        import subprocess as sp
-        proc = sp.Popen(["samtools", "view", "-h", sam_file], stdout=sp.PIPE, text=True)
-        fh = proc.stdout
-    else:
-        raise ValueError(f"couldn't figure out format of {sam_file}")
+    fh, proc = open_sam_stream(sam_file)
 
     while True:
         r1_line = fh.readline()
@@ -806,7 +824,7 @@ def read_unique_mapped_pe(sam_file, read_hash, peaks, gencode_features,
             "ensttype": all_ensttypes,
         }
 
-    fh.close()
+    close_sam_stream(fh, proc, sam_file)
 
 
 # ---------------------------------------------------------------------------

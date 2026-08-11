@@ -50,6 +50,7 @@ def main():
             filehandles[prefix] = open(outfi, "w")
 
     # Open the input — SAM directly, BAM via samtools
+    proc = None
     if sam_fi.endswith(".sam"):
         infile = open(sam_fi, "r")
     elif sam_fi.endswith(".bam"):
@@ -156,6 +157,13 @@ def main():
                 print(f"unexpected UMI prefix {first2rand!r} in read {tmp_r1[0]}", file=sys.stderr)
 
     infile.close()
+    # Abort rather than treat a samtools failure as an empty file -- the same
+    # silent-failure that made a missing bowtie2 look like zero repeat-family
+    # reads (issue -475.16).
+    if proc is not None:
+        returncode = proc.wait()
+        if returncode != 0:
+            sys.exit(f"samtools view failed with exit code {returncode} on {sam_fi}")
     for fh in filehandles.values():
         fh.close()
 
