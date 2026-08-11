@@ -1,0 +1,84 @@
+# RepBase 18.05 repeat CLASS vocabulary.
+# Derived from the hg38 reference index: for each of the 1,224 repeat
+# families, NAME is known from the index, TAXON is the trailing binomial
+# (Genus_species) or single trailing token, and CLASS is what remains.
+# With this list, NAME extraction reproduces all 1,224 hg38 family names
+# exactly -- zero exceptions. Every non-bare mouse header also parses.
+# Match the LONGEST class suffix: 'CR1_HS_CR1_Homo_sapiens' is NAME=CR1_HS,
+# CLASS=CR1, so a left-to-right match would return the wrong name.
+CR1
+DNA_transposon
+ERV1
+ERV2
+ERV3
+EUTREP11
+EUTREP12
+EUTREP14
+EUTREP15
+EUTREP16
+EUTREP2
+EUTREP4
+EUTREP5
+EUTREP6
+EUTREP7
+EUTREP8
+Endogenous_Retrovirus
+Eutr1
+Eutr10
+Eutr11
+Eutr12
+Eutr13
+Eutr14
+Eutr15
+Eutr16
+Eutr17
+Eutr18
+Eutr2
+Eutr3
+Eutr4
+Eutr5
+Eutr6
+Eutr9
+Gypsy
+HSFAU
+Helitron
+Integrated_Virus
+KER
+Kolobok
+L1
+L2
+LTR_Retrotransposon
+Long_terminal_repeat
+MARE10
+MARE11
+MARE4
+MARE8
+MARE9
+MER122
+MER22
+MER35
+MSAT
+Mariner/Tc1
+Merlin
+MuDR
+Non-LTR_Retrotransposon
+Penelope
+Pseudogene
+R4
+RTE
+RTEX
+Repetitive_element
+SAT
+SINE
+SINE1/7SL
+SINE2/tRNA
+SINE3/5S
+Satellite
+Transposable_Element
+Tx1
+Vingi
+hAT
+piggyBac
+satellite
+snRNA
+tRNA
