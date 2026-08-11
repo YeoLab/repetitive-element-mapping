@@ -438,6 +438,9 @@ Three gaps found 2026-08-10 that were in no document or issue:
 ## Pointers
 
 - `.forge/stages/2-architect/notes/FIX-PLAN-bowtie2-index.md` — T-05 rewrite plan (§2–§4b, §7)
+- `docs/MASTER_FILELIST-decisions.md` — **the full decision record for the filelist generator**:
+  every rule, the function that implements it, the measurement that justified it, and the
+  alternatives that were rejected with the numbers that killed them
 - `.forge/stages/2-architect/notes/T-07-per-source-selection.log` — the five UniqueGenomicElements rules
 - `.forge/debug/causal-chain.json` — prior (now superseded) 0-repeat-reads diagnosis
 - `docs/CHANGELOG-refdata-validation-2026-07-25.md` — hg38 reproduction validation results
