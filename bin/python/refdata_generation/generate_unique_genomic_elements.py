@@ -99,8 +99,25 @@ def parse_trna_bed_rows(path):
         yield (chrom, start0, end0, name, TRNA_COPY_SUFFIX.sub('', name), strand)
 
 
+def ucsc_chrom(seqid):
+    """Normalize a gff3 seqid to UCSC naming.
+
+    miRBase mixes conventions. The GRCm39 mmu.gff3 (v23) is 1,164 rows of
+    Ensembl-style seqids ('1', 'X') and 26 rows already written 'chr2', 'chr10'.
+    Everything else in this repo -- the genome FASTAs, the chromosome
+    allowlists, parsed_ucsc, the RepeatMasker tracks -- is UCSC-named, so an
+    un-normalized seqid silently produces intervals that match no chromosome.
+    """
+    if seqid.startswith('chr'):
+        return seqid
+    return 'chrM' if seqid == 'MT' else 'chr' + seqid
+
+
 def parse_gff3_mirna(path):
-    """Parse miRNA_primary_transcript features from gff3. Yields (chrom, start0, end0, id, name, strand)."""
+    """Parse miRNA_primary_transcript features from gff3. Yields (chrom, start0, end0, id, name, strand).
+
+    Seqids are normalized through ucsc_chrom.
+    """
     with open(path) as fh:
         for line in fh:
             if line.startswith('#'):
@@ -120,7 +137,7 @@ def parse_gff3_mirna(path):
             entry_name = name_m.group(1)
             start0 = int(start_s) - 1
             end0 = int(end_s)
-            yield (chrom, start0, end0, entry_id, entry_name, strand)
+            yield (ucsc_chrom(chrom), start0, end0, entry_id, entry_name, strand)
 
 
 def parse_parsed_ucsc(path):

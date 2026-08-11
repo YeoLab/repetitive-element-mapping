@@ -209,3 +209,34 @@ def test_output_is_six_column_bed_with_nonnegative_starts(inputs, tmp_path):
     assert rows
     assert all(len(r) == 6 for r in rows)
     assert all(int(r[1]) >= 0 and int(r[2]) > int(r[1]) for r in rows)
+
+
+# ── miRBase seqid normalization (-475.6) ─────────────────────────────────
+
+@pytest.mark.parametrize("seqid, expected", [
+    ("1", "chr1"),
+    ("X", "chrX"),
+    ("MT", "chrM"),
+    ("chr2", "chr2"),        # already UCSC-named; left alone
+    ("chrX", "chrX"),
+    ("GL456210.1", "chrGL456210.1"),
+])
+def test_ucsc_chrom_normalizes_gff3_seqids(seqid, expected):
+    from generate_unique_genomic_elements import ucsc_chrom
+    assert ucsc_chrom(seqid) == expected
+
+
+def test_gff3_mirna_seqids_are_normalized(tmp_path):
+    """miRBase v23 mmu.gff3 mixes conventions: 1,164 bare rows and 26 'chr' rows.
+
+    Un-normalized seqids silently produce intervals matching no chromosome,
+    because every other artifact here is UCSC-named.
+    """
+    from generate_unique_genomic_elements import parse_gff3_mirna
+    f = tmp_path / "mmu.gff3"
+    f.write_text(
+        "##gff-version 3\n"
+        "1\t.\tmiRNA_primary_transcript\t10\t20\t.\t+\t.\tID=MI1;Name=mmu-mir-1\n"
+        "chr2\t.\tmiRNA_primary_transcript\t30\t40\t.\t-\t.\tID=MI2;Name=mmu-mir-2\n"
+    )
+    assert [r[0] for r in parse_gff3_mirna(f)] == ["chr1", "chr2"]

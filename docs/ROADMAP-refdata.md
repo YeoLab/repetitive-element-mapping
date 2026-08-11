@@ -408,10 +408,16 @@ M-10 475.15  package + document              <- M-9
 
 Three gaps found 2026-08-10 that were in no document or issue:
 
-1. **mm39 is missing two inputs entirely** — no `mm39.trna.tsv.gz`, and no GRCm39-coordinate
-   miRBase gff3 (mm10's `mmu.gff3` is GRCm38). T-07 rules 4 and 5 need both. (Neither the index
-   nor the filelist reads the tRNA track any more — both take the gtRNAdb FASTA — but T-07 still
-   does. The missing gff3 is why the mm39 filelist has no miRNA rows.)
+1. ~~**mm39 is missing two inputs entirely**~~ — **closed 2026-08-11 (`475.6`)**. Neither the
+   index nor the filelist reads the tRNA track any more; both take the gtRNAdb FASTA
+   (`mm39-tRNAs.fa`, 407 loci). The GRCm39 miRBase gff3 is `https://mirbase.org/download/mmu.gff3`
+   — miRBase **v23**, GRCm39, 1,190 primary transcripts — now at
+   `examples/inputs/mm39/downloaded/mmu.gff3`, giving the mm39 filelist 2,380 miRNA rows.
+   mm10 stays on its v22/GRCm38 copy, because v23 ships mouse coordinates on GRCm39 only.
+   **The v23 file mixes seqid conventions** — 1,164 Ensembl-style rows (`1`, `X`) and 26 already
+   `chr`-prefixed — so `parse_gff3_mirna` normalizes through `ucsc_chrom`; everything else in the
+   repo is UCSC-named and un-normalized seqids match no chromosome. T-07 still reads the tRNA
+   track.
 2. **No mouse chromosome allowlists** — now written as deliberately permissive placeholders
    (every sequence name in the assembly `.fai`), enough to build a filelist. Narrowing them is
    still `475.7`.
