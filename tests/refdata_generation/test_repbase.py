@@ -106,3 +106,40 @@ def test_mouse_duplicate_family_is_fatal():
     twice, so this must raise rather than silently keep one."""
     with pytest.raises(ValueError, match="duplicate family"):
         repbase.select_families(MOUSE)
+
+
+# --- mouse drop-exact (-475.11 / M-5) -----------------------------------------
+
+MOUSE_DROP_EXACT = REPO / "refdata" / "repbase18.05-drop-exact.mm.txt"
+
+
+@needs_repbase
+def test_mouse_selection_gives_1072_families():
+    families, unparsed = repbase.select_families(
+        MOUSE, repbase.load_drop_exact(MOUSE_DROP_EXACT))
+    assert unparsed == [], f"unparsed headers: {unparsed[:5]}"
+    assert len(families) == 1072
+
+
+@pytest.mark.parametrize("header,kept", [
+    # dropped: the mouse MASTER_FILELIST's Gencode block supplies the family
+    ("U1", False),                      # RNU1
+    ("U2", False),                      # RNU2
+    ("U4B", False),                     # RNU4
+    ("U6", False),                      # RNU6 + RNU6ATAC
+    ("U7", False),                      # RNU7, bare form
+    ("U7_snRNA_Vertebrata", False),     # RNU7, well-formed form -- both go
+    ("NR_046235.1", False),             # the HUMAN 45S RefSeq, in the mouse library too
+    # kept: no mouse Gencode family supplies these
+    ("U5B1", True),                     # mouse has NO RNU5 family -- see -4ee
+    ("U3", True),
+    ("U13", True),
+    ("UHG", True),
+    ("U8_snRNA_Vertebrata", True),      # only the bare U8 duplicate is dropped
+    ("U14_snRNA_Vertebrata", True),
+    ("L32_Pseudogene_Mus_musculus", True),   # no RPL32 family to defer to
+    ("B1_Mm_SINE1/7SL_Mus", True),      # a transposon named after 7SL, not 7SL
+])
+def test_mouse_drop_exact_selection(header, kept):
+    assert repbase.keep_record(
+        header, repbase.load_drop_exact(MOUSE_DROP_EXACT)) is kept

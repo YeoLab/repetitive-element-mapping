@@ -1,17 +1,66 @@
 # Records excluded from the mouse repeat portion (RepBase 18.05
-# species_specific/mus_musculus_repbase_u1_fixed_v2.fastq).
+# species_specific/mus_musculus_repbase_u1_fixed_v2.fastq, 1194 records).
 #
-# MINIMUM list, not the mouse counterpart of the human one. It contains only
-# what is needed to make repbase.select_families resolvable. Three families
-# appear twice, each as a well-formed U<n>_snRNA_Vertebrata record and again as
-# a bare header carrying no CLASS_TAXON fields at all. The bare ones are dropped
-# and the well-formed records kept.
+# Derived 2026-08-11 (-475.11 / M-5) against the mouse MASTER_FILELIST, NOT
+# transferred from the human list. The rule is "drop from the repeat portion
+# whatever Gencode/MASTER_FILELIST supplies": a family present in both portions
+# splits its reads between them.
 #
-# The human list additionally drops the snRNA/Pseudogene records that
-# Gencode/MASTER_FILELIST supplies (U1, U2, U4B, U5B1, U6, U7, 7SK, 7SL, HY1,
-# HY3). The mouse equivalents cannot be chosen until a mouse MASTER_FILELIST
-# exists to say which families it supplies -- that is -475.11 (M-5), which
-# should extend this file rather than replace it.
-U14
+# The `_u1_` in the file name is a block of 11 bare-header records appended to
+# the mouse library -- U1 U2 U3 U4B U5B1 U6 UHG U13 U7 U14 U8 -- standing in for
+# the human library's U<n>_snRNA_Homo_sapiens records. Three of them (U7, U8,
+# U14) duplicate a well-formed U<n>_snRNA_Vertebrata record; a bare header
+# carries no CLASS_TAXON and cannot be parsed, so where the family is kept the
+# bare copy is dropped and the well-formed one retained.
+#
+# Mouse Gencode supplies (genelists.* blocks): RNU1 RNU2 RNU4 RNU6 RNU6ATAC
+# RNU7 RN7SK RN7SL YRNA SCARNA SNORA SNORD MTTRNA RNA5S RNA5-8S RNA18S RNA28S
+# RNA45S.
+#
+# DROPPED, with the family that supplies it:
+#   U1                    <- RNU1   (204 Gencode rows)
+#   U2                    <- RNU2   (48)
+#   U4B                   <- RNU4   (38)
+#   U6                    <- RNU6   (936) + RNU6ATAC (22)
+#   U7, U7_snRNA_Vertebrata <- RNU7 (15) -- both forms, as the human list drops
+#                            U7_snRNA_Vertebrata
+#   U8, U14               bare duplicates only; the families stay via
+#                         U8_snRNA_Vertebrata / U14_snRNA_Vertebrata
+#   NR_046235.1           the HUMAN 45S pre-rRNA RefSeq, present in the mouse
+#                         library too. Mouse RNA18S/RNA28S/RNA45S/RNA5-8S come
+#                         from the mouse subunit sources (NR_046233.2); leaving
+#                         a human 45S in a mouse index splits rRNA reads.
+#
+# KEPT, deliberately, where the human list drops or has no counterpart:
+#   U5B1   The human list drops U5B1 because human Gencode supplies RNU5A-RNU5F.
+#          The mouse MASTER_FILELIST has NO RNU5 family, so U5B1 is mouse U5's
+#          only representation and dropping it would lose U5 entirely. This is
+#          conditional: -4ee (family_from_gene_name is case-sensitive, so
+#          gencode vM38's Rnu5g never resolves) would add an RNU5 family, and
+#          U5B1 must then move into this list. Do not fix -4ee without
+#          re-deciding this line.
+#   U3, U13, UHG, U8_snRNA_Vertebrata, U14_snRNA_Vertebrata
+#          snoRNA/host-gene records. Gencode supplies SNORD and SCARNA, but the
+#          human list keeps these too, so keeping them is the human rule applied
+#          unchanged rather than a mouse exception.
+#   L32_Pseudogene_Mus_musculus
+#          The only _Pseudogene record in the mouse library. Human drops
+#          7SK/7SL/HY1/HY3 pseudogenes because Gencode supplies RN7SK/RN7SL/
+#          YRNA; there is no RPL32 family in any genelists block, so this one
+#          has no supplier to defer to.
+#   B1*/PB1* (SINE1/7SL class, 17 records)
+#          Transposons named after 7SL, not 7SL itself. The mouse library has no
+#          7SK/7SL/HY Pseudogene record and no GGAAT_SAT, so those four human
+#          drop lines have no mouse counterpart at all.
+#
+# Match on the FULL header -- a prefix match on U1 would wrongly drop U13/U14.
+# Yields 1072 families of 1194 records.
+U1
+U2
+U4B
+U6
 U7
+U7_snRNA_Vertebrata
 U8
+U14
+NR_046235.1

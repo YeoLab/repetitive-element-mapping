@@ -485,15 +485,69 @@ PYTHONPATH=bin/python/refdata_generation \
 miRBase pairing is not interchangeable: mm10 takes the v22/GRCm38 `mmu.gff3`, mm39 the
 v23/GRCm39 one.
 
+### M-5 — mouse DROP_EXACT, re-derived 2026-08-11 (`475.11`)
+
+The `_u1_` in `mus_musculus_repbase_u1_fixed_v2.fastq` is a block of 11 bare-header records
+appended to the mouse library — `U1 U2 U3 U4B U5B1 U6 UHG U13 U7 U14 U8` — standing in for the
+human library's `U<n>_snRNA_Homo_sapiens` records. Until now all but three were kept, and the
+MASTER_FILELIST showed the double-count directly: its RepBase block carried
+
+```
+U1   RNU1 RNU1 RNU1 RNU1        <- family RNU1, which genelists.RNU1 already supplies (204 rows)
+U2   RNU2 ...                   <- RNU2 (48)
+U6   RNU6 ...                   <- RNU6 (936) + RNU6ATAC (22)
+U7   RNU7 ...                   <- RNU7 (15)
+U4B  U4B  ...                   <- unresolved, so its own family; Gencode supplies RNU4 (38)
+NR   NR   ...                   <- NR_046235.1, the HUMAN 45S RefSeq, resolving to family "NR"
+```
+
+Those six are now dropped, plus `U7_snRNA_Vertebrata` (the well-formed twin — the human list
+drops that form, so both go). Mouse RepBase selection: **1,078 → 1,072 families**.
+
+`U5B1` is deliberately **kept**, where the human list drops it: human Gencode supplies
+RNU5A–RNU5F, the mouse MASTER_FILELIST has no RNU5 family at all, so U5B1 is mouse U5's only
+representation. That is conditional on `-4ee` (`family_from_gene_name` is case-sensitive, so
+vM38's `Rnu5g` never resolves) — fixing it would create an RNU5 family and U5B1 would then have
+to move into the drop list. The two must be decided together.
+
+Measured overlap between the RepBase block's families and the Gencode block's:
+
+| | before | after | hg38 reference |
+|---|---|---|---|
+| mm10 | RNU1 RNU2 RNU6 RNU7 SNORD | **SNORD** | — |
+| mm39 | RNU1 RNU2 RNU6 RNU7 SNORD | **SNORD** | — |
+| hg38 | | | SNORD, YRNA |
+
+The residual `SNORD` is inherited from the human rule, not a mouse exception: the kept
+U3/U8/U13/U14 snoRNA records carry family SNORD, and the hg38 reference does the same (and also
+carries YRNA). Mouse now overlaps strictly less than the validated human artifact.
+
+Note that `U1`, `U2`, `U6` and `U7` still appear *later* in the file, in the rmsk-leftovers
+block with families RNU1/RNU2/RNU6/RNU7 — because RepeatMasker's `repName` for those loci is
+literally `U1`, `U2`, … The hg38 reference has exactly the same rows (lines 11786–12345), so
+this is the intended shape; the rule is about the RepBase block only.
+
+Both mouse MASTER_FILELISTs and both bowtie2 indices were rebuilt (the T-09/T-05 rerun the
+issue requires): mm10 11,526→11,520 filelist rows and 5,488→5,482 index records, mm39
+25,871→25,869 and 5,727→5,721, the diff in each case being exactly those six records and
+nothing else. Contracts re-checked after the rebuild: every index header resolves in the
+filelist (5,482/5,482 and 5,721/5,721) and the M-6 BED check still returns 0 unresolved rows.
+
+The filelist invocation was first validated by reproducing the committed 2026-08-11 mm39 file
+**byte-identically** before changing anything. It needs both curated tables, human first:
+`--repbase-class-family refdata/hg38.repbase-class-family.tsv --repbase-class-family
+refdata/mm.repbase-class-family.tsv`.
+
 ## Standing risks
 
 - **Line-count acceptance criteria mask content bugs.** T-09 passed a ±1% row-count check
   (26,252 vs 26,422 = 0.9936) while col4 was entirely the wrong field. Any new criterion must
   test content, not shape.
-- **`M-5` is a correctness dependency, not bookkeeping.** The mouse `DROP_EXACT` prediction of
-  1,079 families assumes the human list transfers. The actual rule is "drop whatever Gencode
-  supplies," which cannot be checked until a mouse MASTER_FILELIST exists. Getting it wrong
-  double-counts reads across the repeat and Gencode portions.
+- ~~**`M-5` is a correctness dependency, not bookkeeping.**~~ **Confirmed and closed 2026-08-11.**
+  The prediction that the human list transfers was wrong in both directions: four families
+  (RNU1, RNU2, RNU6, RNU7, plus U4B and the human `NR_046235.1` record) were being double-counted
+  across the repeat and Gencode portions, and one (`U5B1`) must be kept where human drops it.
+  Realized 1,072 families, not the predicted 1,079. See the M-5 section above.
 - **Genomic-instance fallback for unresolved families is prohibited** (FIX-PLAN §4a). It
   reintroduces the T-05 error, and mouse has no reference to catch it.
 - **Fitting to hg38 is the systemic hazard.** Rules derived by diffing against the hg38 reference
