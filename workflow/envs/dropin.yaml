@@ -1,12 +1,35 @@
 name: ecliprepmap-dropin
+
+# Versions are pinned exactly. Open-ended constraints (">=") let the environment
+# drift on every rebuild, which silently breaks reproducibility: these are the
+# versions the SE pipeline was validated against on 2026-08-10, when its output
+# was shown equivalent to a CWL 1.0.0 run of the same dataset. Changing any pin
+# invalidates that validation until the comparison is re-run
+# (bin/python/compare_pipeline_outputs.py).
+#
+# KNOWN DIVERGENCE FROM THE CWL PIPELINE -- bowtie2 MAPQ
+# The CWL module pins bowtie2 2.2.6; this env uses 2.5.5. On secondary
+# alignments (flag 256) 2.2.6 emits MAPQ 1 while 2.5.5 emits MAPQ 255
+# ("unavailable", per the SAM spec). Primary and unmapped records agree.
+#
+# This is cosmetic and was accepted deliberately:
+#   - blanking column 5 makes rmDup.sam.gz and preRmDup.sam.gz byte-identical
+#     to the CWL output after sorting (17,691,900 lines each) -- every read
+#     selection, position, flag, sequence, quality and optional tag matches
+#   - no pipeline logic reads MAPQ; the mapper keys on AS:i
+#     (map_repetitive_elements_se.py:73). The tmp[4] accesses in
+#     deduplicate.py:95,201 parse the gencode table-browser and a BED file
+#   - all read counts are exactly identical to the CWL run
+# See issue repetitive-element-mapping-475.32 and docs/ROADMAP-refdata.md.
+
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - python=3.10
-  - samtools>=1.17
-  - bowtie2>=2.5
-  - numpy
-  - pandas
-  - pysam
+  - python=3.10.20
+  - samtools=1.23.1
+  - bowtie2=2.5.5
+  - numpy=2.2.6
+  - pandas=2.3.3
+  - pysam=0.24.0
