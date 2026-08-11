@@ -63,7 +63,6 @@ def parse_args():
                         '18S=NR_003278.3 and 28S=NR_003279.1. The span is '
                         'located by the subunit\'s terminal 40-mers and the '
                         'sequence emitted is always the precursor\'s.')
-    p.add_argument('--gff3')
     p.add_argument('--custom-fasta', action='append', default=[])
     p.add_argument('--output-dir', required=True)
     p.add_argument('--output-prefix', required=True)
@@ -536,34 +535,6 @@ def rrna_fasta(paths, subunit_seqs=None):
     return ''.join(out)
 
 
-def read_mirna_gff3(path, log):
-    """Parse miRNA gff3. Returns list of (chrom, start0, end0, name, score, strand)."""
-    rows = {}
-    with open(path) as fh:
-        for line in fh:
-            if line.startswith('#'):
-                continue
-            parts = line.rstrip('\n').split('\t')
-            if len(parts) < 9:
-                continue
-            chrom, source, feature, start_s, end_s, score, strand, frame, attrs = parts[:9]
-            # Only use primary miRNA entries (miRNA_primary_transcript) or miRNA
-            if feature not in ('miRNA', 'miRNA_primary_transcript'):
-                continue
-            # Parse Name= from gff3 attributes
-            m = re.search(r'Name=([^;]+)', attrs)
-            if not m:
-                continue
-            name = m.group(1)
-            if name in rows:
-                continue
-            start0 = int(start_s) - 1
-            end0 = int(end_s)
-            score_val = score if score != '.' else '0'
-            rows[name] = (chrom, start0, end0, name, score_val, strand)
-    return list(rows.values())
-
-
 def read_custom_fasta(paths):
     """Concatenate custom FASTA files verbatim."""
     out = []
@@ -683,17 +654,12 @@ def main():
     else:
         log.warning('--rrna-genbank not provided; rRNA precursors omitted')
 
-    # ── 5. miRNA (optional) ─────────────────────────────────────────────
-    mirna_fa = ''
-    if args.gff3:
-        log.info('Reading miRNA gff3...')
-        mirna_rows = read_mirna_gff3(args.gff3, log)
-        log.info(f'  {len(mirna_rows)} miRNA entries')
-        mirna_fa = strip_coord_suffix(
-            extract_sequences_bed6(mirna_rows, genome_fa, log, valid_chroms))
-        log.info(f'  Extracted {count_fasta_seqs(mirna_fa)} miRNA sequences')
-    else:
-        log.warning('--gff3 not provided; miRNA entries omitted')
+    # ── 5. miRNA — deliberately absent ──────────────────────────────────
+    # The reference index has NO miRNA records: 7,606 = 5,002 ENST + 1,224
+    # repeat + 864 tRNA + 501 SimpleRepeat + 15 NR_. miRNAs belong to the
+    # MASTER_FILELIST only. Emitting them here also broke the index/filelist
+    # name contract, because the index used the miRBase Name (mmu-let-7a-1)
+    # where the filelist uses the miRBase ID (MI0000556) -- see -475.44.
 
     # ── 6. Custom FASTA ─────────────────────────────────────────────────
     custom_fa = ''
@@ -710,11 +676,10 @@ def main():
         out.write(simple_fa)
         out.write(trna_fa)
         out.write(rrna_fa)
-        out.write(mirna_fa)
         out.write(custom_fa)
 
     total_seqs = count_fasta_seqs(
-        gencode_fa + rm_fa + simple_fa + trna_fa + rrna_fa + mirna_fa + custom_fa
+        gencode_fa + rm_fa + simple_fa + trna_fa + rrna_fa + custom_fa
     )
     log.info(f'Total sequences written: {total_seqs}')
 
@@ -722,9 +687,7 @@ def main():
     expected = len(transcripts) + len(families) + n_simple
     if args.gtrnadb_fasta:
         expected += 2 * len(trna_entries)
-    if args.gff3:
-        expected += len(mirna_rows)
-    extracted = n_gencode + n_rm + n_simple + count_fasta_seqs(trna_fa) + count_fasta_seqs(mirna_fa)
+    extracted = n_gencode + n_rm + n_simple + count_fasta_seqs(trna_fa)
     missing = expected - extracted
     if expected > 0 and missing / expected > 0.01:
         report_path = output_dir / 'missing_ids_report.txt'

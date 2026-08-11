@@ -275,3 +275,38 @@ def test_rrna_records_match_reference_exactly():
     assert len(built) == 15
     assert {k for k in ref if k.startswith("NR_")} == set(built)
     assert [k for k, v in built.items() if ref[k] != v] == []
+
+
+# ── index composition invariant (-475.44) ────────────────────────────────
+
+@needs_rrna
+def test_reference_index_contains_no_mirna_records():
+    """miRNAs belong to the MASTER_FILELIST, not to the sequence index.
+
+    7,606 = 5,002 ENST + 1,224 repeat + 864 tRNA + 501 SimpleRepeat + 15 NR_.
+    generate_bowtie2_index.py used to accept --gff3 and add miRNA sequences,
+    which broke both the reference composition and the index/filelist name
+    contract: the index used the miRBase Name where the filelist uses the ID.
+    """
+    from generate_bowtie2_index import _iter_fasta
+    names = [h.split()[0] for h, _ in _iter_fasta(IDX.read_text())]
+    assert len(names) == 7606
+    assert not [n for n in names if n.startswith("hsa-") or n.startswith("MI0")]
+
+
+def test_index_generator_no_longer_offers_a_gff3_flag():
+    """--gff3 is gone, so passing it fails loudly instead of adding miRNAs.
+
+    It remains on generate_unique_genomic_elements.py, where miRNA regions are
+    legitimate.
+    """
+    import subprocess
+    gen = REPO / "bin/python/refdata_generation/generate_bowtie2_index.py"
+    helptext = subprocess.run([sys.executable, str(gen), "--help"],
+                              capture_output=True, text=True).stdout
+    assert "--gff3" not in helptext
+    assert "--gtrnadb-fasta" in helptext          # sanity: help really rendered
+
+    ugh = REPO / "bin/python/refdata_generation/generate_unique_genomic_elements.py"
+    assert "--gff3" in subprocess.run([sys.executable, str(ugh), "--help"],
+                                      capture_output=True, text=True).stdout

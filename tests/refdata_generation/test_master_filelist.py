@@ -261,6 +261,87 @@ def test_reference_repeats_column_one_so_dedup_would_be_wrong():
     )
 
 
+# ── priority_n behaviour ─────────────────────────────────────────────────
+#
+# read_in_filelists assigns priority_n in file order and stores
+# convert_enst2type{$enst} = "$type_label:$priority_n". The comparison that
+# consumes it, `$enstpriority < $read_hash{$r1name}{flags}{$ensttype}`, is keyed
+# BY FAMILY, and counts accumulate on `$count{$ensttype_join}++`. So priority
+# only picks a family's representative element; it never moves a count between
+# families. These tests pin that reading of the Perl.
+
+def _read_in_filelists(rows):
+    """Reimplementation of read_in_filelists' priority assignment."""
+    convert = {}
+    priority_n = 0
+    for row in rows:
+        allenst, _, _, type_label, _ = row
+        type_label = type_label.rstrip('_')
+        for enst in allenst.split('|'):
+            convert[enst] = (type_label, priority_n)
+            priority_n += 1
+    return convert
+
+
+def test_priority_is_assigned_in_file_order_across_all_blocks():
+    rows = [
+        ("ENST1", "ENSG1", "RNU1-1", "RNU1", "genelists.RNU1"),
+        ("ENST2|ENST3", "ENSG2", "RNU1-2", "RNU1", "genelists.RNU1"),
+        ("ALUY", "Alu", "Alu", "Alu", "SINE"),
+    ]
+    convert = _read_in_filelists(rows)
+    assert convert["ENST1"] == ("RNU1", 0)
+    assert convert["ENST2"] == ("RNU1", 1)
+    assert convert["ENST3"] == ("RNU1", 2)   # pipe-joined ids each consume one
+    assert convert["ALUY"] == ("Alu", 3)
+
+
+def test_reordering_within_a_family_cannot_move_a_count():
+    """The property that makes within-family order safe to not reproduce.
+
+    Counts are keyed on the family label, so permuting rows inside one family
+    changes only which element wins the priority comparison, never the set of
+    family labels a read can be counted under.
+    """
+    rows = [
+        ("ENST1", "g", "n", "RNU1", "genelists.RNU1"),
+        ("ENST2", "g", "n", "RNU1", "genelists.RNU1"),
+        ("ENST3", "g", "n", "RNU2", "genelists.RNU2"),
+    ]
+    a = _read_in_filelists(rows)
+    b = _read_in_filelists([rows[1], rows[0], rows[2]])
+    assert {k: v[0] for k, v in a.items()} == {k: v[0] for k, v in b.items()}
+    # ...but the winner within RNU1 does flip, which is the visible effect.
+    assert (a["ENST1"][1] < a["ENST2"][1]) is not (b["ENST1"][1] < b["ENST2"][1])
+
+
+def test_trailing_underscore_is_stripped_from_the_family_label():
+    """read_in_filelists does `$type_label =~ s/\\_$//`."""
+    convert = _read_in_filelists([("ENST1", "g", "n", "ALR_", "SAT")])
+    assert convert["ENST1"][0] == "ALR"
+
+
+@needs_reference
+def test_reference_gencode_families_are_contiguous():
+    """Each family is one priority_n block, which is what --family-order pins.
+
+    Contiguity is the structural property that makes between-family order
+    reproducible and within-family order irrelevant.
+    """
+    seen, runs = set(), 0
+    prev = None
+    for line in REFERENCE.open():
+        p = line.rstrip("\n").split("\t")
+        if not (p[0].startswith("ENST") or p[0].startswith("NR_")):
+            break
+        if p[3] != prev:
+            assert p[3] not in seen, f"family {p[3]} appears in two separate runs"
+            seen.add(p[3])
+            prev = p[3]
+            runs += 1
+    assert runs == 32
+
+
 @needs_reference
 def test_family_order_file_matches_the_reference_block_order():
     from generate_master_filelist import read_family_order
