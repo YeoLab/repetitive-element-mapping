@@ -135,8 +135,39 @@ Elements in the second column of `.parsed` files that contain `|` characters are
 Reference output files for validating a run:
 - `test-provenance/tests/ecliprepmap-1.0.0/wf_ecliprepmap_pe/` — PE `.nopipes.tsv` and `.withpipes.tsv`
 - `test-provenance/tests/ecliprepmap-1.0.0/wf_ecliprepmap_se/` — SE `.nopipes.tsv` and `.withpipes.tsv`
+- `tests/cwl_baseline/ecliprepmap-1.0.0-SE/` — SE baseline from a CWL run of **known provenance**,
+  including the `.parsed` `#READINFO` header
 
-Compare your output `.nopipes.tsv` and `.withpipes.tsv` against these reference files to verify a run.
+Compare with `bin/python/compare_pipeline_outputs.py`, which requires read counts to match exactly,
+applies a relative tolerance to derived floats, and ignores row order:
+
+```bash
+python3 bin/python/compare_pipeline_outputs.py <your>.nopipes.tsv <reference>.nopipes.tsv
+```
+
+Compare the `.parsed` `#READINFO` header too, not just the TSVs. A defect in those fields
+(`UsableReads` was computed as `usable/usable`, always `1.0`) never reaches the TSVs and is
+invisible to output comparison — it was found only by diffing headers against a CWL run.
+
+Unit tests: `python3 -m pytest tests/ -q`.
+
+### Known divergence from the CWL pipeline: bowtie2 MAPQ
+
+The CWL module pins bowtie2 2.2.6; the Snakemake env pins 2.5.5. On **secondary alignments**
+(flag 256) 2.2.6 emits `MAPQ 1` and 2.5.5 emits `MAPQ 255` ("unavailable", per the SAM spec).
+Primary and unmapped records agree.
+
+This is accepted and inconsequential:
+
+- Blanking column 5 makes `rmDup.sam.gz` and `preRmDup.sam.gz` byte-identical to the CWL output
+  after sorting — every read selection, position, flag, sequence, quality and optional tag matches.
+- No pipeline logic reads MAPQ; the mapper keys on `AS:i`.
+- All read counts are exactly identical to the CWL run.
+
+So `.sam.gz` files will **not** be byte-identical to a CWL run, while every computed result is.
+Diff SAM output with column 5 masked. Dependency versions are pinned exactly in
+`workflow/envs/dropin.yaml`; changing any pin invalidates this validation until the comparison
+is re-run.
 
 ## Subagent
 

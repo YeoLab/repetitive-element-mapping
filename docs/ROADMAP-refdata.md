@@ -147,6 +147,31 @@ The PE workflow also has code the SE path lacks (two-barcode merge, PE pairing l
 r1/r2 flag-swap bug in `d44ca22` was PE-only), so a PE-specific defect of that class is not
 hypothetical. Tracked as `475.31`.
 
+### Full SE surface comparison
+
+Every SE output was compared against the fresh CWL 1.0.0 run, not just the TSVs:
+
+| Surface | Result |
+|---|---|
+| `.nopipes.tsv` | 182 / 182 elements, read counts **exact** |
+| `.withpipes.tsv` | 1,915 / 1,915 elements, read counts **exact** |
+| `.parsed` `#READINFO` | all 4 totals match |
+| `.parsed` `TOTAL` | all 1,915 rows match |
+| `.parsed` `ELEMENT` | all **181,342** rows match on id / readnum / enst / ensg |
+| `rmDup.sam.gz` | 17,691,900 lines, identical **except column 5** |
+| `preRmDup.sam.gz` | identical **except column 5** |
+
+One difference remains, and it is a tool-version artifact rather than a translation defect:
+bowtie2 2.2.6 (CWL) emits `MAPQ 1` on secondary alignments where 2.5.5 emits `MAPQ 255`,
+confirmed by running both aligners on the same fastq and index. Blanking column 5 makes both
+SAM files byte-identical after sorting, and no pipeline logic reads MAPQ — the mapper keys on
+`AS:i`. Accepted deliberately; dependency versions are now pinned exactly in
+`workflow/envs/dropin.yaml` (`475.32`).
+
+Two things are *more* reproducible in the Snakemake version than in the original: row order
+among equal-count elements (Perl uses hash iteration, which post-5.18 varies run to run), and
+float precision (full float64 versus Perl's 15-digit truncation). Neither is a gap to close.
+
 ### The three defects, and what each one teaches
 
 | Issue | Defect | Symptom it presented as | Reached the TSVs? |

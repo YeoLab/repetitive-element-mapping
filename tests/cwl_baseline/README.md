@@ -17,6 +17,16 @@ relative tolerance. Row order is ignored — elements with equal read counts com
 out in Perl hash-iteration order, which is not reproducible across
 implementations or, post-5.18, across runs.
 
+**Comparing SAM output:** mask column 5 first. The CWL module pins bowtie2 2.2.6
+and the Snakemake env pins 2.5.5, and the two report different MAPQ on secondary
+alignments (`1` vs `255`). With column 5 blanked, `rmDup.sam.gz` and
+`preRmDup.sam.gz` are byte-identical to the CWL output after sorting. No pipeline
+logic reads MAPQ. See `CLAUDE.md` and issue `-475.32`.
+
+```bash
+zcat x.sam.gz | awk -F'\t' 'BEGIN{OFS="\t"}{$5="X"; print}' | sort | md5sum
+```
+
 ## `ecliprepmap-1.0.0-SE/` — INV_B, hg38
 
 Generated 2026-08-10.
