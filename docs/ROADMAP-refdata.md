@@ -289,6 +289,14 @@ not emitted. **The assembly tRNA track (`hg38.trna.tsv.gz`) is not a substitute 
 FASTA** — it carries different names and different sequences, and using it is what produced the
 long-standing "the reference used a different gtRNAdb release" dead end.
 
+Mouse rRNA does **not** follow the human rule (`475.40`). Its precursor `NR_046233.2` annotates
+only `source`/`gene`/`rRNA` over the full 13,400 bp — no `misc_feature` to read — so the subunit
+spans are located by anchoring the standalone RefSeq records `NR_003278.3` (18S) and
+`NR_003279.1` (28S) on their terminal 40-mers, supplied via `--rrna-subunit LABEL=PATH`. The
+emitted bases are always the precursor's: 18S is an exact copy of Rn18s, while the precursor's
+28S is 4,727 bp against Rn28s1's 4,730 — a real 3 bp indel between rDNA copies, which is why a
+whole-substring match is not required.
+
 The RepBase file has 1,356 records covering **1,224/1,224** index families (100%), verified by
 header prefix *and* canonical sequence digest: 700 byte-exact, 524 matching after IUPAC→N (which
 is precisely the `.fixed.fa` step).

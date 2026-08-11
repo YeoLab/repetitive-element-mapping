@@ -151,6 +151,122 @@ def test_missing_subunit_annotation_is_an_error(tmp_path):
         read_rrna_genbank(f)
 
 
+# ── rRNA: unannotated precursors (mouse) ─────────────────────────────────
+
+def _genbank(accession, seq):
+    """Render a GenBank flat file with no misc_feature, like NR_046233.2."""
+    body = "\n".join(
+        f"{i + 1:>9} {seq[i:i + 60]}" for i in range(0, len(seq), 60)
+    )
+    return (
+        f"LOCUS       {accession.split('.')[0]}  {len(seq)} bp rRNA\n"
+        f"VERSION     {accession}\n"
+        "FEATURES             Location/Qualifiers\n"
+        f"     rRNA            1..{len(seq)}\n"
+        '                     /product="45S pre-ribosomal RNA"\n'
+        f"ORIGIN\n{body}\n//\n"
+    )
+
+
+def _random_seq(n, seed):
+    import random
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+def test_anchors_emit_precursor_bases_not_the_subunit_record(tmp_path):
+    """The mouse 28S record and the precursor's copy differ by a 3 bp indel.
+
+    The emitted record must be the precursor's own bases over the anchored
+    span, so a whole-substring match is not required and must not be assumed.
+    """
+    from generate_bowtie2_index import read_rrna_genbank
+    head, middle, tail = _random_seq(40, 1), _random_seq(60, 2), _random_seq(40, 3)
+    subunit = head + middle + tail
+    in_precursor = head + middle[:30] + middle[33:] + tail      # 3 bp deleted
+    precursor = _random_seq(100, 4) + in_precursor + _random_seq(100, 5)
+
+    gb = tmp_path / "p.gb"
+    gb.write_text(_genbank("NR_000002.2", precursor))
+    recs = read_rrna_genbank(gb, {"18S": subunit, "28S": subunit})
+
+    assert recs["NR_000002.2-45S"] == precursor
+    assert recs["NR_000002.2-18S"] == in_precursor
+    assert len(recs["NR_000002.2-18S"]) == len(subunit) - 3
+
+
+def test_unannotated_subunit_without_a_fallback_is_an_error(tmp_path):
+    from generate_bowtie2_index import read_rrna_genbank
+    gb = tmp_path / "p.gb"
+    gb.write_text(_genbank("NR_000002.2", _random_seq(300, 6)))
+    with pytest.raises(ValueError, match=r"--rrna-subunit 18S"):
+        read_rrna_genbank(gb)
+
+
+def test_ambiguous_anchor_is_an_error(tmp_path):
+    """rDNA is internally repetitive; a k-mer hitting twice must not be guessed."""
+    from generate_bowtie2_index import read_rrna_genbank
+    subunit = _random_seq(100, 7)
+    precursor = subunit + _random_seq(50, 8) + subunit
+    gb = tmp_path / "p.gb"
+    gb.write_text(_genbank("NR_000002.2", precursor))
+    with pytest.raises(ValueError, match="matches the precursor 2 times"):
+        read_rrna_genbank(gb, {"18S": subunit, "28S": subunit})
+
+
+def test_subunit_too_short_to_anchor_is_an_error(tmp_path):
+    from generate_bowtie2_index import read_rrna_genbank
+    gb = tmp_path / "p.gb"
+    gb.write_text(_genbank("NR_000002.2", _random_seq(300, 9)))
+    with pytest.raises(ValueError, match="too short to anchor"):
+        read_rrna_genbank(gb, {"18S": "ACGT" * 10, "28S": "ACGT" * 10})
+
+
+@pytest.mark.parametrize("spec, match", [
+    ("NR_003278.3.fasta", "LABEL=PATH"),
+    ("5.8S=x.fasta", "label must be one of"),
+])
+def test_rrna_subunit_arg_validation(spec, match):
+    from generate_bowtie2_index import read_rrna_subunit_args
+    with pytest.raises(ValueError, match=match):
+        read_rrna_subunit_args([spec])
+
+
+def test_rrna_subunit_file_must_hold_one_record(tmp_path):
+    from generate_bowtie2_index import read_rrna_subunit_args
+    f = tmp_path / "two.fasta"
+    f.write_text(">a\nACGT\n>b\nACGT\n")
+    with pytest.raises(ValueError, match="expected 1 FASTA record, found 2"):
+        read_rrna_subunit_args([f"18S={f}"])
+
+
+MOUSE_RRNA = REPO / "examples/inputs/mm10/downloaded/rrna"
+
+needs_mouse_rrna = pytest.mark.skipif(
+    not (MOUSE_RRNA / "NR_046233.2.gb").exists(),
+    reason="mouse rRNA GenBank record not available",
+)
+
+
+@needs_mouse_rrna
+def test_mouse_precursor_yields_three_records_cut_from_itself():
+    from generate_bowtie2_index import read_rrna_genbank, read_rrna_subunit_args
+    subs = read_rrna_subunit_args([
+        f"18S={MOUSE_RRNA / 'NR_003278.3.fasta'}",
+        f"28S={MOUSE_RRNA / 'NR_003279.1.fasta'}",
+    ])
+    recs = read_rrna_genbank(MOUSE_RRNA / "NR_046233.2.gb", subs)
+    assert set(recs) == {
+        "NR_046233.2-45S", "NR_046233.2-18S", "NR_046233.2-28S",
+    }
+    precursor = recs["NR_046233.2-45S"]
+    assert len(precursor) == 13400
+    # 18S is an exact copy of Rn18s; 28S is 3 bp shorter than Rn28s1.
+    assert len(recs["NR_046233.2-18S"]) == 1870
+    assert len(recs["NR_046233.2-28S"]) == 4727
+    assert all(recs[k] in precursor for k in recs if not k.endswith("-45S"))
+
+
 @needs_rrna
 def test_rrna_records_match_reference_exactly():
     from generate_bowtie2_index import rrna_fasta, _iter_fasta

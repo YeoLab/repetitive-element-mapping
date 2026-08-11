@@ -50,6 +50,15 @@ def parse_args():
                         'Repeatable. hg38 uses NR_046235.3, NR_145819.1, '
                         'NR_146117.1, NR_146144.1, NR_146151.1; mouse uses '
                         'NR_046233.2.')
+    p.add_argument('--rrna-subunit', action='append', default=[],
+                   metavar='LABEL=PATH',
+                   help='Standalone subunit FASTA, e.g. 18S=NR_003278.3.fasta. '
+                        'Repeatable. Needed only for a precursor whose GenBank '
+                        'record does not annotate the subunit -- the mouse '
+                        'NR_046233.2 annotates none, so mouse needs both '
+                        '18S=NR_003278.3 and 28S=NR_003279.1. The span is '
+                        'located by the subunit\'s terminal 40-mers and the '
+                        'sequence emitted is always the precursor\'s.')
     p.add_argument('--gff3')
     p.add_argument('--custom-fasta', action='append', default=[])
     p.add_argument('--output-dir', required=True)
@@ -393,13 +402,59 @@ RRNA_MISC_FEATURE_RE = re.compile(r'^\s{5}misc_feature\s+(\d+)\.\.(\d+)')
 RRNA_NOTE_RE = re.compile(r'/note="([^"]+)"')
 
 
-def read_rrna_genbank(path):
+RRNA_ANCHOR_K = 40
+
+
+def locate_subunit_by_anchors(precursor, subunit, label, accession):
+    """Find a subunit's span inside a precursor using its two terminal k-mers.
+
+    Returns a 1-based inclusive (start, end), the same convention misc_feature
+    uses, so both code paths feed the same cut.
+
+    This exists because the mouse precursor NR_046233.2 carries no misc_feature
+    at all -- only source/gene/rRNA over the full length -- so the human rule
+    has nothing to read. Anchoring on the ends rather than requiring a whole
+    substring match is deliberate: the standalone Rn28s1 record and the 28S
+    inside the precursor are different rDNA copies and differ by a 3 bp indel,
+    while 18S and 5.8S happen to match exactly. Anchors recover the precursor's
+    own span in every case, and the emitted sequence is always the precursor's
+    bases, never the subunit record's.
+    """
+    if len(subunit) < 2 * RRNA_ANCHOR_K:
+        raise ValueError(
+            f'{accession}: {label} record is too short to anchor '
+            f'({len(subunit)} < {2 * RRNA_ANCHOR_K} bp)')
+
+    def unique(kmer, which):
+        hits, at = [], precursor.find(kmer)
+        while at >= 0:
+            hits.append(at)
+            at = precursor.find(kmer, at + 1)
+        if len(hits) != 1:
+            raise ValueError(
+                f'{accession}: {label} {which} anchor matches the precursor '
+                f'{len(hits)} times, expected exactly 1')
+        return hits[0]
+
+    start = unique(subunit[:RRNA_ANCHOR_K], "5'")
+    end = unique(subunit[-RRNA_ANCHOR_K:], "3'") + RRNA_ANCHOR_K
+    if end <= start:
+        raise ValueError(
+            f'{accession}: {label} anchors are out of order in the precursor')
+    return start + 1, end
+
+
+def read_rrna_genbank(path, subunit_seqs=None):
     """Parse a RefSeq GenBank flat file into {record_name: sequence}.
 
     Emits '{accession}-45S' for the whole record plus '{accession}-18S' and
     '{accession}-28S' cut from the misc_feature spans whose /note names them.
     The '5.8S rRNA' misc_feature is present in these records but the reference
     index does not carry it, so it is deliberately not emitted.
+
+    `subunit_seqs` maps a label to a standalone subunit sequence and is used
+    only for subunits the record does not annotate; see
+    locate_subunit_by_anchors.
     """
     accession, seq_lines = None, []
     features, pending_span = {}, None
@@ -431,9 +486,15 @@ def read_rrna_genbank(path):
     if not accession:
         raise ValueError(f'No VERSION line in {path}')
     seq = ''.join(seq_lines).upper()
-    missing = [s for s in RRNA_SUBUNITS if s not in features]
-    if missing:
-        raise ValueError(f'{accession}: no misc_feature annotates {missing}')
+    subunit_seqs = subunit_seqs or {}
+    unannotated = [s for s in RRNA_SUBUNITS if s not in features]
+    for sub in unannotated:
+        if sub not in subunit_seqs:
+            raise ValueError(
+                f'{accession}: no misc_feature annotates {sub} and no '
+                f'--rrna-subunit {sub}=... was supplied')
+        features[sub] = locate_subunit_by_anchors(
+            seq, subunit_seqs[sub], sub, accession)
 
     records = {f'{accession}-45S': seq}
     for sub, (start, end) in features.items():
@@ -441,9 +502,27 @@ def read_rrna_genbank(path):
     return records
 
 
-def rrna_fasta(paths):
+def read_rrna_subunit_args(specs):
+    """Parse repeated 'LABEL=PATH' --rrna-subunit values into {label: sequence}."""
+    out = {}
+    for spec in specs:
+        label, sep, path = spec.partition('=')
+        if not sep:
+            raise ValueError(f'--rrna-subunit expects LABEL=PATH, got {spec!r}')
+        if label not in RRNA_SUBUNITS:
+            raise ValueError(
+                f'--rrna-subunit label must be one of {list(RRNA_SUBUNITS)}, '
+                f'got {label!r}')
+        seqs = [s for _, s in _iter_fasta(Path(path).read_text())]
+        if len(seqs) != 1:
+            raise ValueError(f'{path}: expected 1 FASTA record, found {len(seqs)}')
+        out[label] = seqs[0].upper()
+    return out
+
+
+def rrna_fasta(paths, subunit_seqs=None):
     """Render the rRNA portion, grouped by subunit as the reference index is."""
-    per_file = [read_rrna_genbank(p) for p in paths]
+    per_file = [read_rrna_genbank(p, subunit_seqs) for p in paths]
     out = []
     for sub in RRNA_SUBUNITS + ('45S',):
         for records in per_file:
@@ -589,7 +668,10 @@ def main():
     rrna_fa = ''
     if args.rrna_genbank:
         log.info(f'Reading {len(args.rrna_genbank)} rRNA GenBank record(s)...')
-        rrna_fa = rrna_fasta(args.rrna_genbank)
+        subunit_seqs = read_rrna_subunit_args(args.rrna_subunit)
+        if subunit_seqs:
+            log.info(f'  Subunit fallbacks supplied for {sorted(subunit_seqs)}')
+        rrna_fa = rrna_fasta(args.rrna_genbank, subunit_seqs)
         log.info(f'  Emitted {count_fasta_seqs(rrna_fa)} rRNA sequences')
     else:
         log.warning('--rrna-genbank not provided; rRNA precursors omitted')
