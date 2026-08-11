@@ -70,6 +70,13 @@ def parse_args():
                    help='Override the RepBase drop-exact list. Mouse needs '
                         'refdata/repbase18.05-drop-exact.mm.txt; the default is '
                         'the human list.')
+    p.add_argument('--repbase-class-family',
+                   help='Curated family -> repFamily/repClass table, '
+                        'refdata/hg38.repbase-class-family.tsv. Consulted after '
+                        'the rmsk table. Covers the 354 hg38 families with no '
+                        'genomic instances in the modern rmsk track, and is the '
+                        'cross-species source for mouse -- pass the HUMAN file '
+                        'to a mouse build (-475.42).')
     p.add_argument('--family-order', required=True,
                    help='refdata/gencode-family-order.txt.')
     p.add_argument('--chrom-allowlist', required=True)
@@ -233,18 +240,86 @@ def read_rmsk_class_family(path):
     return out
 
 
-def repeat_row(name, class_family):
-    """A repeat row: NAME | FAM | FAM | FAM | CLASS.
+# RepBase tags the species in the family name. Only these are species tags:
+# '_LTR', '_DNA', '_II', '_MAM' and friends are class tokens inside the name
+# (ERVB3_1-LTR_MM), and stripping those would corrupt the family.
+SPECIES_TAGS = ('_MM', '_HS')
 
-    Repeat names that are themselves a curated small-RNA family (5S, 7SK,
-    7SLRNA, U1..U6, HY1..) carry that family in every annotation column, not
-    the rmsk class/family -- the reference has 5S as RNA5S, never rRNA/rRNA.
+
+def resolve_repeat(name, class_family, curated_class_family):
+    """Return (repFamily, repClass, how) for a repeat name.
+
+    Resolution order, most authoritative first:
+
+      1. the curated small-RNA family map -- 5S is RNA5S everywhere in the
+         reference, never rRNA/rRNA
+      2. the assembly rmsk table, including UCSC's slash-qualified aliases
+      3. the curated RepBase table (-475.42), which covers the 354 hg38
+         families that have no genomic instances in the modern rmsk track, and
+         doubles as the cross-species source: 170 mouse families share an exact
+         family name with a human one
+      4. the same two tables again after stripping a species tag, which
+         recovers 27 further mouse families (RLTR1_MM -> RLTR1 -> ERV1/LTR)
+
+    rmsk is consulted before the curated table so that current RepeatMasker
+    calls win and post-2020 reclassification stays visible.
     """
-    curated = RMSK_REPNAME_TO_FAMILY_UPPER.get(name.upper())
-    if curated:
-        return (name, curated, curated, curated, curated)
-    rep_class, rep_family = class_family.get(name, (name, name))
-    return (name, rep_family, rep_family, rep_family, rep_class)
+    upper = name.upper()
+    curated_small_rna = RMSK_REPNAME_TO_FAMILY_UPPER.get(upper)
+    if curated_small_rna:
+        return curated_small_rna, curated_small_rna, 'small_rna'
+
+    for candidate, how in repeat_name_aliases(upper):
+        if candidate in class_family:
+            rep_class, rep_family = class_family[candidate]
+            return rep_family, rep_class, 'rmsk' + how
+        if candidate in curated_class_family:
+            return (*curated_class_family[candidate], 'curated' + how)
+
+    return name, name, 'unresolved'
+
+
+def repeat_name_aliases(upper):
+    """Yield (candidate name, suffix describing how it was derived).
+
+    The exact name is tried first, so an alias never beats a direct hit.
+
+    Two systematic naming differences are covered. RepeatMasker writes the
+    internal segment of an LTR element as NAME_I-int where RepBase writes
+    NAME_I -- that recovers the highest-footprint mouse residue, ERVs carrying
+    1-2 Mb each. And RepBase tags the species in the name, so RLTR1_MM is the
+    same family the mouse rmsk track calls RLTR1.
+    """
+    def with_int(base):
+        yield base, ''
+        if base.endswith('_I'):
+            yield base + '-INT', '_int'
+
+    yield from with_int(upper)
+    for tag in SPECIES_TAGS:
+        if upper.endswith(tag):
+            for candidate, how in with_int(upper[:-len(tag)]):
+                yield candidate, '_stem' + how
+
+
+def repeat_row(name, class_family, curated_class_family=None):
+    """A repeat row: NAME | FAM | FAM | FAM | CLASS."""
+    fam, cls, _ = resolve_repeat(name, class_family, curated_class_family or {})
+    return (name, fam, fam, fam, cls)
+
+
+def read_curated_class_family(path):
+    """family -> (repFamily, repClass) from refdata/<asm>.repbase-class-family.tsv."""
+    out = {}
+    if not path:
+        return out
+    for line in Path(path).read_text().splitlines():
+        if not line.strip() or line.startswith('#') or line.startswith('family\t'):
+            continue
+        p = line.split('\t')
+        if len(p) >= 3:
+            out[p[0].upper()] = (p[1], p[2])
+    return out
 
 
 def read_rmsk_small_rna_loci(path):
@@ -397,7 +472,8 @@ def build_rrna_rows(args):
     return rows
 
 
-def build_repbase_rows(species_fasta, class_family, log, drop_exact_path=None):
+def build_repbase_rows(species_fasta, class_family, log, drop_exact_path=None,
+                       curated_class_family=None):
     """The 1,224 RepBase families: NAME | FAM | FAM | FAM | CLASS."""
     drop_exact = (repbase.load_drop_exact(drop_exact_path)
                   if drop_exact_path else None)
@@ -406,16 +482,21 @@ def build_repbase_rows(species_fasta, class_family, log, drop_exact_path=None):
         log.error(f'{len(unparsed)} RepBase records have no derivable family '
                   f'name: {unparsed[:10]}')
         sys.exit(1)
-    rows, missing = [], []
+    curated_class_family = curated_class_family or {}
+    rows, how = [], collections.Counter()
+    unresolved = []
     for name, _, _ in families:
         name = name.upper()
-        if name not in class_family and name not in RMSK_REPNAME_TO_FAMILY_UPPER:
-            missing.append(name)
-        rows.append(repeat_row(name, class_family))
-    if missing:
-        log.warning(f'  {len(missing)} RepBase families absent from the rmsk '
-                    f'table; class/family fall back to the name itself '
-                    f'(e.g. {missing[:5]})')
+        fam, cls, source = resolve_repeat(name, class_family, curated_class_family)
+        how[source] += 1
+        if source == 'unresolved':
+            unresolved.append(name)
+        rows.append((name, fam, fam, fam, cls))
+    log.info(f'  RepBase class/family source: {dict(how)}')
+    if unresolved:
+        log.warning(f'  {len(unresolved)} RepBase families resolved by nothing; '
+                    f'class/family fall back to the name itself, so each counts '
+                    f'as its own family (e.g. {unresolved[:5]}) -- see -475.42')
     return rows
 
 
@@ -454,13 +535,14 @@ def build_mirna_rows(gff3_path):
     return rows
 
 
-def build_rmsk_rows(repeat_names, simple_names, class_family, already):
+def build_rmsk_rows(repeat_names, simple_names, class_family, already,
+                    curated_class_family=None):
     """Everything in the assembly track the earlier blocks did not cover."""
     rows = []
     for name in repeat_names:
         if name in already:
             continue
-        rows.append(repeat_row(name, class_family))
+        rows.append(repeat_row(name, class_family, curated_class_family))
     for name in simple_names:
         rows.append((name, 'Simple_repeat', 'Simple_repeat', 'Simple_repeat',
                      'Simple_repeat'))
@@ -494,13 +576,18 @@ def main():
     for family in sorted(blocks, key=lambda f: rank.get(f, len(rank))):
         head_rows.extend(blocks[family])
 
+    curated_class_family = read_curated_class_family(args.repbase_class_family)
+    if curated_class_family:
+        log.info(f'Curated RepBase class/family entries: '
+                 f'{len(curated_class_family)}')
+
     log.info('Reading rmsk class/family table...')
     class_family = read_rmsk_class_family(args.rmsk_class_family)
     log.info(f'  {len(class_family)} repeat names')
 
     log.info('Building RepBase rows...')
     repbase_rows = build_repbase_rows(args.repbase_species_fasta, class_family, log,
-                                      args.repbase_drop_exact)
+                                      args.repbase_drop_exact, curated_class_family)
     log.info(f'  {len(repbase_rows)} RepBase rows')
 
     trna_rows = build_trna_rows(args.gtrnadb_fasta) if args.gtrnadb_fasta else []
@@ -522,7 +609,7 @@ def main():
     repeat_names, simple_names = read_repeatmasker_names(args.repeatmasker)
     log.info(f'  {len(repeat_names)} repeat names, {len(simple_names)} (X)N names')
     rmsk_rows = build_rmsk_rows(repeat_names, simple_names, class_family,
-                                {r[0] for r in repbase_rows})
+                                {r[0] for r in repbase_rows}, curated_class_family)
     log.info(f'  {len(rmsk_rows)} rmsk leftover rows')
 
     rows = (head_rows + repbase_rows + trna_rows + simple_rows + mirna_rows

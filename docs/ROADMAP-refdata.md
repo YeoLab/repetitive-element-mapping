@@ -326,6 +326,20 @@ Three rules that are easy to get wrong:
 - **Repeat class/family are UCSC `repClass`/`repFamily`,** not the RepBase header's class field —
   `L2B_CR1_Eutheria` is family `L2`, class `LINE`. The `examples/inputs` RepeatMasker GTFs are
   stripped to `gene_id`, so this needs `refdata/<asm>.rmsk-class-family.tsv.gz`.
+
+Repeat annotation resolves in this order (`475.42`), most authoritative first:
+
+1. the curated small-RNA family map — `5S` is `RNA5S` everywhere, never `rRNA/rRNA`
+2. the assembly rmsk table, including UCSC's slash-qualified aliases (`ALR/Alpha` → `ALR`)
+3. `refdata/hg38.repbase-class-family.tsv` — the 1,224 curated pairs lifted from the reference's
+   RepBase block. It covers the 354 hg38 families with no genomic instances in the modern rmsk
+   track, and doubles as the **cross-species** source: pass the human file to a mouse build and
+   215 mouse families inherit by exact family name. It is consulted *after* rmsk so current
+   RepeatMasker calls win and post-2020 reclassification stays visible. Being reference-derived it
+   is circular, so exclude it when measuring hg38 reproduction fidelity (`475.22`).
+4. two systematic name aliases: `NAME_I` → `NAME_I-int` (RepeatMasker's LTR internal-segment
+   convention) and the species tags `_MM`/`_HS`. Only those two tags — `_LTR`, `_DNA`, `_II`,
+   `_MAM` are class tokens inside the family name and stripping them would corrupt it.
 - **Column 4 is behaviorally significant.** `read_in_filelists` reads it as `$type_label`, and
   `print_output` counts with `$count{$ensttype_join}++`, so col4 *is* the family reads are
   counted under. Between-family block order and within-family row order are not: the priority

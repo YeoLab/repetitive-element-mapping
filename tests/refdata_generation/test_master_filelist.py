@@ -120,6 +120,100 @@ def test_unknown_repeat_falls_back_to_its_own_name(tmp_path):
     assert repeat_row("ALR1", cf) == ("ALR1",) * 5
 
 
+# ── curated RepBase table and name aliases (-475.42) ─────────────────────
+
+CURATED = REPO / "refdata/hg38.repbase-class-family.tsv"
+
+needs_curated = pytest.mark.skipif(
+    not CURATED.exists(), reason="curated RepBase class/family table not available"
+)
+
+
+def _curated(tmp_path, rows):
+    p = tmp_path / "curated.tsv"
+    p.write_text("# comment\nfamily\trepFamily\trepClass\n"
+                 + "".join("\t".join(r) + "\n" for r in rows))
+    return p
+
+
+def test_curated_table_resolves_a_family_rmsk_does_not_have(tmp_path):
+    from generate_master_filelist import (
+        read_curated_class_family, read_rmsk_class_family, resolve_repeat)
+    cf = read_rmsk_class_family(_class_family_file(tmp_path, []))
+    cur = read_curated_class_family(_curated(tmp_path, [("ALR1", "centr", "Satellite")]))
+    assert resolve_repeat("ALR1", cf, cur) == ("centr", "Satellite", "curated")
+
+
+def test_rmsk_wins_over_the_curated_table(tmp_path):
+    """Current RepeatMasker calls must win so post-2020 drift stays visible."""
+    from generate_master_filelist import (
+        read_curated_class_family, read_rmsk_class_family, resolve_repeat)
+    cf = read_rmsk_class_family(
+        _class_family_file(tmp_path, [("MER96", "DNA", "hAT")]))
+    cur = read_curated_class_family(
+        _curated(tmp_path, [("MER96", "hAT-Tip100", "DNA")]))
+    assert resolve_repeat("MER96", cf, cur)[:2] == ("hAT", "DNA")
+
+
+def test_internal_segment_resolves_through_the_int_suffix(tmp_path):
+    """RepeatMasker writes NAME_I-int where RepBase writes NAME_I."""
+    from generate_master_filelist import read_rmsk_class_family, resolve_repeat
+    cf = read_rmsk_class_family(
+        _class_family_file(tmp_path, [("MMERVK9C_I-int", "LTR", "ERVK")]))
+    assert resolve_repeat("MMERVK9C_I", cf, {}) == ("ERVK", "LTR", "rmsk_int")
+
+
+def test_species_tag_is_stripped_for_mm_and_hs(tmp_path):
+    from generate_master_filelist import read_rmsk_class_family, resolve_repeat
+    cf = read_rmsk_class_family(
+        _class_family_file(tmp_path, [("RLTR1", "LTR", "ERV1")]))
+    assert resolve_repeat("RLTR1_MM", cf, {}) == ("ERV1", "LTR", "rmsk_stem")
+
+
+@pytest.mark.parametrize("name", [
+    "ERVB3_1-LTR", "DNA1_MAM", "MER5A_DNA", "MURVY_II",
+])
+def test_class_tokens_in_names_are_not_treated_as_species_tags(name, tmp_path):
+    """_LTR, _DNA and _MAM are part of the family name, not species tags."""
+    from generate_master_filelist import read_rmsk_class_family, resolve_repeat
+    stem = name.rsplit("_", 1)[0]
+    cf = read_rmsk_class_family(
+        _class_family_file(tmp_path, [(stem, "WRONG", "WRONG")]))
+    assert resolve_repeat(name, cf, {})[2] == "unresolved"
+
+
+def test_exact_name_beats_every_alias(tmp_path):
+    from generate_master_filelist import read_rmsk_class_family, resolve_repeat
+    cf = read_rmsk_class_family(_class_family_file(tmp_path, [
+        ("RLTR1_MM", "LTR", "exact"),
+        ("RLTR1", "LTR", "viastem"),
+    ]))
+    assert resolve_repeat("RLTR1_MM", cf, {})[0] == "exact"
+
+
+def test_small_rna_map_outranks_both_tables(tmp_path):
+    from generate_master_filelist import (
+        read_curated_class_family, read_rmsk_class_family, resolve_repeat)
+    cf = read_rmsk_class_family(
+        _class_family_file(tmp_path, [("5S", "rRNA", "rRNA")]))
+    cur = read_curated_class_family(_curated(tmp_path, [("5S", "x", "y")]))
+    assert resolve_repeat("5S", cf, cur) == ("RNA5S", "RNA5S", "small_rna")
+
+
+@needs_curated
+@needs_reference
+def test_curated_table_matches_the_reference_repbase_block():
+    """It is extracted from that block, so it must agree with it exactly."""
+    from generate_master_filelist import read_curated_class_family
+    cur = read_curated_class_family(CURATED)
+    assert len(cur) == 1224
+    rows = [l.rstrip("\n").split("\t") for l in REFERENCE.open()]
+    block = rows[5276:6500]
+    assert [(r[0], r[3], r[4]) for r in block] == [
+        (r[0], *cur[r[0]]) for r in block
+    ]
+
+
 # ── tRNA and rRNA blocks ─────────────────────────────────────────────────
 
 def test_trna_rows_interleave_each_locus_with_its_flank_twin(tmp_path):
