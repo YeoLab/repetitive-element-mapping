@@ -38,9 +38,18 @@ def parse_args():
     p.add_argument('--chrom-allowlist', required=True,
                    help='One chromosome per line, pinned to the assembly '
                         'release, e.g. refdata/hg38.chrom-allowlist.txt.')
-    p.add_argument('--simplerepeats', required=True)
     p.add_argument('--fasta', required=True)
-    p.add_argument('--trna')
+    p.add_argument('--gtrnadb-fasta',
+                   help='gtRNAdb genomic tRNA FASTA, e.g. hg38-tRNAs.fa from '
+                        'https://gtrnadb.ucsc.edu/genomes/eukaryota/Hsapi38/. '
+                        'Use the genomic file, not hg38-mature-tRNAs.fa. The '
+                        'assembly tRNA track (hg38.trna.tsv.gz) is NOT a '
+                        'substitute -- it carries different names and sequences.')
+    p.add_argument('--rrna-genbank', action='append', default=[],
+                   help='RefSeq GenBank flat file for an rRNA 45S precursor. '
+                        'Repeatable. hg38 uses NR_046235.3, NR_145819.1, '
+                        'NR_146117.1, NR_146144.1, NR_146151.1; mouse uses '
+                        'NR_046233.2.')
     p.add_argument('--gff3')
     p.add_argument('--custom-fasta', action='append', default=[])
     p.add_argument('--output-dir', required=True)
@@ -93,6 +102,25 @@ def read_parsed_ucsc(path):
             exons = sorted(zip(starts, ends))
             transcripts[tid] = (chrom, strand, int(txstart), int(txend), exons)
     return transcripts
+
+
+def remap_par_y_to_chrx(transcripts):
+    """Move '_PAR_Y' transcripts onto chrX.
+
+    Gencode annotates pseudoautosomal transcripts twice, once per sex
+    chromosome, with identical coordinates. Analysis-set genomes hard-mask the
+    chrY copy of the PAR, so extracting the chrY id yields a run of Ns -- which
+    is exactly how ENST00000411342.6_PAR_Y diverged from the reference index,
+    whose record is byte-identical to its chrX twin. The PAR is a literal
+    duplicate between the two chromosomes, so reading chrX is correct whether
+    or not the supplied genome happens to be masked.
+    """
+    out = {}
+    for tid, (chrom, strand, txstart, txend, exons) in transcripts.items():
+        if tid.endswith('_PAR_Y') and chrom == 'chrY':
+            chrom = 'chrX'
+        out[tid] = (chrom, strand, txstart, txend, exons)
+    return out
 
 
 def build_bed12(transcripts):
@@ -277,26 +305,152 @@ def read_repeatmasker(path, log):
     return list(seen_nonsimple.values()), list(seen_simple.values())
 
 
-def read_trna(path, log):
-    """Parse tRNA TSV. Returns list of (chrom, start0, end0, gene_id, score, strand)."""
-    rows = {}
-    with open_maybe_gz(path) as fh:
+TRNA_PAD = 'N' * 10
+TRNA_FLANK = 50
+TRNA_CCA = 'CCA'
+
+TRNA_HEADER_RE = re.compile(r'^(\S+).*?(\S+):(\d+)-(\d+)\s+\(([+-])\)')
+
+
+def read_gtrnadb_fasta(path):
+    """Parse a gtRNAdb genomic tRNA FASTA.
+
+    Returns list of (name, seq, chrom, start0, end0, strand), where name is the
+    header's first token with the leading '<Genus>_<species>_' stripped, e.g.
+    'Homo_sapiens_tRNA-Ala-AGC-1-1' → 'tRNA-Ala-AGC-1-1'. Coordinates come from
+    the trailing 'chr6:28795964-28796035 (-)' field of the same header.
+    """
+    entries = []
+    header, chunks = None, []
+
+    def flush():
+        if header is None:
+            return
+        m = TRNA_HEADER_RE.match(header)
+        if not m:
+            raise ValueError(f'Unparseable gtRNAdb header: {header!r}')
+        raw, chrom, a, b, strand = m.groups()
+        idx = raw.find('tRNA-')
+        if idx < 0:
+            raise ValueError(f'gtRNAdb name has no tRNA- component: {raw!r}')
+        lo, hi = sorted((int(a), int(b)))
+        entries.append((raw[idx:], ''.join(chunks).upper(), chrom, lo - 1, hi, strand))
+
+    with open(path) as fh:
         for line in fh:
-            parts = line.rstrip('\n').split('\t')
-            if len(parts) < 9:
-                continue
-            chrom, source, feature, start_s, end_s, score, strand, frame, attrs = parts[:9]
-            if feature != 'exon':
-                continue
-            attr = parse_gtf_attributes(attrs)
-            gid = attr.get('gene_id', '')
-            if not gid or gid in rows:
-                continue
-            start0 = int(start_s) - 1
-            end0 = int(end_s)
-            score_val = score if score != '.' else '0'
-            rows[gid] = (chrom, start0, end0, gid, score_val, strand)
-    return list(rows.values())
+            line = line.rstrip()
+            if line.startswith('>'):
+                flush()
+                header, chunks = line[1:], []
+            elif header is not None:
+                chunks.append(line)
+    flush()
+    return entries
+
+
+def trna_fasta(entries, genome_fa, log, valid_chroms=None):
+    """Render the tRNA portion: one plain and one flanked record per entry.
+
+    Both forms are N-padded by 10 on each side. The plain record is the gtRNAdb
+    genomic sequence with a CCA tail; the '_withgenomeflank' twin is the locus
+    re-extracted with 50 bp of genomic context on each side and NO CCA. Both
+    rules were verified 432/432 byte-exact against the hg38 reference index.
+    """
+    plain = ''.join(
+        f'>{name}\n{TRNA_PAD}{seq}{TRNA_CCA}{TRNA_PAD}\n'
+        for name, seq, _, _, _, _ in entries
+    )
+    flank_rows = [
+        (chrom, max(0, start0 - TRNA_FLANK), end0 + TRNA_FLANK,
+         name + '_withgenomeflank', '0', strand)
+        for name, _, chrom, start0, end0, strand in entries
+    ]
+    extracted = strip_coord_suffix(
+        extract_sequences_bed6(flank_rows, genome_fa, log, valid_chroms))
+    flank = ''.join(
+        f'>{h}\n{TRNA_PAD}{s.upper()}{TRNA_PAD}\n'
+        for h, s in _iter_fasta(extracted)
+    )
+    return plain + flank
+
+
+def _iter_fasta(fasta_str):
+    """Yield (header, sequence) pairs from a FASTA string."""
+    header, chunks = None, []
+    for line in fasta_str.splitlines():
+        if line.startswith('>'):
+            if header is not None:
+                yield header, ''.join(chunks)
+            header, chunks = line[1:].strip(), []
+        elif header is not None:
+            chunks.append(line.strip())
+    if header is not None:
+        yield header, ''.join(chunks)
+
+
+RRNA_SUBUNITS = ('18S', '28S')
+RRNA_MISC_FEATURE_RE = re.compile(r'^\s{5}misc_feature\s+(\d+)\.\.(\d+)')
+RRNA_NOTE_RE = re.compile(r'/note="([^"]+)"')
+
+
+def read_rrna_genbank(path):
+    """Parse a RefSeq GenBank flat file into {record_name: sequence}.
+
+    Emits '{accession}-45S' for the whole record plus '{accession}-18S' and
+    '{accession}-28S' cut from the misc_feature spans whose /note names them.
+    The '5.8S rRNA' misc_feature is present in these records but the reference
+    index does not carry it, so it is deliberately not emitted.
+    """
+    accession, seq_lines = None, []
+    features, pending_span = {}, None
+    in_features, in_origin = False, False
+
+    for line in Path(path).read_text().splitlines():
+        if line.startswith('VERSION'):
+            accession = line.split()[1]
+        elif line.startswith('FEATURES'):
+            in_features = True
+        elif line.startswith('ORIGIN'):
+            in_features, in_origin = False, True
+        elif line.startswith('//'):
+            break
+        elif in_origin:
+            seq_lines.append(''.join(line.split()[1:]))
+        elif in_features:
+            m = RRNA_MISC_FEATURE_RE.match(line)
+            if m:
+                pending_span = (int(m.group(1)), int(m.group(2)))
+            elif pending_span:
+                note = RRNA_NOTE_RE.search(line)
+                if note:
+                    for sub in RRNA_SUBUNITS:
+                        if note.group(1).startswith(sub + ' '):
+                            features[sub] = pending_span
+                    pending_span = None
+
+    if not accession:
+        raise ValueError(f'No VERSION line in {path}')
+    seq = ''.join(seq_lines).upper()
+    missing = [s for s in RRNA_SUBUNITS if s not in features]
+    if missing:
+        raise ValueError(f'{accession}: no misc_feature annotates {missing}')
+
+    records = {f'{accession}-45S': seq}
+    for sub, (start, end) in features.items():
+        records[f'{accession}-{sub}'] = seq[start - 1:end]
+    return records
+
+
+def rrna_fasta(paths):
+    """Render the rRNA portion, grouped by subunit as the reference index is."""
+    per_file = [read_rrna_genbank(p) for p in paths]
+    out = []
+    for sub in RRNA_SUBUNITS + ('45S',):
+        for records in per_file:
+            for name, seq in records.items():
+                if name.endswith('-' + sub):
+                    out.append(f'>{name}\n{seq}\n')
+    return ''.join(out)
 
 
 def read_mirna_gff3(path, log):
@@ -375,7 +529,7 @@ def main():
              f'{len(allowed_chroms)} allowed chromosomes')
 
     log.info('Reading parsed_ucsc_tableformat...')
-    all_transcripts = read_parsed_ucsc(args.parsed_ucsc)
+    all_transcripts = remap_par_y_to_chrx(read_parsed_ucsc(args.parsed_ucsc))
     transcripts = {
         tid: v for tid, v in all_transcripts.items()
         if tid in filelist_ensts and v[0] in allowed_chroms
@@ -415,16 +569,30 @@ def main():
     log.info(f'  Synthesized {n_simple} simple-repeat k-mers')
 
     # ── 4. tRNA (optional) ──────────────────────────────────────────────
+    # Every entry appears twice: bare, and again as a '_withgenomeflank' twin.
     trna_fa = ''
-    if args.trna:
-        log.info('Reading tRNA...')
-        trna_rows = read_trna(args.trna, log)
-        log.info(f'  {len(trna_rows)} tRNA entries')
-        trna_fa = strip_coord_suffix(
-            extract_sequences_bed6(trna_rows, genome_fa, log, valid_chroms))
-        log.info(f'  Extracted {count_fasta_seqs(trna_fa)} tRNA sequences')
+    trna_entries = []
+    if args.gtrnadb_fasta:
+        log.info(f'Reading gtRNAdb FASTA: {args.gtrnadb_fasta}')
+        trna_entries = read_gtrnadb_fasta(args.gtrnadb_fasta)
+        log.info(f'  {len(trna_entries)} tRNA loci')
+        trna_fa = trna_fasta(trna_entries, genome_fa, log, valid_chroms)
+        log.info(f'  Emitted {count_fasta_seqs(trna_fa)} tRNA sequences '
+                 f'(plain + genome-flanked)')
     else:
-        log.warning('--trna not provided; tRNA entries omitted')
+        log.warning('--gtrnadb-fasta not provided; tRNA entries omitted')
+
+    # ── 4b. rRNA precursors (optional) ──────────────────────────────────
+    # RNA45S/18S/28S are the families the mapper special-cases (rRNA_extra_hash),
+    # and RNA28S is the single largest element in the reference output, so an
+    # index without them changes the biggest signal in the results.
+    rrna_fa = ''
+    if args.rrna_genbank:
+        log.info(f'Reading {len(args.rrna_genbank)} rRNA GenBank record(s)...')
+        rrna_fa = rrna_fasta(args.rrna_genbank)
+        log.info(f'  Emitted {count_fasta_seqs(rrna_fa)} rRNA sequences')
+    else:
+        log.warning('--rrna-genbank not provided; rRNA precursors omitted')
 
     # ── 5. miRNA (optional) ─────────────────────────────────────────────
     mirna_fa = ''
@@ -452,18 +620,19 @@ def main():
         out.write(rm_fa)
         out.write(simple_fa)
         out.write(trna_fa)
+        out.write(rrna_fa)
         out.write(mirna_fa)
         out.write(custom_fa)
 
     total_seqs = count_fasta_seqs(
-        gencode_fa + rm_fa + simple_fa + trna_fa + mirna_fa + custom_fa
+        gencode_fa + rm_fa + simple_fa + trna_fa + rrna_fa + mirna_fa + custom_fa
     )
     log.info(f'Total sequences written: {total_seqs}')
 
     # ── Missing ID report ───────────────────────────────────────────────
     expected = len(transcripts) + len(families) + n_simple
-    if args.trna:
-        expected += len(trna_rows)
+    if args.gtrnadb_fasta:
+        expected += 2 * len(trna_entries)
     if args.gff3:
         expected += len(mirna_rows)
     extracted = n_gencode + n_rm + n_simple + count_fasta_seqs(trna_fa) + count_fasta_seqs(mirna_fa)

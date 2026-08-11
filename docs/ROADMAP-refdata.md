@@ -277,9 +277,17 @@ Largely settled; needs recording, not rediscovery.
 | Repeat consensus | RepBase 18.05 `species_specific/homo_sapiens_repbase_fixed_v2.fasta` |
 | Gene models | Gencode v33 |
 | Repeat instances | UCSC RepeatMasker + simpleRepeat tracks |
-| tRNA | gtRNAdb |
+| tRNA | gtRNAdb `hg38-tRNAs.fa` (`gtrnadb.ucsc.edu/genomes/eukaryota/Hsapi38/`) |
 | miRNA | miRBase gff3 |
-| RNA45S | RefSeq `NR_046235.1` |
+| rRNA | RefSeq GenBank `NR_046235.3`, `NR_145819.1`, `NR_146117.1`, `NR_146144.1`, `NR_146151.1` |
+
+The tRNA and rRNA rows above are exact, verified 2026-08-11 (`475.36`, `475.37`). The tRNA portion
+is the gtRNAdb FASTA rendered twice per locus: `N*10 + genomic + CCA + N*10`, and a
+`_withgenomeflank` twin `N*10 + locus±50bp + N*10` with no CCA. The rRNA portion is the whole
+GenBank record as `-45S` plus the `18S`/`28S` `misc_feature` spans; the annotated `5.8S` span is
+not emitted. **The assembly tRNA track (`hg38.trna.tsv.gz`) is not a substitute for the gtRNAdb
+FASTA** — it carries different names and different sequences, and using it is what produced the
+long-standing "the reference used a different gtRNAdb release" dead end.
 
 The RepBase file has 1,356 records covering **1,224/1,224** index families (100%), verified by
 header prefix *and* canonical sequence digest: 700 byte-exact, 524 matching after IUPAC→N (which
@@ -342,7 +350,8 @@ M-10 475.15  package + document              <- M-9
 Three gaps found 2026-08-10 that were in no document or issue:
 
 1. **mm39 is missing two inputs entirely** — no `mm39.trna.tsv.gz`, and no GRCm39-coordinate
-   miRBase gff3 (mm10's `mmu.gff3` is GRCm38). T-07 rules 4 and 5 need both.
+   miRBase gff3 (mm10's `mmu.gff3` is GRCm38). T-07 rules 4 and 5 need both. (The *index* no
+   longer reads the tRNA track at all — it takes the gtRNAdb FASTA — but T-07 still does.)
 2. **No mouse chromosome allowlists** — `refdata/hg38.chrom-allowlist.txt` exists, the generator
    takes `--chrom-allowlist` as required, mm10/mm39 have none.
 3. **No mouse acceptance criteria existed.** Every hg38 criterion is "diff against the reference."

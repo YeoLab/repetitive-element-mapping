@@ -68,3 +68,23 @@ def test_selection_reproduces_reference_transcript_set_exactly():
     assert selected == reference, (
         f"{len(selected ^ reference)} transcripts differ from the reference"
     )
+
+
+def test_par_y_transcripts_are_read_from_chrx():
+    """-475.39: analysis-set genomes hard-mask the chrY PAR.
+
+    ENST00000411342.6_PAR_Y extracted from chrY is a run of Ns, while the
+    reference record is byte-identical to its chrX twin. The PAR is a literal
+    duplicate across the two chromosomes, so chrX is the right source either
+    way; only _PAR_Y ids on chrY are moved.
+    """
+    from generate_bowtie2_index import remap_par_y_to_chrx
+    exons = [(100, 200)]
+    remapped = remap_par_y_to_chrx({
+        "ENST1_PAR_Y": ("chrY", "-", 100, 200, exons),
+        "ENST1": ("chrX", "-", 100, 200, exons),
+        "ENST2": ("chrY", "+", 300, 400, exons),
+    })
+    assert remapped["ENST1_PAR_Y"][0] == "chrX"
+    assert remapped["ENST1"][0] == "chrX"
+    assert remapped["ENST2"][0] == "chrY"
