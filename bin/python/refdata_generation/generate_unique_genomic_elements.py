@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-from bin.python.refdata_generation._shared import open_maybe_gz, parse_gtf_attributes, setup_logger
+from bin.python.refdata_generation._shared import (
+    open_maybe_gz, parse_gtf_attributes, read_gtrnadb_fasta, setup_logger,
+)
 
 
 # Families excluded from the unique-genome track: multi-copy rRNA and mitochondrial
@@ -20,11 +22,20 @@ GENCODE_EXCLUDED_FAMILIES = frozenset({'RNA5S', 'RNA5-8S', 'MTTRNA', 'MTRNR1', '
 # Trailing gtRNAdb copy-number suffix, e.g. tRNA-Asn-GTT-2-3 -> tRNA-Asn-GTT
 TRNA_COPY_SUFFIX = re.compile(r'-[0-9]+-[0-9]+$')
 
+# Gencode transcript id, any species: ENST (human), ENSMUST (mouse), ENSXXXT elsewhere.
+GENCODE_TRANSCRIPT_ID = re.compile(r'^ENS[A-Z]*T[0-9]')
+
 
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--repeatmasker', required=True)
-    p.add_argument('--trna')
+    p.add_argument('--gtrnadb-fasta',
+                   help='gtRNAdb genomic tRNA FASTA, e.g. hg38-tRNAs.fa. Preferred '
+                        'tRNA source: reproduces the hg38 reference tRNA rows exactly '
+                        '(432/432). Takes precedence over --trna.')
+    p.add_argument('--trna',
+                   help='UCSC {assembly}_tRNAs GTF track. Superseded by '
+                        '--gtrnadb-fasta; see read_trna_rows.')
     p.add_argument('--gff3')
     p.add_argument('--parsed-ucsc')
     p.add_argument('--master-filelist', required=True,
@@ -58,7 +69,7 @@ def read_gencode_allowed_transcripts(path):
     with open(path) as fh:
         for line in fh:
             parts = line.rstrip('\n').split('\t')
-            if len(parts) < 4 or not parts[0].startswith('ENST'):
+            if len(parts) < 4 or not GENCODE_TRANSCRIPT_ID.match(parts[0]):
                 continue
             if parts[3] in GENCODE_EXCLUDED_FAMILIES:
                 continue
@@ -96,6 +107,21 @@ def parse_trna_bed_rows(path):
     GTF score -- the hg38 reference uses e.g. 'tRNA-Asn-GTT-2-3' / 'tRNA-Asn-GTT'.
     """
     for chrom, start0, end0, name, _score, strand in parse_gtf_bed_rows(path, name_field='gene_id'):
+        yield (chrom, start0, end0, name, TRNA_COPY_SUFFIX.sub('', name), strand)
+
+
+def parse_gtrnadb_bed_rows(path):
+    """Yield tRNA rows from a gtRNAdb genomic FASTA, same shape as parse_trna_bed_rows.
+
+    This is the source the hg38 reference actually used, and the only one that works
+    for mouse. The UCSC {assembly}_tRNAs GTF track that --trna reads names 222 of its
+    631 hg38 rows in a convention no MASTER_FILELIST carries ('nm-tRNA-Tyr-GTA-chr1-142',
+    'tRNA-Und-NNN-chr1-1') while missing 23 the reference has; mm39 has no such track at
+    all, and mm10's names rows 'chr1.tRNA1555-GluTTC'. The gtRNAdb FASTA headers give
+    both the MASTER_FILELIST name and the coordinates, and reproduce the hg38 reference
+    tRNA rows exactly (432/432, zero spurious, zero missing).
+    """
+    for name, _seq, chrom, start0, end0, strand in read_gtrnadb_fasta(path):
         yield (chrom, start0, end0, name, TRNA_COPY_SUFFIX.sub('', name), strand)
 
 
@@ -175,13 +201,19 @@ def main():
     rows.extend(rm_rows)
 
     # tRNA (optional) — gene_id in col4, family in col5
-    if args.trna:
-        log.info('Reading tRNA...')
+    if args.gtrnadb_fasta:
+        log.info('Reading tRNA from gtRNAdb FASTA...')
+        trna_rows = list(parse_gtrnadb_bed_rows(args.gtrnadb_fasta))
+        log.info(f'  {len(trna_rows)} tRNA entries')
+        rows.extend(trna_rows)
+    elif args.trna:
+        log.warning('Reading tRNA from the UCSC track; --gtrnadb-fasta is the '
+                    'validated source (see parse_gtrnadb_bed_rows)')
         trna_rows = list(parse_trna_bed_rows(args.trna))
         log.info(f'  {len(trna_rows)} tRNA entries')
         rows.extend(trna_rows)
     else:
-        log.warning(f'--trna not provided; tRNA entries omitted from {args.assembly} UniqueGenomicElements')
+        log.warning(f'no tRNA source provided; tRNA entries omitted from {args.assembly} UniqueGenomicElements')
 
     # Gencode transcripts (optional) — transcript_id, score="-", actual strand;
     # restricted to the MASTER_FILELIST curated set

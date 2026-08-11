@@ -133,6 +133,35 @@ naming), not selection error. Full derivation, rejected alternatives, and the mm
 application: `.forge/stages/2-architect/notes/T-07-per-source-selection.log`.
 Tests: `tests/refdata_generation/test_unique_genomic_elements.py` (19, passing).
 
+**Update (2026-08-11, issues `-dvy` and `-72c`).** Two of those residuals were not drift.
+
+*tRNA was the wrong source, not a version skew.* Rule 4 fixed col5 but kept reading the
+UCSC `{assembly}_tRNAs` GTF track, which on hg38 yields 631 rows against the reference's
+432: **409 shared, 222 spurious, 23 missing**. The 222 are named in a convention no
+MASTER_FILELIST carries (`nm-tRNA-Tyr-GTA-chr1-142`, `tRNA-Und-NNN-chr1-1`). Reading the
+same rows from the **gtRNAdb genomic FASTA** — coordinates taken from the header's
+trailing `chr6:28795964-28796035 (-)` field, the source the index and filelist generators
+already use — reproduces the reference tRNA rows **exactly: 432/432, zero spurious, zero
+missing**. `--gtrnadb-fasta` is now the preferred source and takes precedence over
+`--trna`. This was also a hard mouse blocker: mm39 has no UCSC tRNA track at all, and
+mm10's names its rows `chr1.tRNA1555-GluTTC`.
+
+*The Gencode allowlist was human-only.* `read_gencode_allowed_transcripts` filtered on
+`col1.startswith('ENST')`. Mouse ids are `ENSMUST`, so it returned **0** allowed
+transcripts for both mouse MASTER_FILELISTs and silently dropped the entire Gencode
+contribution. Now matched with `^ENS[A-Z]*T[0-9]`; human selection is unchanged (4,679).
+
+Re-measured hg38 with both fixes: **recall 0.999937 / precision 0.999957** (5,618,368 vs
+5,618,483 rows) — spurious rows 507 → 240, and the tRNA residual is now zero. What is
+left is genuine version drift: miRNA 231 spurious / 120 missing (miRBase) and Gencode
+9 / 235 (v33 coordinates).
+
+A cross-artifact check that needs no reference, and the one mouse is held to: **every
+col4 name in the BED, uppercased, must resolve in column 1 of the MASTER_FILELIST** —
+that is what `read_peakfi` / `read_in_filelists` in
+`duplicate_removal_inline_paired...pl` require to type a peak at all. The hg38 reference
+scores 24,436/24,436 distinct names, 0 unresolved.
+
 ### T-09 — MASTER_FILELIST: FAIL (content)
 
 ```bash
@@ -286,8 +315,10 @@ Full plan: `.forge/stages/2-architect/notes/FIX-PLAN-bowtie2-index.md`. Summary:
   e.g. `RNU6-2→RNU6`, `col5=genelists.{family}`), a repeat family→class map
   (`ALUY→Alu→SINE`), **and row-order preservation** (order sets mapping priority — see §1).
 - **T-07 (UniqueGenomicElements)**: ~~pending~~ **DONE 2026-07-26.** Schema was correct; the
-  fix was selection, across five sources (not Gencode alone) — see §T-07 above. mm10/mm39
-  still blocked on T-09, because the Gencode rule needs a mouse MASTER_FILELIST.
+  fix was selection, across five sources (not Gencode alone) — see §T-07 above.
+  ~~mm10/mm39 still blocked on T-09~~ **mm10/mm39 regenerated 2026-08-11** (`475.12`), after
+  two further fixes to the tRNA source (`-dvy`) and the human-only Gencode id match (`-72c`);
+  hg38 re-measures at recall 0.999937 / precision 0.999957.
 
 ## 6. Environment notes (tools needed to run the generators)
 
@@ -318,7 +349,7 @@ downstream symptom of the T-05 genomic-getfasta approach. Reference generation i
 | Generator | hg38 reproduction | mouse outputs |
 |---|---|---|
 | `generate_parsed_ucsc_tableformat.py` | PASS | valid |
-| `generate_unique_genomic_elements.py` | **PASS** (recall .99993) | must be regenerated; blocked on T-09 for the Gencode rule |
+| `generate_unique_genomic_elements.py` | **PASS** (recall .999937 / precision .999957 after `-dvy`, `-72c`, 2026-08-11) | **regenerated 2026-08-11** (`475.12`); 0 names unresolved against the mouse MASTER_FILELIST |
 | `generate_bowtie2_index.py` | FAIL — rewrite planned, not implemented | invalid |
 | `generate_master_filelist.py` | FAIL — depends on T-05 | invalid |
 

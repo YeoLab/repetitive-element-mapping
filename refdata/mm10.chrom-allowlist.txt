@@ -1,9 +1,16 @@
 # mm10 chromosome allowlist.
-# Provenance: every sequence name in the assembly FASTA index (mm10.fa.fai).
-# Deliberately permissive. hg38's allowlist was derived from the scaffold set of the
-# reference UniqueGenomicElements.hg38.bed; mouse has no reference to derive from, so
-# this admits everything the genome actually contains and excludes only annotation on
-# sequences absent from it. Narrowing it (dropping _alt/_fix/_random) is -475.7 (M-2).
+# Provenance: every sequence name in the assembly FASTA index (mm10.fa.fai), the GRCm38
+# base release with no _fix/_alt patch scaffolds. 66 sequences.
+#
+# Verified 2026-08-11: identical to UCSC mm10.chrom.sizes
+# (https://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/), 66 = 66, no difference —
+# the same source refdata/mm39.chrom-allowlist.txt is pinned to. Against
+# examples/inputs/mm10/downloaded/mm10.repeatmasker.tsv.gz (239 scaffolds) it drops 173
+# patch scaffolds / 186,003 rows added to UCSC's rmsk snapshot after the release, which
+# is the hg38 rule (T-07 R2) applied to mouse.
+#
+# _random and chrUn scaffolds are kept: they are part of the release, exactly as hg38's
+# allowlist keeps the alts present in its own 2020 snapshot.
 chr1
 chr10
 chr11

@@ -386,7 +386,7 @@ All four mm10/mm39 artifacts are currently invalid or unverified; the files on d
 |---|---|---|
 | bowtie2 index | Invalid | T-05 bug on disk: 5,874/5,875 (mm10) and 22,356/22,357 (mm39) headers carry `::chr:start-end(strand)` — genomic instances, not family consensus |
 | MASTER_FILELIST | Invalid | T-09 bug: col4 holds `misc_RNA`/`Mt_tRNA` (biotype) where hg38 holds `RNU1` (family). Also mm10=11,036 vs mm39=22,368 rows — inconsistent runs |
-| UniqueGenomicElements | Stale | 275/277 MB vs hg38's 208 MB; predates the T-07 five-rule fix, so still carries ~1M over-generated simple-repeat rows |
+| UniqueGenomicElements | **Regenerated 2026-08-11 (`475.12`)** | was 275/277 MB against hg38's 208 MB; now 189 MB (mm10, 5,154,546 rows) and 195 MB (mm39, 5,327,711). See below |
 | parsed_ucsc_tableformat | Unverified | Generator is validated (T-03 PASS), but outputs predate its commit by a week |
 
 Sequence:
@@ -416,15 +416,74 @@ Three gaps found 2026-08-10 that were in no document or issue:
    mm10 stays on its v22/GRCm38 copy, because v23 ships mouse coordinates on GRCm39 only.
    **The v23 file mixes seqid conventions** — 1,164 Ensembl-style rows (`1`, `X`) and 26 already
    `chr`-prefixed — so `parse_gff3_mirna` normalizes through `ucsc_chrom`; everything else in the
-   repo is UCSC-named and un-normalized seqids match no chromosome. T-07 still reads the tRNA
-   track.
-2. **No mouse chromosome allowlists** — now written as deliberately permissive placeholders
-   (every sequence name in the assembly `.fai`), enough to build a filelist. Narrowing them is
-   still `475.7`.
+   repo is UCSC-named and un-normalized seqids match no chromosome. ~~T-07 still reads the tRNA
+   track.~~ **T-07 now takes `--gtrnadb-fasta` too** (`-dvy`) — see below.
+2. ~~**No mouse chromosome allowlists**~~ — **closed 2026-08-11 (`475.7`)**. Both are now pinned
+   to the UCSC base release (`{mm10,mm39}.chrom.sizes`), 66 and 61 sequences. The earlier mm39
+   placeholder was derived from `GRCm39.primary_assembly.genome.fa.fai`, which names unplaced
+   scaffolds Ensembl-style (`GL456210.1`) where every track the generators read is UCSC-named
+   (`chr1_GL456210v1_random`); it silently dropped 8,292 RepeatMasker rows on 39 scaffolds.
+   Applied to RepeatMasker the rule drops **186,003 rows on 173 patch scaffolds for mm10** and
+   **0 for mm39** (UCSC's mm39 rmsk snapshot carries nothing that postdates the release — its
+   61 scaffolds are exactly `mm39.chrom.sizes`).
 3. **No mouse acceptance criteria existed.** Every hg38 criterion is "diff against the reference."
    Mouse has none. `M-8` replaces reference-diff with cross-artifact consistency checks — and its
    acceptance criterion requires those checks to *fail* on the known-bad hg38 outputs before they
    are trusted on mouse.
+
+### M-6 — mouse UniqueGenomicElements, regenerated 2026-08-11 (`475.12`)
+
+Two generator defects had to be fixed first; both were found by measuring, not by inspection,
+and both are written up in `docs/CHANGELOG-refdata-validation-2026-07-25.md` §T-07:
+
+- `-dvy` — the tRNA source. The UCSC `{assembly}_tRNAs` track gives 222 spurious / 23 missing
+  rows on hg38; the gtRNAdb FASTA gives 432/432 exactly. mm39 has no UCSC track at all.
+- `-72c` — `read_gencode_allowed_transcripts` matched `ENST` only, returning **0** allowed
+  transcripts for mouse and dropping the whole Gencode contribution.
+
+With both fixed, hg38 re-measures at recall 0.999937 / precision 0.999957 (was .99993/.99991),
+so the mouse run is not resting on a rule that human never passed.
+
+| | hg38 (reference) | mm10 | mm39 |
+|---|---|---|---|
+| rows | 5,618,483 | 5,154,546 | 5,327,711 |
+| size | 208 MB | 189 MB | 195 MB |
+| RepeatMasker | 5,607,738 | 5,147,736 | 5,320,771 |
+| Gencode | 4,670 | 2,721 | 2,963 |
+| tRNA | 432 | 408 | 407 |
+| miRNA (+proximal) | 1,881 (+3,762) | 1,227 (+2,454) | 1,190 (+2,380) |
+| simple-repeat (trf) rows | 0 | 0 | 0 |
+| distinct col4 names | 24,436 | 7,137 | 24,234 |
+| **names unresolved in MASTER_FILELIST** | **0** | **0** | **0** |
+
+The last row is the acceptance criterion that needs no gold standard: `read_peakfi` uppercases
+col4 and looks it up in `convert_enst2type`, which `read_in_filelists` fills from column 1 of the
+MASTER_FILELIST — an unresolved name is an untyped peak. The superseded 2026-05-14 mouse BEDs
+score **1,826,959 unresolved rows (mm10)** and **1,916,058 (mm39)** on the same test, almost all
+of them the trf simple-repeat track they should never have carried (1,687,263 / 1,641,063 rows)
+plus the unrestricted Gencode dump (142,351 / 278,326). They are kept as
+`UniqueGenomicElements.{mm10,mm39}.bed.stale-20260514` until `M-8` passes.
+
+mm39's stale BED also had **zero** tRNA and zero miRNA rows — neither input existed before
+`475.6`.
+
+Reproduce (`$A` = mm10 with `gencode.vM23`, mm39 with `gencode.vM38`; ~40 s each):
+
+```bash
+PYTHONPATH=bin/python/refdata_generation \
+/tscc/nfs/home/bay001/miniconda3/envs/marine_environment/bin/python \
+  bin/python/refdata_generation/generate_unique_genomic_elements.py \
+  --repeatmasker    examples/inputs/$A/downloaded/$A.repeatmasker.tsv.gz \
+  --gtrnadb-fasta   examples/inputs/$A/downloaded/$A-tRNAs.fa \
+  --gff3            examples/inputs/$A/downloaded/mmu.gff3 \
+  --parsed-ucsc     examples/inputs/$A/gencode.vM##.annotation.gtf.parsed_ucsc_tableformat \
+  --master-filelist examples/inputs/$A/MASTER_FILELIST.20260811.*.list \
+  --chrom-allowlist refdata/$A.chrom-allowlist.txt \
+  --assembly $A --output examples/inputs/$A/UniqueGenomicElements.$A.bed
+```
+
+miRBase pairing is not interchangeable: mm10 takes the v22/GRCm38 `mmu.gff3`, mm39 the
+v23/GRCm39 one.
 
 ## Standing risks
 

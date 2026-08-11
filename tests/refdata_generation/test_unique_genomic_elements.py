@@ -18,6 +18,7 @@ SCRIPT = REPO / 'bin' / 'python' / 'refdata_generation' / 'generate_unique_genom
 sys.path.insert(0, str(REPO))
 from bin.python.refdata_generation.generate_unique_genomic_elements import (  # noqa: E402
     GENCODE_EXCLUDED_FAMILIES,
+    parse_gtrnadb_bed_rows,
     parse_trna_bed_rows,
     read_chrom_allowlist,
     read_gencode_allowed_transcripts,
@@ -128,6 +129,36 @@ def test_trna_row_on_unlisted_scaffold_excluded(inputs, tmp_path):
     assert not [r for r in rows if r[3] == 'tRNA-Val-TAC-3-1']
 
 
+def test_gtrnadb_fasta_row_matches_the_hg38_reference_row(tmp_path):
+    """The gtRNAdb header is the validated tRNA source: this exact header produced
+    the reference row 'chr6 28795963 28796035 tRNA-Ala-AGC-1-1 tRNA-Ala-AGC -'."""
+    fa = tmp_path / 'x-tRNAs.fa'
+    fa.write_text('>Homo_sapiens_tRNA-Ala-AGC-1-1 (tRNAscan-SE ID: chr6.trna116) Ala (AGC) '
+                  '72 bp Sc: 84.9 chr6:28795964-28796035 (-)\nACGT\n')
+    assert list(parse_gtrnadb_bed_rows(fa)) == [
+        ('chr6', 28795963, 28796035, 'tRNA-Ala-AGC-1-1', 'tRNA-Ala-AGC', '-')]
+
+
+def test_gtrnadb_fasta_takes_precedence_over_the_ucsc_track(inputs, tmp_path):
+    """--gtrnadb-fasta supersedes --trna: the UCSC track names 222 of its 631 hg38 rows
+    in a convention no MASTER_FILELIST carries."""
+    fa = tmp_path / 'x-tRNAs.fa'
+    fa.write_text('>Mus_musculus_tRNA-Glu-TTC-1-1 (tRNAscan-SE ID: chr1.trna1555) Glu (TTC) '
+                  '72 bp Sc: 85.3 chr1:401-480 (+)\nACGT\n')
+    subprocess.run([sys.executable, str(SCRIPT),
+                    '--repeatmasker', str(inputs['rm']),
+                    '--trna', str(inputs['trna']),
+                    '--gtrnadb-fasta', str(fa),
+                    '--master-filelist', str(inputs['master']),
+                    '--chrom-allowlist', str(inputs['allowlist']),
+                    '--assembly', 'test',
+                    '--output', str(inputs['out'])],
+                   check=True, cwd=REPO, capture_output=True)
+    rows = [ln.split('\t') for ln in inputs['out'].read_text().splitlines()]
+    assert [r for r in rows if r[3] == 'tRNA-Glu-TTC-1-1']
+    assert not [r for r in rows if r[3] == 'tRNA-Asn-GTT-2-3']
+
+
 @pytest.mark.parametrize('gene_id,family', [
     ('tRNA-Asn-GTT-2-3', 'tRNA-Asn-GTT'),
     ('tRNA-Val-TAC-3-1', 'tRNA-Val-TAC'),
@@ -169,6 +200,19 @@ def test_gencode_allowlist_drops_every_excluded_family(tmp_path):
     ))
     allowed = read_gencode_allowed_transcripts(master)
     assert allowed == {f'ENST0000000{len(GENCODE_EXCLUDED_FAMILIES)}.1'}
+
+
+def test_gencode_allowlist_accepts_mouse_transcript_ids(tmp_path):
+    """Mouse ids are ENSMUST, not ENST. A startswith('ENST') test returns 0 allowed
+    transcripts for both mouse MASTER_FILELISTs and silently drops the whole Gencode
+    contribution (142,351 mm10 / 278,326 mm39 candidate rows)."""
+    master = tmp_path / 'm.tsv'
+    master.write_text(
+        'ENSMUST00000082469.4\tENSMUSG00000064403.4\tGm23928\tRNU1\tgenelists.RNU1\n'
+        'ENSMUST00000082392.1\tENSMUSG00000064326.1\tmt-Tf\tMTTRNA\tgenelists.MTTRNA\n'
+        'B1_MM\tB1_MM\tB1_MM\tSINE\tSINE\n'
+    )
+    assert read_gencode_allowed_transcripts(master) == {'ENSMUST00000082469.4'}
 
 
 # --- miRNA --------------------------------------------------------------------------

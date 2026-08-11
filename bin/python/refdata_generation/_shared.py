@@ -37,6 +37,45 @@ def setup_logger(name):
     return logger
 
 
+TRNA_HEADER_RE = re.compile(r'^(\S+).*?(\S+):(\d+)-(\d+)\s+\(([+-])\)')
+
+
+def read_gtrnadb_fasta(path):
+    """Parse a gtRNAdb genomic tRNA FASTA.
+
+    Returns list of (name, seq, chrom, start0, end0, strand), where name is the
+    header's first token with the leading '<Genus>_<species>_' stripped, e.g.
+    'Homo_sapiens_tRNA-Ala-AGC-1-1' → 'tRNA-Ala-AGC-1-1'. Coordinates come from
+    the trailing 'chr6:28795964-28796035 (-)' field of the same header.
+    """
+    entries = []
+    header, chunks = None, []
+
+    def flush():
+        if header is None:
+            return
+        m = TRNA_HEADER_RE.match(header)
+        if not m:
+            raise ValueError(f'Unparseable gtRNAdb header: {header!r}')
+        raw, chrom, a, b, strand = m.groups()
+        idx = raw.find('tRNA-')
+        if idx < 0:
+            raise ValueError(f'gtRNAdb name has no tRNA- component: {raw!r}')
+        lo, hi = sorted((int(a), int(b)))
+        entries.append((raw[idx:], ''.join(chunks).upper(), chrom, lo - 1, hi, strand))
+
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip()
+            if line.startswith('>'):
+                flush()
+                header, chunks = line[1:], []
+            elif header is not None:
+                chunks.append(line)
+    flush()
+    return entries
+
+
 def assert_writable(out_path, allowed_prefixes=None):
     """Raise PermissionError if out_path is not under any of allowed_prefixes."""
     if allowed_prefixes is None:

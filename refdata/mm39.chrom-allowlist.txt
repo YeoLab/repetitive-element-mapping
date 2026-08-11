@@ -1,67 +1,75 @@
 # mm39 chromosome allowlist.
-# Provenance: every sequence name in the assembly FASTA index (GRCm39.primary_assembly.genome.fa.fai).
-# Deliberately permissive. hg38's allowlist was derived from the scaffold set of the
-# reference UniqueGenomicElements.hg38.bed; mouse has no reference to derive from, so
-# this admits everything the genome actually contains and excludes only annotation on
-# sequences absent from it. Narrowing it (dropping _alt/_fix/_random) is -475.7 (M-2).
+# Provenance: UCSC mm39.chrom.sizes (https://hgdownload.soe.ucsc.edu/goldenPath/mm39/bigZips/),
+# the GRCm39 base release with no _fix/_alt patch scaffolds. 61 sequences.
+#
+# NOT the Gencode GRCm39.primary_assembly.genome.fa.fai: that file names the unplaced
+# scaffolds Ensembl-style ('GL456210.1') while every track this generator reads is
+# UCSC-named ('chr1_GL456210v1_random'), so the earlier .fai-derived list silently
+# dropped 8,292 RepeatMasker rows on 39 unplaced scaffolds.
+#
+# Verified 2026-08-11: this set is exactly the scaffold set of
+# examples/inputs/mm39/downloaded/mm39.repeatmasker.tsv.gz (61 = 61, no difference),
+# so it drops zero RepeatMasker rows -- UCSC's mm39 rmsk snapshot carries no scaffold
+# that postdates the release. Contrast mm10, where the same rule drops 173 patch
+# scaffolds / 186,003 rows.
 chr1
-chr10
-chr11
-chr12
-chr13
-chr14
-chr15
-chr16
-chr17
-chr18
-chr19
 chr2
+chrX
 chr3
 chr4
 chr5
 chr6
 chr7
+chr10
 chr8
+chr14
 chr9
-chrM
-chrX
+chr11
+chr13
+chr12
+chr15
+chr16
+chr17
 chrY
-GL456210.1
-GL456211.1
-GL456212.1
-GL456219.1
-GL456221.1
-GL456233.2
-GL456239.1
-GL456354.1
-GL456359.1
-GL456360.1
-GL456366.1
-GL456367.1
-GL456368.1
-GL456370.1
-GL456372.1
-GL456378.1
-GL456379.1
-GL456381.1
-GL456382.1
-GL456383.1
-GL456385.1
-GL456387.1
-GL456389.1
-GL456390.1
-GL456392.1
-GL456394.1
-GL456396.1
-JH584295.1
-JH584296.1
-JH584297.1
-JH584298.1
-JH584299.1
-JH584300.1
-JH584301.1
-JH584302.1
-JH584303.1
-JH584304.1
-MU069434.1
-MU069435.1
+chr18
+chr19
+chr5_JH584299v1_random
+chrX_GL456233v2_random
+chrY_JH584301v1_random
+chr1_GL456211v1_random
+chr1_GL456221v1_random
+chr5_JH584297v1_random
+chr5_JH584296v1_random
+chr5_GL456354v1_random
+chr5_JH584298v1_random
+chrY_JH584300v1_random
+chr7_GL456219v1_random
+chr1_GL456210v1_random
+chrY_JH584303v1_random
+chrY_JH584302v1_random
+chr1_GL456212v1_random
+chrUn_JH584304v1
+chrUn_GL456379v1
+chrUn_GL456366v1
+chrUn_GL456367v1
+chr1_GL456239v1_random
+chrUn_GL456383v1
+chrUn_GL456385v1
+chrUn_GL456360v1
+chrUn_GL456378v1
+chrUn_MU069435v1
+chrUn_GL456389v1
+chrUn_GL456372v1
+chrUn_GL456370v1
+chrUn_GL456381v1
+chrUn_GL456387v1
+chrUn_GL456390v1
+chrUn_GL456394v1
+chrUn_GL456392v1
+chrUn_GL456382v1
+chrUn_GL456359v1
+chrUn_GL456396v1
+chrUn_GL456368v1
+chrM
+chr1_MU069434v1_random
+chr4_JH584295v1_random
