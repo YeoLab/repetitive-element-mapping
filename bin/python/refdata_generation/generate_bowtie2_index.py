@@ -1,6 +1,7 @@
 """Generate a combined FASTA and bowtie2 index from Gencode, RepeatMasker, tRNA, miRNA, and custom sequences."""
 
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
@@ -8,6 +9,8 @@ import tempfile
 from pathlib import Path
 
 import pybedtools
+
+import repbase
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from bin.python.refdata_generation._shared import (
@@ -26,7 +29,14 @@ def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--gtf', required=True)
     p.add_argument('--parsed-ucsc', required=True)
-    p.add_argument('--repeatmasker', required=True)
+    p.add_argument('--repeatmasker', required=True,
+                   help='Used ONLY for simple repeats. Repeat FAMILIES come from '
+                        '--repbase-species-fasta; extracting them per genomic '
+                        'instance was the T-05 defect.')
+    p.add_argument('--repbase-species-fasta', required=True,
+                   help='RepBase 18.05 species_specific FASTA, e.g. '
+                        'homo_sapiens_repbase_fixed_v2.fasta. Source of the '
+                        'repeat-family consensus sequences.')
     p.add_argument('--simplerepeats', required=True)
     p.add_argument('--fasta', required=True)
     p.add_argument('--trna')
@@ -110,6 +120,93 @@ def extract_sequences_bed12(bed12_str, genome_fa, log, valid_chroms=None):
     bt = pybedtools.BedTool(bed12_str, from_string=True)
     result = bt.sequence(fi=str(genome_fa), s=True, name=True, split=True)
     return open(result.seqfn).read()
+
+
+def strip_coord_suffix(fasta_str):
+    """Remove the '::chr:start-end(strand)' suffix bedtools -name appends.
+
+    The reference index headers are bare names. Leaving the suffix on was half
+    of the T-05 defect: 5,874 of 5,875 mm10 headers carried coordinates.
+    """
+    out = []
+    for line in fasta_str.splitlines(keepends=True):
+        if line.startswith('>') and '::' in line:
+            out.append('>' + line[1:].split('::', 1)[0].rstrip() + '\n')
+        else:
+            out.append(line)
+    return ''.join(out)
+
+
+SIMPLE_REPEAT_MAX_K = 6
+SIMPLE_REPEAT_LENGTH = 60   # 1..6 all divide 60 evenly
+
+
+def _revcomp(s):
+    return s.translate(str.maketrans('ACGT', 'TGCA'))[::-1]
+
+
+def _canonical_kmer(s):
+    """Smallest representative under rotation and reverse-complement."""
+    rotations = {s[i:] + s[:i] for i in range(len(s))}
+    rotations |= {_revcomp(r) for r in rotations}
+    return min(rotations)
+
+
+def _is_primitive(s):
+    """False if s is just a shorter unit repeated ('AA' is '(A)n')."""
+    n = len(s)
+    return not any(n % d == 0 and s == s[:d] * (n // d) for d in range(1, n))
+
+
+def simple_repeat_fasta():
+    """Synthesize the SimpleRepeat portion.
+
+    These are not extracted from the genome. The reference index holds exactly
+    the 501 primitive canonical k-mers for k=1..6 under rotation and
+    reverse-complement, each tiled to 60 bp -- verified set-identical against
+    hg38. Being pure combinatorics it is species-independent, so mouse gets the
+    same 501 entries with no reference needed.
+    """
+    from itertools import product
+    kmers = set()
+    for k in range(1, SIMPLE_REPEAT_MAX_K + 1):
+        for combo in product('ACGT', repeat=k):
+            s = ''.join(combo)
+            if _is_primitive(s):
+                kmers.add(_canonical_kmer(s))
+    out = []
+    for kmer in sorted(kmers, key=lambda x: (len(x), x)):
+        seq = kmer * (SIMPLE_REPEAT_LENGTH // len(kmer))
+        out.append(f'>{kmer}_SimpleRepeat\n{seq}\n')
+    return ''.join(out)
+
+
+def canonicalize(seq):
+    """Uppercase, then map every non-ACGT byte to N (the .fixed.fa step).
+
+    Order matters: substituting ambiguity codes before uppercasing leaves
+    lowercase 'rymk' as 'RYMK' instead of 'NNNN'.
+    """
+    seq = seq.upper()
+    return re.sub(r'[^ACGTN]', 'N', seq)
+
+
+def repbase_fasta(families):
+    """Render selected RepBase families as FASTA with canonical sequences."""
+    return ''.join(f'>{name}\n{canonicalize(seq)}\n' for name, _, seq in families)
+
+
+def write_provenance(path, families, source_path):
+    """One row per emitted family (FIX-PLAN 4a).
+
+    Records where each sequence came from, so a mouse build -- which has no
+    reference index to diff against -- can still be audited.
+    """
+    with open(path, 'w') as fh:
+        fh.write('family\tsource_header\tsource_file\tlength\tsha256\n')
+        for name, header, seq in families:
+            digest = hashlib.sha256(canonicalize(seq).encode()).hexdigest()
+            fh.write(f'{name}\t{header}\t{source_path}\t{len(seq)}\t{digest}\n')
 
 
 def load_fai_chroms(fasta_path):
@@ -277,22 +374,36 @@ def main():
     log.info(f'  {len(transcripts)} / {len(all_transcripts)} transcripts after type filter')
     bed12_str = build_bed12(transcripts)
     log.info('Extracting Gencode transcript sequences (BED12+split)...')
-    gencode_fa = extract_sequences_bed12(bed12_str, genome_fa, log, valid_chroms)
+    gencode_fa = strip_coord_suffix(
+        extract_sequences_bed12(bed12_str, genome_fa, log, valid_chroms))
     n_gencode = count_fasta_seqs(gencode_fa)
     log.info(f'  Extracted {n_gencode} / {len(transcripts)} transcript sequences')
 
-    # ── 2 & 3. RepeatMasker (non-simple + simple) ───────────────────────
-    log.info('Reading repeatmasker...')
-    rm_rows, simple_rows = read_repeatmasker(args.repeatmasker, log)
-    log.info(f'  Non-simple repeat elements: {len(rm_rows)}')
-    log.info(f'  Simple repeat elements: {len(simple_rows)}')
-
-    log.info('Extracting RepeatMasker sequences...')
-    rm_fa = extract_sequences_bed6(rm_rows, genome_fa, log, valid_chroms)
-    simple_fa = extract_sequences_bed6(simple_rows, genome_fa, log, valid_chroms)
+    # ── 2. Repeat families — RepBase consensus, NOT genomic instances ────
+    log.info(f'Reading RepBase species FASTA: {args.repbase_species_fasta}')
+    families, unparsed = repbase.select_families(args.repbase_species_fasta)
+    log.info(f'  {len(families)} repeat families selected')
+    if unparsed:
+        log.error(
+            f'{len(unparsed)} kept records have no derivable family name: '
+            f'{unparsed[:10]}'
+        )
+        log.error('Refusing to build an index that silently omits families. '
+                  'Add them to the drop-exact list or extend the class vocabulary.')
+        sys.exit(1)
+    rm_fa = repbase_fasta(families)
     n_rm = count_fasta_seqs(rm_fa)
+
+    prov_path = output_dir / (args.output_prefix + '.repbase_provenance.tsv')
+    write_provenance(prov_path, families, args.repbase_species_fasta)
+    log.info(f'  Provenance written: {prov_path}')
+
+    # ── 3. Simple repeats — synthesized k-mers, not genomic instances ────
+    # Extracting them from RepeatMasker produced 14,180 entries against the
+    # reference's 501, because it kept every observed pattern up to 10+ nt.
+    simple_fa = simple_repeat_fasta()
     n_simple = count_fasta_seqs(simple_fa)
-    log.info(f'  Extracted {n_rm} repeat, {n_simple} simple-repeat sequences')
+    log.info(f'  Synthesized {n_simple} simple-repeat k-mers')
 
     # ── 4. tRNA (optional) ──────────────────────────────────────────────
     trna_fa = ''
@@ -300,7 +411,8 @@ def main():
         log.info('Reading tRNA...')
         trna_rows = read_trna(args.trna, log)
         log.info(f'  {len(trna_rows)} tRNA entries')
-        trna_fa = extract_sequences_bed6(trna_rows, genome_fa, log, valid_chroms)
+        trna_fa = strip_coord_suffix(
+            extract_sequences_bed6(trna_rows, genome_fa, log, valid_chroms))
         log.info(f'  Extracted {count_fasta_seqs(trna_fa)} tRNA sequences')
     else:
         log.warning('--trna not provided; tRNA entries omitted')
@@ -311,7 +423,8 @@ def main():
         log.info('Reading miRNA gff3...')
         mirna_rows = read_mirna_gff3(args.gff3, log)
         log.info(f'  {len(mirna_rows)} miRNA entries')
-        mirna_fa = extract_sequences_bed6(mirna_rows, genome_fa, log, valid_chroms)
+        mirna_fa = strip_coord_suffix(
+            extract_sequences_bed6(mirna_rows, genome_fa, log, valid_chroms))
         log.info(f'  Extracted {count_fasta_seqs(mirna_fa)} miRNA sequences')
     else:
         log.warning('--gff3 not provided; miRNA entries omitted')
@@ -339,7 +452,7 @@ def main():
     log.info(f'Total sequences written: {total_seqs}')
 
     # ── Missing ID report ───────────────────────────────────────────────
-    expected = len(transcripts) + len(rm_rows) + len(simple_rows)
+    expected = len(transcripts) + len(families) + n_simple
     if args.trna:
         expected += len(trna_rows)
     if args.gff3:
