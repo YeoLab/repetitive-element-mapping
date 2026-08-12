@@ -453,3 +453,90 @@ carries `ENSMUST00000000001.4` where every other assembly carries a gene id
 repo referenced it. Canonical name is the lowercase `gencode.vM23.annotation.gtf.parsed_ucsc_tableformat`;
 the other is set aside as `.superseded-not-gencode`. mm39 never had the equivalent stray, though
 the `gencode.VM38.annotation.gtf.gz` UCSC export is on disk in the same way.
+
+---
+
+## 10. P-5 — the pipeline on fully regenerated hg38 reference data (2026-08-12, `475.22`)
+
+Phase 5 of `docs/ROADMAP-refdata.md`: regenerate all four hg38 artifacts from source with the
+committed generators, run SE and PE on them, compare against the P-1 baseline. **This is the last
+point at which a refdata defect meets ground truth** — mouse has no reference, so anything
+surviving here is invisible from phase 6 onward.
+
+The baseline is trustworthy: `results/se_full` and `results/pe_full` reproduce the CWL 1.0.0
+references *exactly* (SE 182/182 read counts, max float deviation 4.6e-12; PE 169/169, 2.0e-13).
+Inputs were identical between the two runs — bowtie2 reports the same 25,958,442 reads on both
+sides — so every difference below is refdata and nothing else.
+
+### Artifact-level agreement
+
+| artifact | agreement with the 2020 reference |
+|---|---|
+| `parsed_ucsc_tableformat` | sorted-identical (row order only) |
+| `MASTER_FILELIST` | 25,908 / 26,354 ids, recall 0.983 / precision 0.984 |
+| index FASTA | 7,494 shared headers, **every shared sequence byte-identical** (match_fraction 1.00000) |
+| `UniqueGenomicElements` | recall 0.999917 / precision 0.999913 |
+
+No sequence differs anywhere. No Gencode transcript is mislabelled: all 4,905 shared Gencode
+transcripts get the identical family in both files.
+
+### Pipeline-level divergence
+
+| | SE | PE |
+|---|---|---|
+| total assigned IP reads | 17,505,462 → 17,507,036 (**+0.009%**) | 5,590,588 → 5,591,351 (**+0.014%**) |
+| elements | 182 → 183 | 169 → 170 |
+| shared elements identical | 74 / 174 | 71 / 161 |
+| reads moved between shared elements | 23,629 (**0.135%**) | 8,645 (**0.155%**) |
+| reads on dropped / new elements | 79 / 2,792 | 17 / 1,927 |
+
+The families that carry the data are stable. Of the ten largest, nine move by **< 0.05%**:
+
+```
+RNA28S             5,399,580 -> 5,398,240   -0.025%
+unique_distintron  2,443,909 -> 2,443,792   -0.005%
+RNA18S             1,976,076 -> 1,975,587   -0.025%
+unique_proxintron  1,017,390 -> 1,017,170   -0.022%
+unique_CDS           638,276 ->   638,076   -0.031%
+RNA45S               547,301 ->   547,303   +0.000%
+antisense_Alu        368,380 ->   365,578   -0.761%
+Alu                  271,398 ->   269,691   -0.629%
+```
+
+Large *relative* swings exist (`hAT` 807 → 1,609) but only on elements of a few hundred reads,
+where a handful of reassigned repeat names moves a visible fraction.
+
+### Where the divergence comes from, and why it is accepted not fixed
+
+**1. rmsk-era drift — 83 family reassignments (38.5% of the moved reads).** The 2020 reference and
+today's UCSC `rmsk` disagree about the family of 83 repeat names: `DNA`→`Crypton-A`,
+`hAT`→`hAT-Ac`, `ERV3`→`ERVL`. These are genuine reclassifications in the upstream database, not
+generator error. **Accepted:** removing them needs a 2020-era `rmsk.txt.gz`, which is not
+available; the modern classification is the better one to carry forward.
+
+**2. Gencode membership — 371 reference-only and 267 regenerated-only transcripts (61.5%).**
+Dominated by the 559-row unresolved small-RNA residue tracked as `475.41`: transcripts the rmsk
+overlap, gene_name and Rfam tiers all fail to name, which the generator omits rather than guesses.
+**Accepted:** the omission rule is deliberate (§4 of `docs/MASTER_FILELIST-decisions.md`) — column
+4 is a counting label, and a wrong one silently misattributes reads.
+
+**3. A false premise, tested and corrected.** `read_rmsk_class_family` strips a trailing `?` on the
+recorded grounds that "the reference carries the settled label." That is wrong — the reference has
+53 rows ending in `?`, and the `?` reaches the output because the *mapper* perl (unlike the dedup
+perl) does not strip it. Keeping the `?` was implemented and measured: it makes agreement **worse**
+(112 reassignments against 93), because 71 repNames in the modern table carry conflicting families,
+40 of them a `?`/non-`?` pair, so `first occurrence wins` picks by sort order. The behaviour is
+unchanged and the rationale is now the measurement.
+
+### The expectation ceiling for mouse
+
+Mouse cannot be held to a standard human did not meet. Regenerating reference data from source and
+rerunning costs, on hg38:
+
+- total assigned reads within **0.02%**
+- **≈0.15%** of reads landing on a different family label
+- the ten largest families stable to **< 1%**, most to **< 0.05%**
+- ~1 element appearing or disappearing per 180, always with a handful of reads
+
+A mouse build inside those bounds is behaving as human does. Outside them, something is wrong that
+hg38 would have caught. Comparison artifacts: `tests/p5_regenerated_hg38/`.

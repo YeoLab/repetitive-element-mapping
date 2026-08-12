@@ -41,7 +41,7 @@ so far ran to completion and produced plausible numbers.
 | 2 | Partial | Knowledge exists as defect narratives in `.forge/stages/2-architect/notes/`, not as a schema (`475.18`) |
 | 3 | Essentially done, unrecorded | RepBase 18.05 source confirmed at 100% coverage; needs a source manifest (`475.19`) |
 | 4 | Partial | Curated constants known but not enumerated as a class (`475.20`) |
-| 5 | Not started | Blocked on phase 1 + both generators (`475.22`) |
+| 5 | **PASS 2026-08-12** | All four hg38 artifacts regenerated; SE and PE rerun; 0.135% / 0.155% of reads move, top-10 families stable to <1%. Divergence traced to rmsk-era drift (83 reassignments) + the `475.41` Gencode residue, both accepted with reasons. Changelog §10 |
 | 6 | 0 of 4 mouse artifacts valid | All mm10/mm39 outputs predate a known fix (`475.6`–`475.15`) |
 
 ### Phase 1 blocker: zero repeat-family reads on full datasets
@@ -371,11 +371,23 @@ Each is a place where hg38 could be reproduced **by fitting to the answer** — 
 no answer to fit to. Classify every one as derivable-from-source, derivable-from-rule, or
 irreducibly-curated; for the last category, state how mouse gets a value and how it is checked.
 
-### Phase 5 — regenerated-hg38 validation (`475.22`)
+### Phase 5 — regenerated-hg38 validation (`475.22`) — **PASS 2026-08-12**
 
-Regenerate all four hg38 artifacts, rerun SE and PE, compare to the phase-1 baseline. Requires
-T-05 (`-7ee`) and T-09 (`-gz2`) to land first. The residual divergence measured here becomes the
-documented expectation ceiling for mouse — mouse cannot be held to a standard human did not meet.
+Regenerated all four hg38 artifacts, reran SE and PE, compared to the phase-1 baseline (which
+itself reproduces the CWL 1.0.0 references exactly). Inputs identical on both sides, so every
+difference is refdata.
+
+**The expectation ceiling for mouse**, measured here rather than assumed:
+
+- total assigned reads within **0.02%**
+- **≈0.15%** of reads land on a different family label
+- the ten largest families stable to **< 1%**, most to **< 0.05%**
+- ~1 element appears or disappears per 180, always carrying a handful of reads
+
+No sequence differs anywhere in the index, and no Gencode transcript is mislabelled. The
+divergence is 83 rmsk-era family reassignments (`DNA`→`Crypton-A`) plus the 559-row `475.41`
+small-RNA residue — both accepted with reasons, neither fixable without a 2020-era `rmsk.txt.gz`.
+Full numbers: changelog §10. Artifacts: `tests/p5_regenerated_hg38/`.
 
 ### Phase 6 — mouse generation (`475.6`–`475.15`)
 
