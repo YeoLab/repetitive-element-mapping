@@ -387,14 +387,14 @@ All four mm10/mm39 artifacts are currently invalid or unverified; the files on d
 | bowtie2 index | Invalid | T-05 bug on disk: 5,874/5,875 (mm10) and 22,356/22,357 (mm39) headers carry `::chr:start-end(strand)` — genomic instances, not family consensus |
 | MASTER_FILELIST | Invalid | T-09 bug: col4 holds `misc_RNA`/`Mt_tRNA` (biotype) where hg38 holds `RNU1` (family). Also mm10=11,036 vs mm39=22,368 rows — inconsistent runs |
 | UniqueGenomicElements | **Regenerated 2026-08-11 (`475.12`)** | was 275/277 MB against hg38's 208 MB; now 189 MB (mm10, 5,154,546 rows) and 195 MB (mm39, 5,327,711). See below |
-| parsed_ucsc_tableformat | Unverified | Generator is validated (T-03 PASS), but outputs predate its commit by a week |
+| parsed_ucsc_tableformat | **Verified 2026-08-12 (`475.8`)** | re-ran the committed generator: both mouse files reproduce **byte-identically**, so the 2026-05-14 outputs did come from it. Checksums in changelog §9 |
 
 Sequence:
 
 ```
 M-1  475.6   mm39 tRNA + GRCm39 miRNA inputs        [ready]
 M-2  475.7   mm10/mm39 chrom allowlists             [ready]
-M-7  475.8   re-run parsed_ucsc + checksum          [ready]
+M-7  475.8   re-run parsed_ucsc + checksum          [done 2026-08-12]
 T-05 -7ee    index generator rewrite                [ready]
 T-09 -gz2    filelist generator fix          <- T-05
 M-3  475.9   mouse index generation          <- T-05, M-1, P-5

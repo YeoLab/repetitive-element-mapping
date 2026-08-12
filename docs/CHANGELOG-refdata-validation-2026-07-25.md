@@ -415,3 +415,41 @@ One incidental finding, upstream data rather than a defect of ours: mm10's `MamS
 carries family `tRNA` where mm39's carries `tRNA-RTE`, each taken from its own assembly's rmsk
 table. Delimiting the RepBase block on column 4 therefore cut mm10's block at 387 rows instead
 of 1,071; the suite delimits on the tRNA block's column-5 source-list name instead.
+
+---
+
+## 9. parsed_ucsc_tableformat provenance (2026-08-12, `475.8` / M-7)
+
+The mouse `.parsed_ucsc_tableformat` files were dated 2026-05-14, a week before
+`generate_parsed_ucsc_tableformat.py` was committed, so nothing recorded that they came from the
+committed generator. Re-ran it against the same GTFs:
+
+| assembly | source GTF | rows | byte MD5 | sorted MD5 | vs on-disk |
+|---|---|---|---|---|---|
+| mm10 | `gencode.vM23.annotation.gtf.gz` | 142,351 | `f7b9c484a64a305098f892c4f39430f2` | same | **byte-identical** |
+| mm39 | `gencode.vM38.annotation.gtf.gz` | 278,326 | `8baf63a7b437579bd1e30f68a7fdfb77` | same | **byte-identical** |
+| hg38 | `gencode.v33.chr_patch_hapl_scaff.annotation.gtf` | 249,043 | `cc390c9a8de9fc00e0c49334c05d798c` | `01244eef2f97da25128feff32e79fc06` | sorted-identical |
+
+Both mouse files reproduce byte for byte, so the 2026-05-14 artifacts *were* produced by the
+committed script and no downstream artifact needed rebuilding. Byte MD5 equals sorted MD5 for
+them because the generator emits `sorted(transcripts.keys())`; hg38's on-disk file is the 2020
+UCSC-tool output, which preserves that tool's own row order — hence the byte difference and the
+sorted-content criterion of §T-03. Its sorted MD5 is unchanged from the value recorded there on
+2026-07-25, which independently confirms the generator has not drifted.
+
+**The mm10 "duplicate" was not a duplicate.** `gencode.vM23.*` and `gencode.VM23.*` differ only
+in one letter but are different kinds of file:
+
+- `gencode.vM23.annotation.gtf.gz` (28 MB) is the real GENCODE release — `##description:
+  evidence-based annotation of the mouse genome (GRCm38), version M23`, with `gene`/`transcript`/
+  `exon`/`CDS` features and full attributes.
+- `gencode.VM23.annotation.gtf.gz` (11 MB) is a **UCSC table-browser export** of `mm10_knownGene`
+  — exon rows only, `gene_id` identical to `transcript_id`, no `gene_name` or `gene_type`. The
+  same shape as `mm10.repeatmasker.tsv.gz` and `mm10.trna.tsv.gz`.
+
+Parsed through the generator, that difference is visible in column 1: the `VM23`-derived file
+carries `ENSMUST00000000001.4` where every other assembly carries a gene id
+(`ENSMUSG00000000001.4`, `ENSG00000164054.15`). It is the wrong file to keep, and nothing in the
+repo referenced it. Canonical name is the lowercase `gencode.vM23.annotation.gtf.parsed_ucsc_tableformat`;
+the other is set aside as `.superseded-not-gencode`. mm39 never had the equivalent stray, though
+the `gencode.VM38.annotation.gtf.gz` UCSC export is on disk in the same way.
