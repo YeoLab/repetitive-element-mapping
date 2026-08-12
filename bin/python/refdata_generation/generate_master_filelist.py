@@ -291,8 +291,26 @@ def read_parsed_ucsc_loci(path):
 def read_rmsk_class_family(path):
     """repName (uppercased) -> (repClass, repFamily), first occurrence wins.
 
-    Trailing '?' marks a provisional RepeatMasker call ('DNA?'); the reference
-    carries the settled label, so it is stripped.
+    Trailing '?' marks a provisional RepeatMasker call ('DNA?') and is stripped.
+    NOT because the reference carries the settled label -- P-5 (-475.22) measured
+    that earlier claim and it is false: the reference filelist has 53 rows whose
+    family ends in '?', and the '?' does reach the output, since the dedup perl
+    strips it at read_in_filelists but the MAPPER perl strips only a trailing
+    '_', so the repeat arm reports 'ERVL?' as its own element.
+
+    It is stripped because stripping is measurably the closer approximation.
+    The real problem is upstream: 71 repNames in the modern UCSC table carry
+    CONFLICTING families, 40 of them a '?'/non-'?' pair for the same name
+    (EULOR5A is both 'Crypton-A' and 'DNA?'), so 'first occurrence wins' is
+    picking arbitrarily by sort order. Against the hg38 reference:
+
+        strip '?'  ->  93 reassignments = 10 ref-has-? +  0 regen-has-? + 83 drift
+        keep  '?'  -> 112 reassignments =  8 ref-has-? + 21 regen-has-? + 83 drift
+
+    Stripping collapses the conflicting pairs and removes the arbitrary choice.
+    The 83 genuine reclassifications (DNA -> Crypton-A, hAT -> hAT-Ac) are
+    invariant under either policy and are era drift between the 2020 reference
+    and today's rmsk; only an era-matched snapshot would remove them.
 
     UCSC qualifies some repNames with a subfamily after a slash -- alpha
     satellite is 'ALR/Alpha' -- while the index and the filelist use the bare

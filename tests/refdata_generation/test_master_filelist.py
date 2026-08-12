@@ -109,11 +109,28 @@ def test_repeat_row_uses_rmsk_family_and_class(tmp_path):
 
 
 def test_provisional_question_mark_is_stripped(tmp_path):
+    """'DNA?' is a provisional RepeatMasker call and is stripped.
+
+    NOT because the reference carries the settled label -- P-5 (-475.22)
+    measured that claim and it is false, the reference has 53 rows whose family
+    ends in '?'. It is stripped because 40 repNames in the modern UCSC table
+    carry BOTH a '?' and a non-'?' family, so first-occurrence-wins picks by
+    sort order; collapsing them matches the reference better (93 reassignments
+    against 112)."""
     from generate_master_filelist import read_rmsk_class_family, repeat_row
     cf = read_rmsk_class_family(
         _class_family_file(tmp_path, [("MER105", "DNA?", "hAT-Charlie?")]))
     assert repeat_row("MER105", cf)[4] == "DNA"
     assert repeat_row("MER105", cf)[1] == "hAT-Charlie"
+
+
+def test_conflicting_question_mark_pair_collapses_to_one_family(tmp_path):
+    """EULOR5A is 'Crypton-A' and 'DNA?' in the same table. Stripping makes the
+    pair a genuine conflict resolved by first-occurrence, not a silent split."""
+    from generate_master_filelist import read_rmsk_class_family, repeat_row
+    cf = read_rmsk_class_family(_class_family_file(
+        tmp_path, [("EULOR5A", "DNA", "Crypton-A"), ("EULOR5A", "DNA", "DNA?")]))
+    assert repeat_row("EULOR5A", cf)[1] == "Crypton-A"
 
 
 def test_slash_qualified_repname_is_reachable_by_its_bare_prefix(tmp_path):

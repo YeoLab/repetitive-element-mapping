@@ -172,8 +172,31 @@ annotation column, never rmsk's `rRNA`/`rRNA`. These repNames *are* the curated 
 carries RepBase class `CR1` but the reference says family `L2`, class `LINE`. This killed the
 original T-09 premise that the class could be parsed from the RepBase header.
 `read_rmsk_class_family` also
-  - strips a trailing `?` (`DNA?` is a provisional RepeatMasker call; the reference has the settled
-    label), and
+  - strips a trailing `?` (`DNA?` is a provisional RepeatMasker call) — **but not for the reason
+    originally recorded here.** The old justification was "the reference has the settled label";
+    P-5 (`475.22`) measured it and it is false. The reference filelist has **53** rows whose family
+    ends in `?`, and the `?` does reach the output: the dedup perl strips it at `read_in_filelists`,
+    but the *mapper* perl strips only a trailing `_`, so the repeat arm reports `ERVL?` as its own
+    element, exactly as the reference outputs do.
+
+    Stripping survives because it is measurably the closer approximation, not because it is
+    faithful. The real problem is upstream — **71 repNames in the modern UCSC table carry
+    conflicting families, 40 of them a `?`/non-`?` pair for the same name** (`EULOR5A` is both
+    `Crypton-A` and `DNA?`), so `first occurrence wins` picks by sort order. Measured against the
+    reference:
+
+    | policy | reassignments | reference-has-`?` | regen-has-`?` | genuine drift |
+    |---|---|---|---|---|
+    | strip `?` | **93** | 10 | 0 | 83 |
+    | keep `?` | 112 | 8 | 21 | 83 |
+
+    The 83 genuine reclassifications (`DNA`→`Crypton-A`, `hAT`→`hAT-Ac`) are invariant under either
+    policy: they are era drift between the 2020 reference and today's rmsk, and only an era-matched
+    snapshot would remove them. Stripping collapses the conflicting pairs and removes the arbitrary
+    choice; keeping the `?` reproduces 2 more of the reference's own `?` rows at the cost of 21 new
+    wrong-direction ones. Revisit only with a 2020-era `rmsk.txt.gz`.
+
+    Also,
   - indexes UCSC's slash-qualified names by their bare prefix, because UCSC writes alpha satellite
     as `ALR/Alpha` while the index and filelist use `ALR`.
 
