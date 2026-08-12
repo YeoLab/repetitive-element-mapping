@@ -147,7 +147,6 @@ GENE_NAME_FAMILY_RULES = [
     (re.compile(r'^MT-T'), 'MTTRNA'),
     (re.compile(r'^MT-RNR1'), 'MTRNR1'),
     (re.compile(r'^MT-RNR2'), 'MTRNR2'),
-    (re.compile(r'^Mt-t', re.I), 'MTTRNA'),
 ]
 
 
@@ -160,7 +159,13 @@ def family_from_gene_name(gene_name):
     GENE_NAME_FAMILY_RULES is ORDERED and the order is load-bearing: the generic
     ^(RNU\d+) rule would otherwise swallow RNU6ATAC and RNU4ATAC, so those come
     first. See docs/MASTER_FILELIST-decisions.md section 4.
+
+    The name is uppercased before matching. The rules are written against human
+    symbols (RNU5A, SNORD13, MT-TF); mouse symbols are title-case (Rnu5g,
+    Snord13, mt-Tf), and matching them literally made every rule but one dead on
+    mouse -- see -4ee. Uppercasing is a no-op for human.
     """
+    gene_name = gene_name.upper()
     for pattern, fixed in GENE_NAME_FAMILY_RULES:
         m = pattern.match(gene_name)
         if not m:

@@ -92,9 +92,18 @@ tried in order:
 |---|---|---|---|---|---|
 | 1 | `--family-override` TSV | `read_family_overrides` | (operator-supplied) | | |
 | 2 | rmsk small-RNA overlap ≥ 50% | `overlapping_repname` | 4,104 | 1,993 | 1,972 |
-| 3 | `gene_name` pattern rules | `family_from_gene_name` | 755 | 22 | 22 |
-| 4 | Rfam family via RNAcentral | `read_rfam_families` | 298 | 1,075 | 1,337 |
-| — | none of them | — | **559** | 833 | 592 |
+| 3 | `gene_name` pattern rules | `family_from_gene_name` | 755 | 173 | 177 |
+| 4 | Rfam family via RNAcentral | `read_rfam_families` | 298 | 973 | 1,208 |
+| — | none of them | — | **559** | 785 | 569 |
+
+The mouse tier-3 numbers were 22 and 22 until 2026-08-12 (`-4ee`). The rules are written against
+human symbols (`RNU5A`, `SNORD13`, `MT-TF`) and were matched literally, so every one of them was
+dead against mouse's title-case symbols (`Rnu5g`, `Snord13`, `mt-Tf`) except the single `^Mt-t`
+rule that carried `re.I`. `family_from_gene_name` now uppercases before matching, which is a
+verified no-op for human — 0 of hg38's 62,629 gene names change family — and resolves 177 mouse
+names that previously fell through to Rfam or to nothing. It is what gives mouse the RNU5G,
+RNU4ATAC, RNU11, RNU12, MTRNR1 and MTRNR2 families at all, and RNU5G is what settled `U5B1` in
+`-475.11`.
 
 **Tier 2 detail.** `refdata/<asm>.rmsk-smallrna.bed.gz` holds rmsk loci whose `repClass` is one of
 `srpRNA, scRNA, snRNA, tRNA, rRNA, RNA`. A transcript takes the `repName` of the feature covering

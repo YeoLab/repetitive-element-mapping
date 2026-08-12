@@ -502,13 +502,16 @@ NR   NR   ...                   <- NR_046235.1, the HUMAN 45S RefSeq, resolving 
 ```
 
 Those six are now dropped, plus `U7_snRNA_Vertebrata` (the well-formed twin — the human list
-drops that form, so both go). Mouse RepBase selection: **1,078 → 1,072 families**.
+drops that form, so both go) and, after `-4ee`, `U5B1`.
 
-`U5B1` is deliberately **kept**, where the human list drops it: human Gencode supplies
-RNU5A–RNU5F, the mouse MASTER_FILELIST has no RNU5 family at all, so U5B1 is mouse U5's only
-representation. That is conditional on `-4ee` (`family_from_gene_name` is case-sensitive, so
-vM38's `Rnu5g` never resolves) — fixing it would create an RNU5 family and U5B1 would then have
-to move into the drop list. The two must be decided together.
+`U5B1` was **kept** on 2026-08-11 and **dropped on 2026-08-12**, once `-4ee` was fixed. It was
+kept because the mouse MASTER_FILELIST then had no RNU5 family at all — which turned out to be a
+symptom of `-4ee`, not a fact about mouse: `family_from_gene_name` matched human symbols
+literally, so vM38's `Rnu5g` never resolved. With the fix Gencode supplies **RNU5G** and the
+ordinary rule applies, exactly as the human list drops U5B1 against RNU5A–RNU5F. Mouse's U5
+annotation is thin — one transcript against human's 34, and the Rfam tier supplies no U5 family
+either — but that is a statement about the annotation, not a reason to keep a second competing
+representation of U5 in the repeat portion. Mouse RepBase selection: **1,078 → 1,072 → 1,071**.
 
 Measured overlap between the RepBase block's families and the Gencode block's:
 
@@ -517,6 +520,9 @@ Measured overlap between the RepBase block's families and the Gencode block's:
 | mm10 | RNU1 RNU2 RNU6 RNU7 SNORD | **SNORD** | — |
 | mm39 | RNU1 RNU2 RNU6 RNU7 SNORD | **SNORD** | — |
 | hg38 | | | SNORD, YRNA |
+
+(unchanged by the `-4ee` rebuild: still `{SNORD}` on both, with RNU5G now in the Gencode block
+and U5B1 gone from the repeat block, so U5 is represented once.)
 
 The residual `SNORD` is inherited from the human rule, not a mouse exception: the kept
 U3/U8/U13/U14 snoRNA records carry family SNORD, and the hg38 reference does the same (and also
@@ -527,11 +533,21 @@ block with families RNU1/RNU2/RNU6/RNU7 — because RepeatMasker's `repName` for
 literally `U1`, `U2`, … The hg38 reference has exactly the same rows (lines 11786–12345), so
 this is the intended shape; the rule is about the RepBase block only.
 
-Both mouse MASTER_FILELISTs and both bowtie2 indices were rebuilt (the T-09/T-05 rerun the
-issue requires): mm10 11,526→11,520 filelist rows and 5,488→5,482 index records, mm39
-25,871→25,869 and 5,727→5,721, the diff in each case being exactly those six records and
-nothing else. Contracts re-checked after the rebuild: every index header resolves in the
-filelist (5,482/5,482 and 5,721/5,721) and the M-6 BED check still returns 0 unresolved rows.
+All four mouse artifacts were rebuilt, twice — once for M-5 and again after `-4ee`, which
+changed the Gencode block and so propagated into the index and the BED as well:
+
+| | filelist rows | index records | BED rows | Gencode in BED |
+|---|---|---|---|---|
+| mm10 before | 11,526 | 5,488 | 5,154,546 | 2,721 |
+| mm10 after M-5 | 11,520 | 5,482 | — | — |
+| **mm10 after `-4ee`** | **11,568** | **5,530** | **5,154,593** | **2,768** |
+| mm39 before | 25,871 | 5,727 | 5,327,711 | 2,963 |
+| mm39 after M-5 | 25,869 | 5,721 | — | — |
+| **mm39 after `-4ee`** | **25,894** | **5,746** | **5,327,735** | **2,987** |
+
+Contracts re-checked after the final rebuild: every index header resolves in its filelist
+(5,530/5,530 and 5,746/5,746), the M-6 BED check returns **0 unresolved rows** on both, and the
+BEDs still carry zero trf simple-repeat rows.
 
 The filelist invocation was first validated by reproducing the committed 2026-08-11 mm39 file
 **byte-identically** before changing anything. It needs both curated tables, human first:

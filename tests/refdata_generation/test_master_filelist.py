@@ -62,6 +62,34 @@ def test_rnu6atac_is_not_swallowed_by_the_rnu6_rule():
     assert family_from_gene_name("RNU6ATAC") != "RNU6"
 
 
+@pytest.mark.parametrize("gene_name, expected", [
+    ("Rnu1a1", "RNU1"),
+    ("Rnu2-10", "RNU2"),
+    ("Rnu4atac", "RNU4ATAC"),
+    ("Rnu5g", "RNU5G"),            # the one that decided U5B1 -- see -475.11
+    ("Rnu6", "RNU6"),
+    ("Rnu6atac", "RNU6ATAC"),
+    ("Rnu7", "RNU7"),
+    ("Rnu11", "RNU11"),
+    ("Rnu12", "RNU12"),
+    ("Rn7sk", "RN7SK"),
+    ("Snord13", "SNORD"),
+    ("Snora73a", "SNORA"),
+    ("Scarna2", "SCARNA"),
+    ("Rny1", "YRNA"),
+    ("mt-Tf", "MTTRNA"),
+    ("mt-Rnr1", "MTRNR1"),
+    ("mt-Rnr2", "MTRNR2"),
+    ("Actb", None),
+])
+def test_family_from_mouse_gene_name(gene_name, expected):
+    """Mouse symbols are title-case. Matching them literally left every rule but
+    one dead on mouse, so gencode's Rnu5g never resolved and the mouse filelist
+    had no RNU5 family at all (-4ee)."""
+    from generate_master_filelist import family_from_gene_name
+    assert family_from_gene_name(gene_name) == expected
+
+
 # ── repeat rows ──────────────────────────────────────────────────────────
 
 def _class_family_file(tmp_path, rows):

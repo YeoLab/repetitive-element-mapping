@@ -114,11 +114,11 @@ MOUSE_DROP_EXACT = REPO / "refdata" / "repbase18.05-drop-exact.mm.txt"
 
 
 @needs_repbase
-def test_mouse_selection_gives_1072_families():
+def test_mouse_selection_gives_1071_families():
     families, unparsed = repbase.select_families(
         MOUSE, repbase.load_drop_exact(MOUSE_DROP_EXACT))
     assert unparsed == [], f"unparsed headers: {unparsed[:5]}"
-    assert len(families) == 1072
+    assert len(families) == 1071
 
 
 @pytest.mark.parametrize("header,kept", [
@@ -129,9 +129,9 @@ def test_mouse_selection_gives_1072_families():
     ("U6", False),                      # RNU6 + RNU6ATAC
     ("U7", False),                      # RNU7, bare form
     ("U7_snRNA_Vertebrata", False),     # RNU7, well-formed form -- both go
+    ("U5B1", False),                    # RNU5G, once -4ee let `Rnu5g` resolve
     ("NR_046235.1", False),             # the HUMAN 45S RefSeq, in the mouse library too
     # kept: no mouse Gencode family supplies these
-    ("U5B1", True),                     # mouse has NO RNU5 family -- see -4ee
     ("U3", True),
     ("U13", True),
     ("UHG", True),

@@ -13,14 +13,15 @@
 # carries no CLASS_TAXON and cannot be parsed, so where the family is kept the
 # bare copy is dropped and the well-formed one retained.
 #
-# Mouse Gencode supplies (genelists.* blocks): RNU1 RNU2 RNU4 RNU6 RNU6ATAC
-# RNU7 RN7SK RN7SL YRNA SCARNA SNORA SNORD MTTRNA RNA5S RNA5-8S RNA18S RNA28S
-# RNA45S.
+# Mouse Gencode supplies (genelists.* blocks): RNU1 RNU2 RNU4 RNU4ATAC RNU5G
+# RNU6 RNU6ATAC RNU7 RNU11 RNU12 RNU73 RN7SK RN7SL YRNA SCARNA SNORA SNORD
+# MTTRNA MTRNR1 MTRNR2 RNA5S RNA5-8S RNA18S RNA28S RNA45S.
 #
 # DROPPED, with the family that supplies it:
 #   U1                    <- RNU1   (204 Gencode rows)
 #   U2                    <- RNU2   (48)
-#   U4B                   <- RNU4   (38)
+#   U4B                   <- RNU4   (38) + RNU4ATAC (1)
+#   U5B1                  <- RNU5G  (1)
 #   U6                    <- RNU6   (936) + RNU6ATAC (22)
 #   U7, U7_snRNA_Vertebrata <- RNU7 (15) -- both forms, as the human list drops
 #                            U7_snRNA_Vertebrata
@@ -31,14 +32,17 @@
 #                         from the mouse subunit sources (NR_046233.2); leaving
 #                         a human 45S in a mouse index splits rRNA reads.
 #
+# U5B1 was KEPT when this file was first written on 2026-08-11, because the
+# mouse filelist then had no RNU5 family at all -- a consequence of -4ee, where
+# family_from_gene_name matched uppercase human symbols only and so never
+# resolved gencode's `Rnu5g`. With -4ee fixed (2026-08-12) Gencode supplies
+# RNU5G and the ordinary rule applies, so U5B1 now drops, exactly as the human
+# list drops it against RNU5A-RNU5F. Mouse's U5 annotation is thin -- one
+# transcript against human's 34 -- but that is a reason the annotation is thin,
+# not a reason to keep a second competing representation of U5 in the repeat
+# portion.
+#
 # KEPT, deliberately, where the human list drops or has no counterpart:
-#   U5B1   The human list drops U5B1 because human Gencode supplies RNU5A-RNU5F.
-#          The mouse MASTER_FILELIST has NO RNU5 family, so U5B1 is mouse U5's
-#          only representation and dropping it would lose U5 entirely. This is
-#          conditional: -4ee (family_from_gene_name is case-sensitive, so
-#          gencode vM38's Rnu5g never resolves) would add an RNU5 family, and
-#          U5B1 must then move into this list. Do not fix -4ee without
-#          re-deciding this line.
 #   U3, U13, UHG, U8_snRNA_Vertebrata, U14_snRNA_Vertebrata
 #          snoRNA/host-gene records. Gencode supplies SNORD and SCARNA, but the
 #          human list keeps these too, so keeping them is the human rule applied
@@ -54,10 +58,11 @@
 #          drop lines have no mouse counterpart at all.
 #
 # Match on the FULL header -- a prefix match on U1 would wrongly drop U13/U14.
-# Yields 1072 families of 1194 records.
+# Yields 1071 families of 1194 records.
 U1
 U2
 U4B
+U5B1
 U6
 U7
 U7_snRNA_Vertebrata
