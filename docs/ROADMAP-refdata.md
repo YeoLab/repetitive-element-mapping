@@ -426,10 +426,14 @@ Three gaps found 2026-08-10 that were in no document or issue:
    Applied to RepeatMasker the rule drops **186,003 rows on 173 patch scaffolds for mm10** and
    **0 for mm39** (UCSC's mm39 rmsk snapshot carries nothing that postdates the release — its
    61 scaffolds are exactly `mm39.chrom.sizes`).
-3. **No mouse acceptance criteria existed.** Every hg38 criterion is "diff against the reference."
-   Mouse has none. `M-8` replaces reference-diff with cross-artifact consistency checks — and its
-   acceptance criterion requires those checks to *fail* on the known-bad hg38 outputs before they
-   are trusted on mouse.
+3. ~~**No mouse acceptance criteria existed.**~~ **Closed 2026-08-12 (`475.13`).**
+   `bin/python/refdata_generation/validate_refdata_set.py` runs six cross-artifact consistency
+   checks over an assembly's filelist + index + BED and exits non-zero on failure. hg38
+   reference PASSES (5 checks, 1 skipped — no provenance sidecar for a downloaded 2020 index),
+   mm10 and mm39 PASS 6/6. Its own acceptance requirement — that the checks *fail* on known-bad
+   input — is met against all three real defect classes: the T-05 `20260514` indices fail A+C,
+   the T-07 `.stale-20260514` BEDs fail B+E, the M-5 `.pre-475.11` filelists fail D. Full
+   results and the two checks whose wording had to change: changelog §8.
 
 ### M-6 — mouse UniqueGenomicElements, regenerated 2026-08-11 (`475.12`)
 

@@ -350,8 +350,68 @@ downstream symptom of the T-05 genomic-getfasta approach. Reference generation i
 |---|---|---|
 | `generate_parsed_ucsc_tableformat.py` | PASS | valid |
 | `generate_unique_genomic_elements.py` | **PASS** (recall .999937 / precision .999957 after `-dvy`, `-72c`, 2026-08-11) | **regenerated 2026-08-11** (`475.12`); 0 names unresolved against the mouse MASTER_FILELIST |
-| `generate_bowtie2_index.py` | FAIL — rewrite planned, not implemented | invalid |
-| `generate_master_filelist.py` | FAIL — depends on T-05 | invalid |
+| `generate_bowtie2_index.py` | ~~FAIL~~ **rewritten** (T-05, `-7ee`) | **regenerated 2026-08-12** |
+| `generate_master_filelist.py` | ~~FAIL~~ **rewritten** (T-09, `-gz2`) | **regenerated 2026-08-12** |
 
-Remaining order of work: T-05 (alias resolution → ≥99% coverage gate → rewrite) → T-09
-(mouse MASTER_FILELIST) → regenerate mm10/mm39 UniqueGenomicElements → integration test.
+~~Remaining order of work: T-05 → T-09 → regenerate mm10/mm39 UniqueGenomicElements →
+integration test.~~ All four mouse artifacts are now generated and pass the §8 acceptance
+suite. Remaining: `M-7` (`475.8`, re-run parsed_ucsc + checksum), `M-9` (`475.14`, end-to-end
+smoke run on mouse eCLIP data), `M-10` (`475.15`, package + document), and `P-5` (`475.22`),
+which is the last checkpoint against human ground truth and still gates M-4.
+
+---
+
+## 8. The mouse acceptance suite (2026-08-12, `475.13` / M-8)
+
+Every criterion in sections 1–7 is "reproduce the reference file". Mouse has no reference, so
+that method does not transfer, and until now the mouse artifacts had no acceptance gate at all —
+the single largest risk in the effort. `bin/python/refdata_generation/validate_refdata_set.py`
+replaces reference-diff with six internal-consistency checks across the three artifacts of one
+assembly, and exits non-zero on any failure.
+
+| | check | catches |
+|---|---|---|
+| A | every index FASTA header resolves in MASTER_FILELIST column 1 | an indexed sequence `read_in_filelists` cannot type |
+| B | every UniqueGenomicElements column-4 name resolves there too | an untyped peak in `read_peakfi` |
+| C | no index header carries a `::` coordinate suffix | T-05, the per-genomic-instance index |
+| D | the RepBase-block/Gencode-block family overlap is within the hg38 reference's own | M-5, a family counted in both portions |
+| E | BED source profile: 0 trf rows, rmsk ≥ 99%, miRNA rows == 3 × entries, no source empty | T-07, and any optional input silently omitted |
+| F | the provenance sidecar covers every indexed RepBase family | T-05 from the other side |
+
+**Results.**
+
+| set | outcome |
+|---|---|
+| hg38 reference | **PASS** (5 passed, 1 skipped — no provenance sidecar exists for a downloaded 2020 index) |
+| mm10 generated | **PASS** (6/6) |
+| mm39 generated | **PASS** (6/6) |
+
+**The checks have teeth**, demonstrated against the three known-bad artifact classes this
+project actually produced rather than against synthetic damage — all six runs exit 1:
+
+| known-bad input | fails |
+|---|---|
+| mm10/mm39 index `20260514` (T-05) | A (0/5,875 and 0/22,357 headers resolve), C (5,874 and 22,356 headers carry `::`) |
+| mm10/mm39 BED `.stale-20260514` (T-07) | B (1.83M and 1.92M unresolved rows), E (rmsk 0.744 and 0.735; 1,687,263 and 1,641,063 trf rows) |
+| mm10/mm39 filelist `.pre-475.11` (M-5) | D (overlap `RNU1 RNU2 RNU6 RNU7 SNORD`), plus A and B as collateral |
+
+Unit tests in `tests/refdata_generation/test_validate_refdata_set.py` (13) pin each check's
+failure case independently, so a check cannot silently stop being able to fail.
+
+**Two of the six could not be stated as the issue worded them, and the wording was wrong rather
+than the artifacts:**
+
+- *"every MASTER_FILELIST id resolves to an index header **and vice versa**."* Only
+  index→filelist is an invariant. 18,748 of hg38's 26,354 filelist ids (71%) have no index
+  sequence **by design** — the rmsk-leftover and SimpleRepeat blocks contribute names the dedup
+  perl needs in order to type a peak, not sequences to align against. The reverse direction
+  fails on the reference set.
+- *"no family appears in both the repeat and Gencode portions."* The hg38 reference has two,
+  SNORD and YRNA, from the RepBase U3/U8/U13/U14 snoRNA records it deliberately keeps. The check
+  is therefore that an assembly's overlap is a **subset** of the reference's: mouse may not
+  invent an overlap human does not have. Mouse sits at `{SNORD}`.
+
+One incidental finding, upstream data rather than a defect of ours: mm10's `MamSINE1` row
+carries family `tRNA` where mm39's carries `tRNA-RTE`, each taken from its own assembly's rmsk
+table. Delimiting the RepBase block on column 4 therefore cut mm10's block at 387 rows instead
+of 1,071; the suite delimits on the tRNA block's column-5 source-list name instead.
