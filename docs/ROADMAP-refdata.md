@@ -40,7 +40,7 @@ so far ran to completion and produced plausible numbers.
 | 1 | Blocker fixed, full SE rerun reproduces the reference | Zero repeat-family reads traced to bowtie2 missing from PATH + a swallowed exit code; fixed (`475.16`) |
 | 2 | Partial | Knowledge exists as defect narratives in `.forge/stages/2-architect/notes/`, not as a schema (`475.18`) |
 | 3 | Essentially done, unrecorded | RepBase 18.05 source confirmed at 100% coverage; needs a source manifest (`475.19`) |
-| 4 | Partial | Curated constants known but not enumerated as a class (`475.20`) |
+| 4 | **DONE 2026-08-13** | 15 constants enumerated and classified in `docs/P4-curated-vs-derivable.md`; 9 are fit-to-hg38, 8 of those since validated or replaced for mouse. One (`RMSK_AMBIGUOUS_REPNAMES`) measured to silently cost mouse 10 U5 transcripts (`475.20`) |
 | 5 | **PASS 2026-08-12** | All four hg38 artifacts regenerated; SE and PE rerun; 0.135% / 0.155% of reads move, top-10 families stable to <1%. Divergence traced to rmsk-era drift (83 reassignments) + the `475.41` Gencode residue, both accepted with reasons. Changelog §10 |
 | 6 | 0 of 4 mouse artifacts valid | All mm10/mm39 outputs predate a known fix (`475.6`–`475.15`) |
 
@@ -589,6 +589,8 @@ refdata/mm.repbase-class-family.tsv`.
 ## Pointers
 
 - `.forge/stages/2-architect/notes/FIX-PLAN-bowtie2-index.md` — T-05 rewrite plan (§2–§4b, §7)
+- `docs/P4-curated-vs-derivable.md` — **which rules carry independent evidence and which were fit
+  to the hg38 answer**, item by item, with each one's mouse counterpart and validation
 - `docs/MASTER_FILELIST-decisions.md` — **the full decision record for the filelist generator**:
   every rule, the function that implements it, the measurement that justified it, and the
   alternatives that were rejected with the numbers that killed them
