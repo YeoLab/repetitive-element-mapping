@@ -593,3 +593,56 @@ reinstating it would reintroduce the double-count `475.11` removed.
 
 What this does *not* close: the residue is still 555 (mm39) and 771 (mm10) against hg38's 559. The
 remaining clone-named `Gm*` small RNAs are `475.41`'s scope.
+
+---
+
+## 12. M-9 — the pipeline end-to-end on real mouse eCLIP data (2026-08-14, `475.14`)
+
+Every mouse check before this one compared **static files**. M-8 (§8) proves the three artifacts
+are internally consistent; it does not prove the pipeline can read them. This is the first run of
+the actual workflow on a mouse reference set: **PASS, 70/70 steps, exit 0.**
+
+Full write-up and comparison artifacts: `tests/m9_mouse_smoke/`. Config:
+`examples/repeat_mapping_SE_mm10.yaml`.
+
+**The blocker was the data, and it exists.** M-9 needs a mouse sample carrying *both* pipeline
+inputs — the trimmed fastq and the genome-mapped rmRep BAM. `EV245` from `eric_ifit_vsv_clips`
+(IFIT2/IFIT3 seCLIP, mm10+VSV) is the only one in the lab tree that does: 12,310,292 IP and
+14,804,186 INPUT reads, the same order as the hg38 `se_full` baseline. bowtie2 accepted the mm10
+index at 36.64% / 56.44%.
+
+**The repeat arm is alive at mouse scale** — the `475.16` check, which only a full-size run can
+make, since downsampled hg38 runs were fine while full ones assigned `RepFamilyReads 0`:
+
+| | AllReads | UsableReads | GenomicReads | RepFamilyReads |
+|---|---|---|---|---|
+| IP | 6,451,354 | 3,950,961 (.612) | 1,278,195 (.324) | **2,672,766 (.676)** |
+| INPUT | 9,997,487 | 7,378,033 (.738) | 1,398,056 (.189) | **5,979,977 (.811)** |
+
+**Multifamily fraction is comparable to human**, the criterion that needed an hg38 comparator:
+
+| run | withpipes | nopipes | IP reads | multifamily |
+|---|---|---|---|---|
+| hg38 SE reference | 1,915 | 182 | 17,691,900 | **1.05%** |
+| mm10 EV245 | 1,748 | 313 | 3,950,961 | **0.91%** |
+
+Both carry 13 `unique_*` rows. Mouse's larger `nopipes` count is mm10's `rmsk` naming more
+families, not a split.
+
+**Warnings triaged: none in any job log.** Two element names that look wrong for mouse and are
+not — `antisense_Alu` is legitimate, because UCSC's mm10 `rmsk` files B1 SINEs (`B1F`, `B1F1`,
+`B1F2` …) under `repFamily = Alu`; `antisense_L1`, `antisense_B4` and `MTB_MM_LTR` are
+mouse-specific as expected.
+
+**§11 confirmed on real data.** The 10 U5 transcripts the per-assembly ambiguity fix recovered are
+not inert annotation: `RNU5G` carries **702 IP / 4,766 INPUT reads** in this run. Mouse U5 rested
+on a single transcript before.
+
+Scope actually covered: **mm10 SE only.** mm39 has no eCLIP sample — every mouse eCLIP in the tree
+is mm10-mapped, and an mm39 rmRep BAM means rerunning the upstream eCLIP pipeline. No mouse PE
+dataset exists at all. Both tracked in `-v55`.
+
+**Environment note.** `sbatch` cannot submit from inside a compute-node job on TSCC2
+(`resolve_ctls_from_dns_srv: res_nsearch error: Unknown host`), so `profiles/tscc2_snakemake9` is
+unusable there — Snakemake warns about this itself. Run the profile from a login node, or run
+locally with `--cores 8 --resources mem_mb=32000` to serialize the 32 GB dedup jobs (~28 min wall).

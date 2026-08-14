@@ -414,9 +414,18 @@ M-4  475.10  mouse MASTER_FILELIST           <- T-09, M-3, P-5
 M-5  475.11  mouse DROP_EXACT re-derive      <- M-4
 M-6  475.12  mouse UniqueGenomicElements     <- M-1, M-2, M-4
 M-8  475.13  mouse acceptance suite          <- M-5, M-6, M-7
-M-9  475.14  end-to-end pipeline smoke       <- M-8, P-1a
+M-9  475.14  end-to-end pipeline smoke       [done 2026-08-14, mm10 SE]
 M-10 475.15  package + document              <- M-9
 ```
+
+`M-9` is closed: the pipeline runs end to end on real mouse eCLIP data (`EV245`, mm10, 12.3 M IP
+reads), 70/70 steps, `RepFamilyReads` 0.676, multifamily 0.91% against hg38's 1.05%. Artifacts and
+the full comparison are in `tests/m9_mouse_smoke/`; changelog §12. It covered **mm10 SE only** —
+mm39 and PE have no eCLIP dataset in the tree, tracked in `-v55`.
+
+The per-assembly repName ambiguity fix (`-9j2`, changelog §11) landed on the way and rebuilt all
+four mouse artifacts; `RNU5G` carries 702 IP reads in the M-9 run, where mouse U5 had rested on a
+single transcript.
 
 Three gaps found 2026-08-10 that were in no document or issue:
 
