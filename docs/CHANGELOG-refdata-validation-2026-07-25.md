@@ -540,3 +540,56 @@ rerunning costs, on hg38:
 
 A mouse build inside those bounds is behaving as human does. Outside them, something is wrong that
 hg38 would have caught. Comparison artifacts: `tests/p5_regenerated_hg38/`.
+
+---
+
+## 11. repName ambiguity is a per-assembly property (2026-08-14, `-9j2`)
+
+The one finding of P-4 (§`docs/P4-curated-vs-derivable.md` §7) that had teeth: `RMSK_AMBIGUOUS_REPNAMES
+= {U5, U17}` in `generate_master_filelist.py` was a human observation applied globally, and it was
+the only curated constant measured to actively degrade the mouse artifacts.
+
+hg38's `U5` loci really do span `RNU5A/B/D/E/F` and its `U17` loci span `SNORA` and `RNU105`, so
+tier 2 cannot name a family from the repName and must fall through to tier 3 — which always lands,
+because human symbols encode the subfamily (`RNU5A-4P` → `RNU5A`). Mouse names the same genes
+`Gm24043`, `Gm23102`, `Gm22365`, so tier 3 returns nothing, tier 4 has no U5 family, and the
+transcripts are dropped for a conflict mouse does not have: it carries one U5 family (`RNU5G`) and
+one U17 family (`SNORA`).
+
+`resolve_ambiguous_repnames` now decides ambiguity from each assembly's own data. A listed repName
+whose transcripts resolve to exactly one family downstream is not ambiguous there and tier 2 uses
+that family; zero or several leaves the fallthrough unchanged. Overrides count as evidence, so an
+operator-supplied second family restores ambiguity. Tier 2 runs over every candidate before any row
+is emitted, because the question is a property of the whole assembly.
+
+**Measured**, transcripts overlapping each ambiguous repName and the families tiers 3/4 give them:
+
+| | `U5` | `U17` | verdict |
+|---|---|---|---|
+| hg38 | 31 → `RNU5A` 8, `RNU5B` 5, `RNU5D` 2, `RNU5E` 9, `RNU5F` 7 | 8 → `SNORA` 5, `RNU105` 2 | ambiguous, unchanged |
+| mm10 | 11 → `RNU5G` 1, unresolved 10 | 13 → `SNORA` 9, unresolved 4 | one family each, tier 2 used |
+| mm39 | identical to mm10 | identical to mm10 | one family each, tier 2 used |
+
+**hg38 is untouched, verified rather than argued.** The regenerated filelist is *byte-identical* to
+P-5's — md5 `2b6d6807fe4ebd7d822562d9cab1155c` — and the tier totals are the §10 ones exactly:
+tier 2 4,104 / tier 3 755 / tier 4 298, residue 559.
+
+**Mouse gains 14 rows per assembly and every one is an addition** — no row changed family, none was
+lost:
+
+| | MASTER_FILELIST | index FASTA | UniqueGenomicElements | small-RNA residue |
+|---|---|---|---|---|
+| mm10 | 11,568 → **11,582** | 5,530 → **5,544** | 5,154,593 → **5,154,607** | 785 → **771** |
+| mm39 | 25,894 → **25,908** | 5,746 → **5,760** | 5,327,735 → **5,327,749** | 569 → **555** |
+
+The 14 are 10 U5 (`Gm22265`, `Gm24871`, `Gm24043`, `Gm23102`, `Gm22365`, `Gm25099`, `Gm25313`,
+`Gm23793`, `Gm23287`, `Gm23143` → `RNU5G`) and 4 U17 (→ `SNORA`), the exact counts `-9j2` predicted.
+Mouse U5 now rests on **11** transcripts, not 1.
+
+All four mouse artifacts were rebuilt on the new filelists — the Gencode block feeds the index and
+the BED too — and the §8 acceptance suite is **6/6 PASS** on both assemblies, with the
+RepBase/Gencode family overlap still `{SNORD}`. The RepBase `U5B1` record stays dropped;
+reinstating it would reintroduce the double-count `475.11` removed.
+
+What this does *not* close: the residue is still 555 (mm39) and 771 (mm10) against hg38's 559. The
+remaining clone-named `Gm*` small RNAs are `475.41`'s scope.

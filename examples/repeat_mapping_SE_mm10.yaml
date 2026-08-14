@@ -1,0 +1,31 @@
+# M-9 (475.14): end-to-end smoke run on real mouse eCLIP data with the
+# regenerated mm10 reference set.
+#
+# Sample EV245 from eric_ifit_vsv_clips (IFIT2/IFIT3 seCLIP, mm10+VSV), the only
+# mouse eCLIP in the lab tree carrying both inputs this pipeline needs: the
+# trimmed fastq and the genome-mapped (rmRep) BAM. 12.3 M IP / 14.8 M INPUT
+# reads, the same order as the hg38 se_full baseline (10.3 M).
+#
+# The BAM was mapped to a mm10+VSV hybrid, so it carries a VSV contig the mm10
+# UniqueGenomicElements BED does not cover; those reads simply resolve to no
+# unique element. Its STAR annotation was gencode vM15 against the refdata's
+# vM23 -- both mm10, so coordinates agree.
+dataset: mm10_EV245
+se_or_pe: SE
+output_dir: results/se_mm10
+
+reference:
+  bowtie2_db: examples/inputs/mm10/bowtie2_index
+  bowtie2_prefix: MASTER_FILELIST.20260811.wrepbaseandtRNA.fa.fixed.fa.UpdatedSimpleRepeat
+  file_list: examples/inputs/mm10/MASTER_FILELIST.20260811.wrepbaseandtRNA.enst2id.fixed.UpdatedSimpleRepeat.wmiRs.tsv
+  gencode_gtf: examples/inputs/mm10/downloaded/gencode.vM23.annotation.gtf
+  gencode_table_browser: examples/inputs/mm10/gencode.vM23.annotation.gtf.parsed_ucsc_tableformat
+  rep_mask_bed: examples/inputs/mm10/UniqueGenomicElements.mm10.bed
+
+barcode1:
+  r1: /tscc/projects/ps-yeolab3/bay001/eric_ifit_vsv_clips/permanent_data/mm10_vsv/EV245_EV256/results/VSV.EV245_CLIP.umi.r1.fqTrTr.sorted.fq.gz
+  bam: /tscc/projects/ps-yeolab3/bay001/eric_ifit_vsv_clips/permanent_data/mm10_vsv/EV245_EV256/results/VSV.EV245_CLIP.umi.r1.fq.genome-mappedSoSo.bam
+
+input:
+  r1: /tscc/projects/ps-yeolab3/bay001/eric_ifit_vsv_clips/permanent_data/mm10_vsv/EV245_EV256/results/VSV.EV245_INPUT.umi.r1.fqTrTr.sorted.fq.gz
+  bam: /tscc/projects/ps-yeolab3/bay001/eric_ifit_vsv_clips/permanent_data/mm10_vsv/EV245_EV256/results/VSV.EV245_INPUT.umi.r1.fq.genome-mappedSoSo.bam

@@ -149,6 +149,14 @@ that assembly and tier 2 should use it. mm39 would map all 11 U5-overlapping tra
 **Validation:** hg38 tier-2/3/4 totals must not move (4,104 / 755 / 298), and mm39's unresolved
 residue must fall by exactly the 10 U5 and 4 U17 transcripts. Tracked in `-9j2`.
 
+> **FIXED 2026-08-14 (`-9j2`), and both validation criteria met exactly.**
+> `resolve_ambiguous_repnames` decides ambiguity per assembly. hg38's regenerated filelist is
+> **byte-identical** to P-5's (`2b6d6807fe4ebd7d822562d9cab1155c`) with tier totals 4,104 / 755 /
+> 298 unmoved — both names stay ambiguous there. mm39's residue fell 569 → 555 and mm10's
+> 785 → 771, in both cases exactly the 10 U5 + 4 U17. Every one of the 14 is an **addition**: no
+> row changed family and none was lost. Mouse U5 now rests on 11 transcripts, not 1. All four
+> mouse artifacts were rebuilt and the M-8 suite is 6/6 PASS on both assemblies.
+
 The other 19 map entries carry no mouse penalty, measured: of mm39's 569 unresolved small-RNA
 transcripts, **554 overlap no rmsk small-RNA locus at all** and **zero** overlap a mouse-specific
 repName the map lacks (`BC1_Mm`, `4.5SRNA`). The map's human origin is not, by itself, a mouse gap.
