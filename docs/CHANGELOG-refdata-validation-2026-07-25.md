@@ -642,7 +642,21 @@ Scope actually covered: **mm10 SE only.** mm39 has no eCLIP sample — every mou
 is mm10-mapped, and an mm39 rmRep BAM means rerunning the upstream eCLIP pipeline. No mouse PE
 dataset exists at all. Both tracked in `-v55`.
 
-**Environment note.** `sbatch` cannot submit from inside a compute-node job on TSCC2
-(`resolve_ctls_from_dns_srv: res_nsearch error: Unknown host`), so `profiles/tscc2_snakemake9` is
-unusable there — Snakemake warns about this itself. Run the profile from a login node, or run
-locally with `--cores 8 --resources mem_mb=32000` to serialize the 32 GB dedup jobs (~28 min wall).
+**Environment note — `unset SLURM_JOB_ID` before using the SLURM profile from a compute node.**
+Inside an interactive TSCC2 job, `profiles/tscc2_snakemake9` dies immediately with
+
+```
+SLURM sbatch failed. The error message was sbatch: error: resolve_ctls_from_dns_srv: res_nsearch error: Unknown host
+sbatch: error: fetch_config: DNS SRV lookup failed
+```
+
+This is **not** `sbatch` being unusable on compute nodes — bare `sbatch --wrap` and
+`sbatch --test-only` both submit fine with `SLURM_JOB_ID` set. It is specific to Snakemake's SLURM
+executor, which takes a different path when it believes it is running inside a job (it also prints
+*"You are running snakemake in a SLURM job context"*). Verified both ways on a throwaway one-rule
+workflow: fails with the variable set, submits and completes with it unset.
+
+This run predates that diagnosis and was executed locally instead, which is the fallback if you
+would rather not submit at all: `--cores 8 --use-conda --conda-prefix conda-env
+--resources mem_mb=32000`, ~28 min wall. The memory cap is required — `dedup` asks 32,000 `mem_mb`,
+so without it Snakemake runs eight of them at once on a 32 GB node.

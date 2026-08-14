@@ -83,10 +83,25 @@ not a correctness proof.
 ```bash
 module load singularitypro
 conda activate snakemake9
+
+# From inside an interactive job, this is required first -- see below.
+unset SLURM_JOB_ID
+snakemake --configfile examples/repeat_mapping_SE_mm10.yaml \
+  --profile profiles/tscc2_snakemake9
+```
+
+**`unset SLURM_JOB_ID` before using the SLURM profile from a compute node.** With it set,
+Snakemake's SLURM executor dies immediately on `resolve_ctls_from_dns_srv: res_nsearch error:
+Unknown host` / `DNS SRV lookup failed`. That is not `sbatch` being unusable there — bare
+`sbatch --wrap` and `sbatch --test-only` both submit fine with the variable set. It is specific to
+the executor, which takes a different path when it believes it is running inside a job.
+
+The run recorded here predates that diagnosis and used the local fallback, which is also fine:
+
+```bash
 snakemake --configfile examples/repeat_mapping_SE_mm10.yaml \
   --cores 8 --use-conda --conda-prefix conda-env --resources mem_mb=32000
 ```
 
-`--resources mem_mb=32000` serializes the 32 GB dedup jobs on a 32 GB node. The SLURM profile is
-the faster path from a login node; `sbatch` cannot reach `slurmctld` from inside a compute-node
-job, so it is not usable there.
+~28 min wall. The memory cap is required — `dedup` asks 32,000 `mem_mb`, so without it Snakemake
+runs eight of them at once on a 32 GB node.
