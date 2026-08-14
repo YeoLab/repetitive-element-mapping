@@ -117,7 +117,8 @@ RMSK_REPNAME_TO_FAMILY = {
 }
 
 # U5 subfamilies and U17 are the two repNames that map to more than one family;
-# both are resolved by gene_name instead.
+# both are resolved by gene_name instead -- but only where the ambiguity is
+# real, see resolve_ambiguous_repnames.
 RMSK_REPNAME_TO_FAMILY_UPPER = {
     k.upper(): v for k, v in RMSK_REPNAME_TO_FAMILY.items()
 }
@@ -459,7 +460,8 @@ def overlapping_repname(loci, chrom, start, end, min_frac=0.5):
     Strongest of the three tiers: 3,932 of hg38's 5,261 rows. Its output is
     mapped through RMSK_REPNAME_TO_FAMILY, which is effectively a function --
     19 of 21 observed repNames are unambiguous; the two that are not are listed
-    in RMSK_AMBIGUOUS_REPNAMES and fall through to gene_name.
+    in RMSK_AMBIGUOUS_REPNAMES and fall through to gene_name where the ambiguity
+    holds (resolve_ambiguous_repnames).
     """
     best, best_ov = None, 0
     span = max(1, end - start)
@@ -470,6 +472,39 @@ def overlapping_repname(loci, chrom, start, end, min_frac=0.5):
         if ov > best_ov:
             best, best_ov = name, ov
     return best if best_ov / span >= min_frac else None
+
+
+def resolve_ambiguous_repnames(rep_by_tid, gtf, overrides, rfam):
+    """Which of RMSK_AMBIGUOUS_REPNAMES are not actually ambiguous HERE.
+
+    RMSK_AMBIGUOUS_REPNAMES is a human observation: hg38's 'U5' loci cover
+    RNU5A/B/D/E/F and its 'U17' loci cover SNORA and RNU105, so the repName
+    alone cannot name a family and tier 2 falls through to gene_name. That is
+    free for human, whose symbols encode the subfamily (RNU5A-4P -> RNU5A), and
+    expensive for mouse, whose same genes are named Gm24043, Gm23102 ...: tier 3
+    returns nothing, tier 4 has no U5 family, and 10 U5 plus 4 U17 transcripts
+    are dropped for a conflict mouse does not have -- it carries one U5 family
+    (RNU5G) and one U17 family (SNORA). See -9j2.
+
+    So ambiguity is decided per assembly, from the families its own transcripts
+    resolve to downstream: a repName covering exactly one family is not
+    ambiguous there and is returned mapped to it, for tier 2 to use. Zero or
+    several leaves it ambiguous and the fallthrough is unchanged, which is what
+    hg38 gets for both names.
+
+    Overrides count as evidence -- they are the operator's authoritative family
+    for a transcript, so a repName spanning two of them stays ambiguous.
+    """
+    families = collections.defaultdict(set)
+    for tid, rep in rep_by_tid.items():
+        if rep not in RMSK_AMBIGUOUS_REPNAMES:
+            continue
+        family = (overrides.get(tid) or family_from_gene_name(gtf[tid][1])
+                  or rfam.get(tid.split('.')[0]))
+        if family:
+            families[rep].add(family)
+    return {rep: next(iter(fams))
+            for rep, fams in families.items() if len(fams) == 1}
 
 
 def read_repeatmasker_names(path):
@@ -535,6 +570,10 @@ def build_gencode_rows(args, log):
       3 gene_name pattern rules             831 rows         (family_from_gene_name)
         neither                             473 rows         -> OMITTED
 
+    Tier 2 runs over every candidate before any row is emitted, because whether
+    a repName in RMSK_AMBIGUOUS_REPNAMES is really ambiguous is a property of
+    the whole assembly -- see resolve_ambiguous_repnames (-9j2).
+
     SELECTION IS A SIDE EFFECT OF RESOLUTION: a transcript is in the filelist
     iff it resolves to a family. There is no transcript-type filter -- that
     approach was discredited in -475.35.
@@ -554,18 +593,31 @@ def build_gencode_rows(args, log):
     small_rna = (read_rmsk_small_rna_loci(args.rmsk_smallrna_bed)
                  if args.rmsk_smallrna_bed else {})
 
+    # Tier 2 is computed for every candidate up front so that the ambiguity of
+    # its output can be judged against the whole assembly before it is used.
+    candidates = [(tid, loc) for tid, loc in loci.items()
+                  if loc[0] in allowed and tid in gtf]
+    rep_by_tid = {}
+    for tid, (chrom, start, end) in candidates:
+        rep = overlapping_repname(small_rna, chrom, start, end)
+        if rep:
+            rep_by_tid[tid] = rep
+    unambiguous = resolve_ambiguous_repnames(rep_by_tid, gtf, overrides, rfam)
+    if unambiguous:
+        log.info(f'  ambiguous repNames unambiguous here: {unambiguous}')
+
     by_family = collections.defaultdict(list)
     stats = collections.Counter()
-    for tid, (chrom, start, end) in loci.items():
-        if chrom not in allowed or tid not in gtf:
-            continue
+    for tid, (chrom, start, end) in candidates:
         gene_id, gene_name, gene_type = gtf[tid]
         family = overrides.get(tid)
         if family:
             stats['override'] += 1
         else:
-            rep = overlapping_repname(small_rna, chrom, start, end)
-            if rep and rep not in RMSK_AMBIGUOUS_REPNAMES:
+            rep = rep_by_tid.get(tid)
+            if rep in RMSK_AMBIGUOUS_REPNAMES:
+                family = unambiguous.get(rep)
+            elif rep:
                 family = RMSK_REPNAME_TO_FAMILY.get(rep)
             if family:
                 stats['rmsk'] += 1

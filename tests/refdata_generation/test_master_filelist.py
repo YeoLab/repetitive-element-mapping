@@ -90,6 +90,58 @@ def test_family_from_mouse_gene_name(gene_name, expected):
     assert family_from_gene_name(gene_name) == expected
 
 
+# ── per-assembly repName ambiguity (-9j2) ────────────────────────────────
+
+def _gtf(names):
+    """{tid: (gene_id, gene_name, gene_type)} -- only gene_name is read here."""
+    return {t: (f"G{t}", n, "snRNA") for t, n in names.items()}
+
+
+def test_human_u5_stays_ambiguous():
+    """hg38's U5 loci really do cover five families, so tier 2 must not fire."""
+    from generate_master_filelist import resolve_ambiguous_repnames
+    gtf = _gtf({"t1": "RNU5A-1", "t2": "RNU5B-1", "t3": "RNU5F-1"})
+    rep = {"t1": "U5", "t2": "U5", "t3": "U5"}
+    assert resolve_ambiguous_repnames(rep, gtf, {}, {}) == {}
+
+
+def test_mouse_u5_resolves_to_its_single_family():
+    """mm10/mm39 carry one U5 family, so the 10 Gm* copies are not a conflict."""
+    from generate_master_filelist import resolve_ambiguous_repnames
+    gtf = _gtf({"t1": "Rnu5g", "t2": "Gm24043", "t3": "Gm23102"})
+    rep = {"t1": "U5", "t2": "U5", "t3": "U5"}
+    assert resolve_ambiguous_repnames(rep, gtf, {}, {}) == {"U5": "RNU5G"}
+
+
+def test_repname_with_no_resolvable_transcript_stays_ambiguous():
+    """Zero evidence is not evidence of one family."""
+    from generate_master_filelist import resolve_ambiguous_repnames
+    gtf = _gtf({"t1": "Gm24043", "t2": "Gm23102"})
+    assert resolve_ambiguous_repnames({"t1": "U5", "t2": "U5"}, gtf, {}, {}) == {}
+
+
+def test_unambiguous_repnames_are_not_considered():
+    """Only RMSK_AMBIGUOUS_REPNAMES are in question; U1 is already a function."""
+    from generate_master_filelist import resolve_ambiguous_repnames
+    gtf = _gtf({"t1": "RNU1-3"})
+    assert resolve_ambiguous_repnames({"t1": "U1"}, gtf, {}, {}) == {}
+
+
+def test_rfam_supplies_evidence_when_gene_name_cannot():
+    from generate_master_filelist import resolve_ambiguous_repnames
+    gtf = _gtf({"t1": "Gm22365"})
+    rfam = {"t1": "SNORA"}
+    assert resolve_ambiguous_repnames({"t1": "U17"}, gtf, {}, rfam) == {"U17": "SNORA"}
+
+
+def test_an_override_can_make_a_repname_ambiguous_again():
+    """The operator's family is authoritative evidence, so a second one counts."""
+    from generate_master_filelist import resolve_ambiguous_repnames
+    gtf = _gtf({"t1": "Rnu5g", "t2": "Gm24043"})
+    rep = {"t1": "U5", "t2": "U5"}
+    assert resolve_ambiguous_repnames(rep, gtf, {"t2": "RNU5X"}, {}) == {}
+
+
 # ── repeat rows ──────────────────────────────────────────────────────────
 
 def _class_family_file(tmp_path, rows):
